@@ -19,6 +19,15 @@ public abstract class RangedDamageMixin {
 
     @ModifyVariable(method = "damage", at = @At("HEAD"), argsOnly = true)
     private float kingdomUnique$rangedDamage(float amount, DamageSource source) {
+        LivingEntity self = (LivingEntity) (Object) this;
+
+        // アポロンの光の矢はアンデッド系にのみ2倍ダメージ。
+        if (source.getSource() instanceof net.minecraft.entity.projectile.ArrowEntity arrow
+                && arrow.getCommandTags().contains("ku_light_arrow")
+                && self.getType().isIn(net.minecraft.registry.tag.EntityTypeTags.UNDEAD)) {
+            amount *= 2.0F;
+        }
+
         if (!(source.getSource() instanceof PersistentProjectileEntity)
                 || !(source.getAttacker() instanceof ServerPlayerEntity player)) {
             return amount;

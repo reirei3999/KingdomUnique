@@ -34,7 +34,7 @@ public final class FinalEventHandler {
         ServerTickEvents.END_SERVER_TICK.register(FinalEventHandler::onTick);
 
         ServerPlayNetworking.registerGlobalReceiver(DetonatePayload.ID,
-                (payload, context) -> UniqueWeaponManager.detonateLightArrow(context.player()));
+                (payload, context) -> UniqueWeaponManager.fireLightArrowWithCooldown(context.player()));
 
         ServerLivingEntityEvents.AFTER_DEATH.register(FinalEventHandler::onDeath);
     }
@@ -44,6 +44,7 @@ public final class FinalEventHandler {
         BuildingManager.onServerTick(server);
         UniqueWeaponManager.tick(server);
         UniqueWeaponManager.tickEffects(server);
+        UniqueWeaponManager.tickLightArrows(server);
     }
 
     /** 撃破時の固有武器ギミック（ムラマサ成長・ゲイボルグクール短縮）。 */

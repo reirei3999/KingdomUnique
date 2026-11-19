@@ -3,13 +3,9 @@ package com.kingdomunique.selection;
 import com.kingdomunique.data.WorldUniqueData;
 import com.kingdomunique.effect.RelicEffects;
 import com.kingdomunique.effect.CurseEffects;
-import com.kingdomunique.item.ModItems;
 import com.kingdomunique.network.OpenSelectionPayload;
 import com.kingdomunique.registry.ContentRegistry;
-import com.kingdomunique.registry.CurseRegistry;
-import com.kingdomunique.registry.RelicRegistry;
 import net.fabricmc.fabric.api.networking.v1.ServerPlayNetworking;
-import net.minecraft.item.ItemStack;
 import net.minecraft.server.network.ServerPlayerEntity;
 import net.minecraft.server.world.ServerWorld;
 import net.minecraft.text.Text;
@@ -132,20 +128,15 @@ public final class SelectionManager {
         }
         PENDING.remove(player.getUuid());
 
-        grantItemIfNeeded(player, chosenId);
+        // 実体アイテムがある場合のみ安全に付与する（空気は渡さない）。
+        com.kingdomunique.util.RewardUtil.grantPhysical(player, chosenId);
         RelicEffects.applyAttributes(player);
         CurseEffects.applyAttributes(player);
 
-        player.sendMessage(Text.literal("§6[KingdomUnique] §f" + ContentRegistry.nameOf(chosenId)
-                + " §7を獲得しました！（世界で唯一）"), false);
-    }
-
-    private static void grantItemIfNeeded(ServerPlayerEntity player, String id) {
-        if (RelicRegistry.BLADE.equals(id)) {
-            player.giveItemStack(new ItemStack(ModItems.SLAUGHTER_BLADE));
-        } else if (CurseRegistry.DESTRUCTION.equals(id)) {
-            player.giveItemStack(new ItemStack(ModItems.DESTRUCTION_PICKAXE));
-        }
+        String name = ContentRegistry.nameOf(chosenId);
+        player.sendMessage(Text.literal(
+                com.kingdomunique.util.RewardUtil.rewardMessage(kind, name)
+                        + " §7（世界で唯一）"), false);
     }
 
     /** 初回覚醒で既に能力を持っているか（ステップ1互換）。 */

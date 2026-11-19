@@ -1,24 +1,23 @@
 package com.kingdomunique.item.unique;
 
-import net.minecraft.entity.LivingEntity;
+import net.fabricmc.fabric.api.event.player.AttackBlockCallback;
 import net.minecraft.entity.player.PlayerEntity;
 import net.minecraft.item.Item;
 import net.minecraft.item.ItemStack;
 import net.minecraft.server.network.ServerPlayerEntity;
+import net.minecraft.util.ActionResult;
 import net.minecraft.util.Hand;
 import net.minecraft.util.TypedActionResult;
-import net.minecraft.util.UseAction;
 import net.minecraft.world.World;
 
 /**
- * 神弓アポロンの太陽弓。BowItem を継承せず Item を直接拡張し、
- * 矢を一切消費せずに光の矢を放つ。引き絞り時間・UseAction.BOW により
- * バニラと同じ弓持ち構え／引き絞りモーションが再生される。
+ * 神弓アポロンの太陽弓。引き絞り（UseAction.BOW）を完全に廃止し、
+ * 見た目だけ弓の通常 Item として実装する。
+ *
+ *  - 左クリック（空振り・ブロック攻撃）: 光の矢を即時発射（CT 8秒）
+ *  - 右クリック: 飛翔中の自分の光の矢を空中起爆
  */
 public final class ApolloBowItem extends Item implements UniqueWeapon {
-
-    /** バニラの弓と同じ最大チャージ時間（ティック）。 */
-    private static final int USE_DURATION = 72000;
 
     public ApolloBowItem(Settings settings) {
         super(settings);
@@ -29,36 +28,27 @@ public final class ApolloBowItem extends Item implements UniqueWeapon {
         return "apollo_bow";
     }
 
-    @Override
-    public int getMaxUseTime(ItemStack stack, LivingEntity user) {
-        return USE_DURATION;
-    }
-
-    @Override
-    public UseAction getUseAction(ItemStack stack) {
-        return UseAction.BOW;
-    }
-
-    @Override
-    public boolean isUsedOnRelease(ItemStack stack) {
-        return true;
+    /** ブロックを攻撃した瞬間の左クリックも発射扱いにする。 */
+    public static void registerEvents() {
+        AttackBlockCallback.EVENT.register((player, world, hand, pos, direction) -> {
+            if (world.isClient() || hand != Hand.MAIN_HAND
+                    || !player.getMainHandStack().isOf(UniqueWeapons.APOLLO_BOW)
+                    || player.getItemCooldownManager().isCoolingDown(UniqueWeapons.APOLLO_BOW)) {
+                return ActionResult.PASS;
+            }
+            if (player instanceof ServerPlayerEntity serverPlayer) {
+                UniqueWeaponManager.fireLightArrowWithCooldown(serverPlayer);
+            }
+            return ActionResult.SUCCESS;
+        });
     }
 
     @Override
     public TypedActionResult<ItemStack> use(World world, PlayerEntity user, Hand hand) {
         ItemStack stack = user.getStackInHand(hand);
-        // 矢の所持判定を一切行わず、常に引き絞りを開始する。
-        user.setCurrentHand(hand);
-        return TypedActionResult.consume(stack);
-    }
-
-    @Override
-    public void onStoppedUsing(ItemStack stack, World world, LivingEntity user, int remainingUseTicks) {
-        if (world.isClient()) {
-            return;
+        if (!world.isClient() && user instanceof ServerPlayerEntity player) {
+            UniqueWeaponManager.detonateLightArrow(player);
         }
-        if (user instanceof ServerPlayerEntity player) {
-            UniqueWeaponManager.fireLightArrow(player);
-        }
+        return TypedActionResult.success(stack);
     }
 }

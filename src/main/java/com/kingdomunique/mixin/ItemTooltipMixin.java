@@ -155,9 +155,9 @@ public abstract class ItemTooltipMixin {
                     "!メインハンド保持中は空腹の減少がわずかに増加"
             };
             case "apollo_bow" -> new String[]{
-                    "#右クリック: 光の矢を発射（矢を消費しない）",
+                    "#左クリック：光の矢発射（CT 8秒）",
+                    "#右クリック：空中起爆",
                     "~アンデッド系にダメージ2倍",
-                    "#矢の飛翔中に左クリック: 空中で太陽の爆発",
                     "~爆発: 範囲炎上＋燃焼・盲目付与"
             };
             case "mjolnir" -> new String[]{

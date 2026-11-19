@@ -17,7 +17,6 @@ public final class ItemCatalog {
     private static final List<Entry> ENTRIES = new ArrayList<>();
 
     static {
-        ENTRIES.add(new Entry("kingdom_emblem", "王国の証", () -> new ItemStack(ModItems.KINGDOM_EMBLEM)));
         ENTRIES.add(new Entry("hero_summon_horn", "英雄召喚の角笛", () -> new ItemStack(ModItems.HERO_SUMMON_HORN)));
         ENTRIES.add(new Entry("possession_orb", "憑依のオーブ", () -> new ItemStack(ModItems.POSSESSION_ORB)));
         ENTRIES.add(new Entry("blueprint_house", "設計図：民家", () -> new ItemStack(ModBlocks.HOUSE)));

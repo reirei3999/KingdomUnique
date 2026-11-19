@@ -62,7 +62,7 @@ public final class ItemMenuScreen extends Screen {
         context.drawCenteredTextWithShadow(this.textRenderer, this.title, this.width / 2, 14, 0xFFFFD700);
         context.drawCenteredTextWithShadow(this.textRenderer,
                 Text.literal("クリックでアイテムを入手（ユニーク武器は世界で一つだけ）"),
-                this.width / 2, 27, 0xAAAAAA);
+                this.width / 2, 27, 0xFFAAAAAA);
         super.render(context, mouseX, mouseY, delta);
     }
 

@@ -164,8 +164,12 @@ public final class ItemMenuHandler {
 
     private static void give(ServerPlayerEntity player, String id) {
         ItemStack stack = ItemCatalog.create(id);
-        if (stack.isEmpty()) {
+        if (stack.isEmpty() || stack.getItem() == net.minecraft.item.Items.AIR) {
+            player.sendMessage(Text.literal("§c[KingdomUnique] 指定されたアイテムは存在しません: " + id), false);
             return;
+        }
+        if (stack.getCount() <= 0) {
+            stack.setCount(1);
         }
         // 管理者メニューからは所有者に関係なく付与する（排他リストは変更しない）。
         player.giveItemStack(stack);

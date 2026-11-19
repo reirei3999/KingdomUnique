@@ -47,10 +47,6 @@ public final class ModItems {
                                             .styled(style -> style.withColor(Formatting.DARK_RED)
                                                     .withBold(true).withItalic(false)))));
 
-    /** 王国の証（村人を国民化する）。 */
-    public static final KingdomEmblemItem KINGDOM_EMBLEM = register("kingdom_emblem",
-            new KingdomEmblemItem(new Item.Settings().maxCount(16)));
-
     /** 英雄召喚の角笛。 */
     public static final HeroSummonHornItem HERO_SUMMON_HORN = register("hero_summon_horn",
             new HeroSummonHornItem(new Item.Settings().maxCount(1)));

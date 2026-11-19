@@ -27,9 +27,6 @@ public abstract class UniqueWeaponMixin {
             if (UniqueWeaponManager.held(player, "gae_bolg")) {
                 amount *= 2.5F;
             }
-            if (UniqueWeaponManager.held(player, "apollo_bow")) {
-                amount *= 2.0F;
-            }
             if (UniqueWeaponManager.held(player, "muramasa")) {
                 player.heal(amount * 0.2F);
                 player.addExhaustion(0.02F);

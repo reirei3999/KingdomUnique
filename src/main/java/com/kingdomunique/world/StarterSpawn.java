@@ -1,6 +1,7 @@
 package com.kingdomunique.world;
 
 import com.kingdomunique.KingdomUniqueMod;
+import com.kingdomunique.kingdom.KingdomData;
 import net.minecraft.block.Blocks;
 import net.minecraft.registry.tag.BiomeTags;
 import net.minecraft.server.MinecraftServer;
@@ -17,7 +18,7 @@ import java.util.concurrent.ThreadLocalRandom;
 public final class StarterSpawn {
 
     private static final int RANGE = 2000;
-    private static final int MIN_DISTANCE = 600;
+    private static final int MIN_DISTANCE = 500;
     private static final int MAX_ATTEMPTS = 256;
     private static final int VILLAGE_OFFSET = 12;
 
@@ -47,12 +48,15 @@ public final class StarterSpawn {
         player.setSpawnPoint(World.OVERWORLD, spawn.up(), 0.0F, false, false);
         data.put(player.getUuid(), spawn);
 
+        // スポーン地点そのものを王国の中心（初期領土半径100）として即時登録する。
+        com.kingdomunique.kingdom.KingdomManager.setKingdomCenter(player, spawn, true);
+
+        // 村はプレイヤーの目の前〜半径15ブロック以内に生成する（ズレをなくす）。
         int vx = spawn.getX() + VILLAGE_OFFSET;
         int vz = spawn.getZ() + VILLAGE_OFFSET;
         VillageBuilder.generateStarterVillage(world, vx, vz);
-        com.kingdomunique.kingdom.KingdomManager.setKingdomCenter(player,
-                new BlockPos(vx, spawn.getY(), vz), false);
-        player.sendMessage(Text.literal("§6[KingdomUnique] 新しい王国の地に到着した。近くに初期村が築かれた。"), false);
+        player.sendMessage(Text.literal("§6[KingdomUnique] この地があなたの王国となった。"
+                + "すぐそばに初期村が築かれた。"), false);
         KingdomUniqueMod.LOGGER.info("[KingdomUnique] Starter spawn {} -> village ({}, {}) for {}.",
                 spawn.getX() + "," + spawn.getZ(), vx, vz, player.getName().getString());
     }
@@ -72,12 +76,25 @@ public final class StarterSpawn {
                 continue;
             }
             boolean tooClose = false;
+            // 既存プレイヤーのスポーン座標との距離。
             for (BlockPos existing : data.all()) {
                 double dx = existing.getX() - x;
                 double dz = existing.getZ() - z;
                 if (dx * dx + dz * dz < MIN_DISTANCE * MIN_DISTANCE) {
                     tooClose = true;
                     break;
+                }
+            }
+            // 既存王国の中心座標との距離（こちらも最低500マス離す）。
+            if (!tooClose) {
+                for (KingdomData.KingdomInfo info
+                        : KingdomData.getOrCreate(world).all().values()) {
+                    double dx = info.centerX() - x;
+                    double dz = info.centerZ() - z;
+                    if (dx * dx + dz * dz < MIN_DISTANCE * MIN_DISTANCE) {
+                        tooClose = true;
+                        break;
+                    }
                 }
             }
             if (tooClose) {

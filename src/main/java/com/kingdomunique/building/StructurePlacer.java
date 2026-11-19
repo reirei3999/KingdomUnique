@@ -11,7 +11,15 @@ public final class StructurePlacer {
     }
 
     public static void place(ServerWorld world, BlockPos center, BuildingType type) {
+        int r = radius(type) + 4;
+        // 構造物がまたがる全チャンクを確実にロードする。
+        for (int cx = (center.getX() - r) >> 4; cx <= (center.getX() + r) >> 4; cx++) {
+            for (int cz = (center.getZ() - r) >> 4; cz <= (center.getZ() + r) >> 4; cz++) {
+                world.getChunk(cx, cz);
+            }
+        }
         clear(world, center, radius(type));
+        foundation(world, center, radius(type));
         switch (type) {
             case HOUSE -> house(world, center);
             case BARRACKS -> barracks(world, center);
@@ -38,11 +46,24 @@ public final class StructurePlacer {
     private static void clear(ServerWorld world, BlockPos center, int radius) {
         for (int dx = -radius; dx <= radius; dx++) {
             for (int dz = -radius; dz <= radius; dz++) {
-                for (int y = 0; y < 14; y++) {
+                for (int y = -2; y < 14; y++) {
                     BlockPos pos = center.add(dx, y, dz);
                     if (!world.getBlockState(pos).isAir()) {
                         world.setBlockState(pos, Blocks.AIR.getDefaultState());
                     }
+                }
+            }
+        }
+    }
+
+    /** 建物下端（center.y-1）から下へ自然な土／丸石の基礎を埋める。 */
+    private static void foundation(ServerWorld world, BlockPos center, int radius) {
+        for (int dx = -radius; dx <= radius; dx++) {
+            for (int dz = -radius; dz <= radius; dz++) {
+                for (int y = center.getY() - 6; y < center.getY() - 1; y++) {
+                    BlockPos pos = new BlockPos(center.getX() + dx, y, center.getZ() + dz);
+                    world.setBlockState(pos, y < center.getY() - 2
+                            ? Blocks.COBBLESTONE.getDefaultState() : Blocks.DIRT.getDefaultState());
                 }
             }
         }

@@ -9,6 +9,7 @@ import net.minecraft.entity.effect.StatusEffectInstance;
 import net.minecraft.entity.effect.StatusEffects;
 import net.minecraft.entity.player.PlayerEntity;
 import net.minecraft.entity.projectile.ArrowEntity;
+import net.minecraft.entity.projectile.PersistentProjectileEntity;
 import net.minecraft.entity.projectile.TridentEntity;
 import net.minecraft.item.ItemStack;
 import net.minecraft.server.MinecraftServer;
@@ -35,6 +36,13 @@ public final class UniqueWeaponManager {
     private static final Map<UUID, Long> GAE_THROW_TIME = new HashMap<>();
     private static final Map<UUID, Long> FROZEN_UNTIL = new HashMap<>();
     private static final java.util.Set<String> ANNOUNCED = java.util.concurrent.ConcurrentHashMap.newKeySet();
+
+    /** プレイヤーUUID -> 最後に放った光の矢の Entity UUID。 */
+    private static final Map<UUID, UUID> LIGHT_ARROW_BY_OWNER = new java.util.concurrent.ConcurrentHashMap<>();
+
+    /** 光の矢のクールタイム（8秒 = 160ティック）。 */
+    public static final int APOLLO_COOLDOWN_TICKS = 160;
+
     private static final long GAE_FULL = 36_000L;
     private static final long GAE_HALF = 18_000L;
 
@@ -229,7 +237,17 @@ public final class UniqueWeaponManager {
                 SoundCategory.PLAYERS, 0.8F, 1.0F);
     }
 
-    /** アポロンの光の矢（消費なし・アンデッド2倍）。 */
+    /** 左クリック発射。クールタイム中なら何もしない。 */
+    public static void fireLightArrowWithCooldown(ServerPlayerEntity player) {
+        if (!player.getMainHandStack().isOf(UniqueWeapons.APOLLO_BOW)
+                || player.getItemCooldownManager().isCoolingDown(UniqueWeapons.APOLLO_BOW)) {
+            return;
+        }
+        player.getItemCooldownManager().set(UniqueWeapons.APOLLO_BOW, APOLLO_COOLDOWN_TICKS);
+        fireLightArrow(player);
+    }
+
+    /** 光の矢（拾えない・炎付き・高速・アンデッド特効は RangedDamageMixin で処理）。 */
     public static void fireLightArrow(ServerPlayerEntity player) {
         ServerWorld world = player.getServerWorld();
         ArrowEntity arrow = EntityType.ARROW.create(world);
@@ -237,36 +255,70 @@ public final class UniqueWeaponManager {
             return;
         }
         arrow.setOwner(player);
+        arrow.pickupType = PersistentProjectileEntity.PickupPermission.DISALLOWED;
+        arrow.setDamage(8.0D);
+        arrow.setCritical(true);
+        arrow.setOnFireFor(10);
         Vec3d look = player.getRotationVec(1.0F);
         arrow.setVelocity(look.x * 3.0D, look.y * 3.0D, look.z * 3.0D, 1.0F, 0.0F);
         arrow.addCommandTag("ku_light_arrow");
         world.spawnEntity(arrow);
+        LIGHT_ARROW_BY_OWNER.put(player.getUuid(), arrow.getUuid());
+
+        world.spawnParticles(net.minecraft.particle.ParticleTypes.FLAME,
+                arrow.getX(), arrow.getY(), arrow.getZ(), 12, 0.3, 0.3, 0.3, 0.02);
+        world.playSound(null, player.getBlockPos(), SoundEvents.ENTITY_ARROW_SHOOT,
+                SoundCategory.PLAYERS, 1.0F, 1.4F);
+        com.kingdomunique.item.unique.UniqueWeaponTriggers.onBowShot(player);
     }
 
-    /** 光の矢の空中起爆。 */
+    /** 光の矢の飛翔中パーティクル（毎20ティック）。消えた矢の登録も掃除する。 */
+    public static void tickLightArrows(MinecraftServer server) {
+        for (Map.Entry<UUID, UUID> entry : new HashMap<>(LIGHT_ARROW_BY_OWNER).entrySet()) {
+            ArrowEntity arrow = null;
+            ServerWorld arrowWorld = null;
+            for (ServerWorld world : server.getWorlds()) {
+                if (world.getEntity(entry.getValue()) instanceof ArrowEntity found) {
+                    arrow = found;
+                    arrowWorld = world;
+                    break;
+                }
+            }
+            if (arrow == null || !arrow.isAlive()) {
+                LIGHT_ARROW_BY_OWNER.remove(entry.getKey());
+                continue;
+            }
+            arrowWorld.spawnParticles(net.minecraft.particle.ParticleTypes.END_ROD,
+                    arrow.getX(), arrow.getY(), arrow.getZ(), 3, 0.15, 0.15, 0.15, 0.01);
+        }
+    }
+
+    /** 右クリック: 自分の光の矢があるならその座標で太陽の爆発。 */
     public static void detonateLightArrow(ServerPlayerEntity player) {
         ServerWorld world = player.getServerWorld();
-        boolean done = false;
-        for (Entity entity : world.getEntitiesByClass(ArrowEntity.class,
-                player.getBoundingBox().expand(64.0D),
-                a -> a.getCommandTags().contains("ku_light_arrow"))) {
-            Vec3d pos = entity.getPos();
-            for (LivingEntity target : world.getEntitiesByClass(LivingEntity.class,
-                    new net.minecraft.util.math.Box(pos.x - 5.0D, pos.y - 5.0D, pos.z - 5.0D,
-                            pos.x + 5.0D, pos.y + 5.0D, pos.z + 5.0D),
-                    living -> living != player && living.isAlive())) {
-                float damage = 15.0F;
-                target.damage(target.getDamageSources().mobAttack(player), damage);
-                target.setOnFireFor(5);
-                target.addStatusEffect(new StatusEffectInstance(StatusEffects.BLINDNESS, 100, 0));
-            }
-            world.spawnParticles(net.minecraft.particle.ParticleTypes.FLAME,
-                    pos.x, pos.y, pos.z, 40, 1.0, 1.0, 1.0, 0.2);
-            entity.discard();
-            done = true;
+        UUID arrowUuid = LIGHT_ARROW_BY_OWNER.remove(player.getUuid());
+        Entity arrow = arrowUuid == null ? null : world.getEntity(arrowUuid);
+        if (!(arrow instanceof ArrowEntity) || !arrow.isAlive()) {
+            player.sendMessage(Text.literal("§c[太陽弓] 飛翔中の光の矢がありません。"), true);
+            return;
         }
-        if (done) {
-            player.sendMessage(Text.literal("§6[太陽の爆発] 光の矢が起爆した！"), true);
+
+        Vec3d pos = arrow.getPos();
+        for (LivingEntity target : world.getEntitiesByClass(LivingEntity.class,
+                new net.minecraft.util.math.Box(pos.x - 5.0D, pos.y - 5.0D, pos.z - 5.0D,
+                        pos.x + 5.0D, pos.y + 5.0D, pos.z + 5.0D),
+                living -> living != player && living.isAlive())) {
+            target.damage(target.getDamageSources().mobAttack(player), 15.0F);
+            target.setOnFireFor(5);
+            target.addStatusEffect(new StatusEffectInstance(StatusEffects.BLINDNESS, 100, 0));
         }
+        world.spawnParticles(net.minecraft.particle.ParticleTypes.FLAME,
+                pos.x, pos.y, pos.z, 60, 1.5, 1.5, 1.5, 0.25);
+        world.spawnParticles(net.minecraft.particle.ParticleTypes.END_ROD,
+                pos.x, pos.y, pos.z, 30, 1.0, 1.0, 1.0, 0.15);
+        world.playSound(null, player.getBlockPos(), SoundEvents.ENTITY_GENERIC_EXPLODE.value(),
+                SoundCategory.PLAYERS, 1.0F, 1.2F);
+        arrow.discard();
+        player.sendMessage(Text.literal("§6[太陽の爆発] 光の矢が起爆した！"), true);
     }
 }

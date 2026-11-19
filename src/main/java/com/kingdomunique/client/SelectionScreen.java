@@ -130,18 +130,18 @@ public final class SelectionScreen extends Screen {
 
     private void drawCard(DrawContext context, String id, int x, int y, boolean highlight) {
         int frame = highlight ? FRAME_HIGHLIGHT : frameColor();
-        float scale = highlight ? 1.05F : 1.0F;
 
+        // 1) 背景・枠線・アイコンのみ拡大変換（1.05倍）の中で描画する。
+        //    テキストは拡大変換を閉じた後に等倍で描画しないと文字がぼやける。
         context.getMatrices().push();
-        if (scale != 1.0F) {
+        if (highlight) {
             float cx = x + CARD_WIDTH / 2.0F;
             float cy = y + CARD_HEIGHT / 2.0F;
             context.getMatrices().translate(cx, cy, 0.0F);
-            context.getMatrices().scale(scale, scale, 1.0F);
+            context.getMatrices().scale(1.05F, 1.05F, 1.0F);
             context.getMatrices().translate(-cx, -cy, 0.0F);
         }
 
-        // 1) 背景と枠線（最背面）。不透明 ARGB で描画する。
         context.fill(x, y, x + CARD_WIDTH, y + CARD_HEIGHT, CARD_BG);
         context.fill(x, y, x + CARD_WIDTH, y + 2, frame);
         context.fill(x, y + CARD_HEIGHT - 2, x + CARD_WIDTH, y + CARD_HEIGHT, frame);
@@ -152,7 +152,6 @@ public final class SelectionScreen extends Screen {
             context.fill(x + 3, y + CARD_HEIGHT - 5, x + CARD_WIDTH - 3, y + CARD_HEIGHT - 3, FRAME_HIGHLIGHT);
         }
 
-        // 2) アイコン: 行列の Z を 150 にして背景より手前に描画。
         ItemStack icon = SelectionIcons.iconFor(id);
         if (!icon.isEmpty()) {
             context.getMatrices().push();
@@ -161,14 +160,16 @@ public final class SelectionScreen extends Screen {
             context.drawItem(icon, -8, -8, 150);
             context.getMatrices().pop();
         }
+        // 拡大変換をここで終了（等倍に戻す）。
+        context.getMatrices().pop();
 
-        // 3) テキスト: Z=300 の最前面。アイコンが失敗しても名前・説明は必ず出る。
+        // 2) テキスト: Z方向のみ整数で平行移動し、すべて整数座標・等倍で描画。
         context.getMatrices().push();
-        context.getMatrices().translate(0.0F, 0.0F, 300.0F);
+        context.getMatrices().translate(0, 0, 300);
 
         context.drawCenteredTextWithShadow(this.textRenderer,
                 Text.literal(ContentRegistry.nameOf(id)).formatted(Formatting.BOLD, Formatting.WHITE),
-                x + CARD_WIDTH / 2, y + 78, TEXT_WHITE);
+                (int) (x + CARD_WIDTH / 2), (int) (y + 78), TEXT_WHITE);
 
         String[] effects = SelectionIcons.effectsFor(id);
         int meritCount = kind == ContentRegistry.Kind.CURSE ? SelectionIcons.meritLineCount(id) : effects.length;
@@ -184,11 +185,10 @@ public final class SelectionScreen extends Screen {
                 if (textY > limitY) {
                     break;
                 }
-                context.drawTextWithShadow(this.textRenderer, line, x + 6, textY, color);
+                context.drawTextWithShadow(this.textRenderer, line, (int) (x + 6), (int) textY, color);
                 textY += 10;
             }
         }
-        context.getMatrices().pop();
         context.getMatrices().pop();
     }
 

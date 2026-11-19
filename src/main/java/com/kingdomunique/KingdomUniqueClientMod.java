@@ -6,13 +6,9 @@ import com.kingdomunique.client.SelectionClient;
 import com.kingdomunique.client.render.HeroEntityRenderer;
 import com.kingdomunique.component.ModDataComponents;
 import com.kingdomunique.entity.ModEntities;
-import com.kingdomunique.item.unique.UniqueWeapons;
 import net.fabricmc.fabric.api.client.event.lifecycle.v1.ClientTickEvents;
 import net.fabricmc.fabric.api.client.rendering.v1.EntityRendererRegistry;
 import net.fabricmc.api.ClientModInitializer;
-import net.minecraft.client.item.ModelPredicateProviderRegistry;
-import net.minecraft.item.BowItem;
-import net.minecraft.util.Identifier;
 
 /** KingdomUnique のクライアントサイドエントリポイント。 */
 public class KingdomUniqueClientMod implements ClientModInitializer {
@@ -33,17 +29,6 @@ public class KingdomUniqueClientMod implements ClientModInitializer {
 
         // 設計図の建材HUDと3Dプレビュー。
         BlueprintClientOverlay.initialize();
-
-        // アポロン弓の引き絞りテクスチャ（バニラ bow モデルと同じ predicate）。
-        ModelPredicateProviderRegistry.register(UniqueWeapons.APOLLO_BOW,
-                Identifier.of("pulling"), (stack, world, entity, seed) ->
-                        entity != null && entity.isUsingItem()
-                                && entity.getActiveItem() == stack ? 1.0F : 0.0F);
-        ModelPredicateProviderRegistry.register(UniqueWeapons.APOLLO_BOW,
-                Identifier.of("pull"), (stack, world, entity, seed) ->
-                        entity != null && entity.isUsingItem()
-                                && entity.getActiveItem() == stack
-                                ? BowItem.getPullProgress(entity.getItemUseTime()) : 0.0F);
 
         // 起動確認用: -Dkingdomunique.verify.seconds=N を渡すと N 秒後に自動終了する。
         // 通常プレイではプロパティが無いため何も起きない。

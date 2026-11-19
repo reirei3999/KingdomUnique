@@ -114,6 +114,10 @@ public final class KingdomManager {
         if (!(entity instanceof VillagerEntity villager) || !(entity instanceof CitizenVillager citizen)) {
             return;
         }
+        if (!isInTerritory(player)) {
+            player.sendMessage(Text.literal("§c[王国] 自国領土内の村人しか国民化できません。"), false);
+            return;
+        }
         KingdomData.KingdomInfo info = getOrCreate(player);
         if (info.population() >= info.populationCap()) {
             player.sendMessage(Text.literal("§c[王国] 人口上限（" + info.populationCap() + "人）に達しています。"), false);

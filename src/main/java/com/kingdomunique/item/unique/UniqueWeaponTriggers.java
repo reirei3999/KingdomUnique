@@ -135,10 +135,12 @@ public final class UniqueWeaponTriggers {
         }
 
         ItemStack stack = ItemCatalog.create(id);
-        if (stack.isEmpty()) {
-            return;
+        if (stack.isEmpty() || stack.getItem() == net.minecraft.item.Items.AIR) {
+            // カタログに無くても登録済みIDなら必ず有効なスタックを生成する。
+            com.kingdomunique.util.RewardUtil.grantPhysical(player, id);
+        } else {
+            player.giveItemStack(stack);
         }
-        player.giveItemStack(stack);
 
         String name = ContentRegistry.nameOf(id);
         server.getPlayerManager().broadcast(

@@ -66,18 +66,17 @@ public final class VillageBuilder {
         int baseY = world.getTopY(Heightmap.Type.WORLD_SURFACE, centerX, centerZ) + 1;
 
         // 中心の井戸（テンプレートの基準点は床面）。
-        placeTemplate(manager, world, WELL, new BlockPos(centerX, baseY, centerZ));
+        placeTemplate(manager, world, WELL, centerX, centerZ);
 
-        // 家々を円状に配置。各自の地面高さに合わせて自然な地盤を作る。
+        // 家々を円状に配置。テンプレート実サイズから必要チャンクをロードし、
+        // 地表〜上空をクリアした上で基礎を埋め立てる。
         int placed = 0;
         for (int i = 0; i < HOUSE_TEMPLATES.length; i++) {
             double angle = (i * 2.0D * Math.PI / HOUSE_TEMPLATES.length) + Math.PI / 4.0D;
             int hx = centerX + (int) Math.round(Math.cos(angle) * 10.0D);
             int hz = centerZ + (int) Math.round(Math.sin(angle) * 10.0D);
-            int groundY = world.getTopY(Heightmap.Type.WORLD_SURFACE, hx, hz) + 1;
-            prepareFoundation(world, hx, groundY, hz);
             if (placeTemplate(manager, world,
-                    Identifier.of("minecraft", HOUSE_TEMPLATES[i]), new BlockPos(hx, groundY, hz))) {
+                    Identifier.of("minecraft", HOUSE_TEMPLATES[i]), hx, hz)) {
                 placed++;
             }
         }
@@ -92,23 +91,63 @@ public final class VillageBuilder {
         ensureVillagers(world, centerX, baseY, centerZ);
     }
 
-    /** バニラテンプレートを1つ配置する。失敗時は false。 */
+    /**
+     * バニラテンプレートを1つ配置する。テンプレートの実サイズから
+     * 必要チャンクをすべてロードし、地表〜上空を空気でクリアし、
+     * 建物下端から地面までの隙間を土／丸石で埋めてから配置する。
+     */
     private static boolean placeTemplate(StructureTemplateManager manager, ServerWorld world,
-                                         Identifier id, BlockPos pos) {
+                                         Identifier id, int centerX, int centerZ) {
         StructureTemplate template = manager.getTemplate(id).orElse(null);
         if (template == null) {
             return false;
         }
+        net.minecraft.util.math.Vec3i size = template.getSize();
+        int halfX = size.getX() / 2;
+        int halfZ = size.getZ() / 2;
+        int minX = centerX - halfX - 2;
+        int maxX = centerX + halfX + 2;
+        int minZ = centerZ - halfZ - 2;
+        int maxZ = centerZ + halfZ + 2;
+
+        // 構造物がまたがる全チャンクを確実にロード／生成する。
+        for (int cx = minX >> 4; cx <= maxX >> 4; cx++) {
+            for (int cz = minZ >> 4; cz <= maxZ >> 4; cz++) {
+                world.getChunk(cx, cz);
+            }
+        }
+
+        int groundY = world.getTopY(Heightmap.Type.WORLD_SURFACE, centerX, centerZ) + 1;
+        // 地表から上空までを空気でクリア（建物が途中で切れないように）。
+        for (int x = minX; x <= maxX; x++) {
+            for (int z = minZ; z <= maxZ; z++) {
+                for (int y = groundY; y <= groundY + size.getY() + 4; y++) {
+                    world.setBlockState(new BlockPos(x, y, z), Blocks.AIR.getDefaultState());
+                }
+            }
+        }
+        // 建物下端〜地面の隙間を自然な土／丸石で埋める（空中浮き・埋もれ防止）。
+        for (int x = minX; x <= maxX; x++) {
+            for (int z = minZ; z <= maxZ; z++) {
+                for (int y = groundY - 4; y < groundY; y++) {
+                    world.setBlockState(new BlockPos(x, y, z),
+                            (y < groundY - 1) ? Blocks.COBBLESTONE.getDefaultState()
+                                    : Blocks.DIRT.getDefaultState());
+                }
+            }
+        }
+
         StructurePlacementData data = new StructurePlacementData()
                 .setRotation(BlockRotation.NONE)
                 .setMirror(BlockMirror.NONE)
-                .setIgnoreEntities(false)
+                .setIgnoreEntities(true)
                 .setInitializeMobs(false)
                 .setUpdateNeighbors(true);
+        BlockPos pos = new BlockPos(centerX - halfX, groundY, centerZ - halfZ);
         return template.place(world, pos, BlockPos.ORIGIN, data, world.getRandom(), Block.NOTIFY_ALL);
     }
 
-    /** 建物の下だけを土・草の自然な地盤に整え、上空の障害物を除く。 */
+    /** 旧方式の基礎整地（フォールバック用）。 */
     private static void prepareFoundation(ServerWorld world, int x, int y, int z) {
         for (int dx = -5; dx <= 5; dx++) {
             for (int dz = -5; dz <= 5; dz++) {
