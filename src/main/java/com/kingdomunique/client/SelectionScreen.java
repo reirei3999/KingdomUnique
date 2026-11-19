@@ -14,6 +14,7 @@ import net.minecraft.sound.SoundEvents;
 import net.minecraft.text.OrderedText;
 import net.minecraft.text.Text;
 import net.minecraft.util.Formatting;
+import org.lwjgl.glfw.GLFW;
 
 import java.util.List;
 
@@ -55,19 +56,6 @@ public final class SelectionScreen extends Screen {
     @Override
     protected void init() {
         int centerX = this.width / 2;
-        int totalWidth = optionIds.size() * CARD_WIDTH + (optionIds.size() - 1) * CARD_GAP;
-        int startX = centerX - totalWidth / 2;
-        for (int i = 0; i < optionIds.size(); i++) {
-            int x = startX + i * (CARD_WIDTH + CARD_GAP);
-            final int index = i;
-            this.addDrawableChild(ButtonWidget.builder(Text.literal(""), button -> {
-                selectedIndex = index;
-                if (decideButton != null) {
-                    decideButton.active = true;
-                }
-            }).dimensions(x, cardTop(), CARD_WIDTH, CARD_HEIGHT).build());
-        }
-
         int buttonY = cardTop() + CARD_HEIGHT + 16;
         decideButton = this.addDrawableChild(ButtonWidget.builder(Text.literal("決定"), button -> decide())
                 .dimensions(centerX - 110, buttonY, 105, 20).build());
@@ -78,6 +66,45 @@ public final class SelectionScreen extends Screen {
 
     private int cardTop() {
         return Math.max(58, this.height / 2 - CARD_HEIGHT / 2 - 20);
+    }
+
+    /** カード自体はボタンWidgetにしない（ボタン背景が内容を覆い隠すため）。 */
+    @Override
+    public boolean mouseClicked(double mouseX, double mouseY, int button) {
+        if (button == 0 && optionIds.size() > 0) {
+            int totalWidth = optionIds.size() * CARD_WIDTH + (optionIds.size() - 1) * CARD_GAP;
+            int startX = this.width / 2 - totalWidth / 2;
+            int top = cardTop();
+            for (int i = 0; i < optionIds.size(); i++) {
+                int x = startX + i * (CARD_WIDTH + CARD_GAP);
+                if (mouseX >= x && mouseX <= x + CARD_WIDTH
+                        && mouseY >= top && mouseY <= top + CARD_HEIGHT) {
+                    select(i);
+                    return true;
+                }
+            }
+        }
+        return super.mouseClicked(mouseX, mouseY, button);
+    }
+
+    /** 数字キー 1〜9 でも選択できる。 */
+    @Override
+    public boolean keyPressed(int keyCode, int scanCode, int modifiers) {
+        if (keyCode >= GLFW.GLFW_KEY_1 && keyCode <= GLFW.GLFW_KEY_9) {
+            int index = keyCode - GLFW.GLFW_KEY_1;
+            if (index < optionIds.size()) {
+                select(index);
+                return true;
+            }
+        }
+        return super.keyPressed(keyCode, scanCode, modifiers);
+    }
+
+    private void select(int index) {
+        selectedIndex = index;
+        if (decideButton != null) {
+            decideButton.active = true;
+        }
     }
 
     private void decide() {
@@ -105,7 +132,7 @@ public final class SelectionScreen extends Screen {
         context.drawCenteredTextWithShadow(this.textRenderer, this.title,
                 (int) (this.width / 2), (int) 18, 0xFFFFD700);
         context.drawCenteredTextWithShadow(this.textRenderer,
-                Text.literal("1つだけ選んでください（世界で唯一のアイテムです）"),
+                Text.literal("カードをクリック（または数字キー）で選択 → 「決定」を押してください"),
                 (int) (this.width / 2), (int) 36, TEXT_SUBTLE);
 
         if (optionIds.isEmpty()) {
@@ -127,26 +154,26 @@ public final class SelectionScreen extends Screen {
             int x = startX + i * (CARD_WIDTH + CARD_GAP);
             boolean hovered = mouseX >= x && mouseX <= x + CARD_WIDTH
                     && mouseY >= top && mouseY <= top + CARD_HEIGHT;
-            drawCard(context, id, x, top, hovered || i == selectedIndex);
+            drawCard(context, id, x, top, hovered || i == selectedIndex, i);
         }
+
+        context.getMatrices().push();
+        context.getMatrices().scale(1.0F, 1.0F, 1.0F);
+        String status = selectedIndex < 0
+                ? "未選択 — カードをクリックしてください"
+                : "選択中: " + ContentRegistry.nameOf(optionIds.get(selectedIndex)) + " — 「決定」で確定";
+        context.drawCenteredTextWithShadow(this.textRenderer, Text.literal(status),
+                (int) (this.width / 2), (int) (cardTop() + CARD_HEIGHT + 4),
+                selectedIndex < 0 ? 0xFFFF6666 : 0xFF55FF55);
+        context.getMatrices().pop();
 
         super.render(context, mouseX, mouseY, delta);
     }
 
-    private void drawCard(DrawContext context, String id, int x, int y, boolean highlight) {
+    private void drawCard(DrawContext context, String id, int x, int y, boolean highlight, int index) {
         int frame = highlight ? FRAME_HIGHLIGHT : frameColor();
 
-        // 1) 背景・枠線・アイコンのみ拡大変換（1.05倍）の中で描画する。
-        //    テキストは拡大変換を閉じた後に等倍で描画しないと文字がぼやける。
-        context.getMatrices().push();
-        if (highlight) {
-            float cx = x + CARD_WIDTH / 2.0F;
-            float cy = y + CARD_HEIGHT / 2.0F;
-            context.getMatrices().translate(cx, cy, 0.0F);
-            context.getMatrices().scale(1.05F, 1.05F, 1.0F);
-            context.getMatrices().translate(-cx, -cy, 0.0F);
-        }
-
+        // 一切の拡大変換を行わない（小数スケールはテクスチャも文字もぼかす）。
         context.fill(x, y, x + CARD_WIDTH, y + CARD_HEIGHT, CARD_BG);
         context.fill(x, y, x + CARD_WIDTH, y + 2, frame);
         context.fill(x, y + CARD_HEIGHT - 2, x + CARD_WIDTH, y + CARD_HEIGHT, frame);
@@ -157,21 +184,22 @@ public final class SelectionScreen extends Screen {
             context.fill(x + 3, y + CARD_HEIGHT - 5, x + CARD_WIDTH - 3, y + CARD_HEIGHT - 3, FRAME_HIGHLIGHT);
         }
 
+        // アイコンは等倍（16x16）でくっきり描画する。
         ItemStack icon = SelectionIcons.iconFor(id);
         if (!icon.isEmpty()) {
-            context.getMatrices().push();
-            context.getMatrices().translate(x + CARD_WIDTH / 2.0F, y + 40, 150.0F);
-            context.getMatrices().scale(2.5F, 2.5F, 1.0F);
-            context.drawItem(icon, -8, -8, 150);
-            context.getMatrices().pop();
+            int ix = (int) (x + CARD_WIDTH / 2.0F) - 8;
+            int iy = y + 30;
+            context.fill(ix - 3, iy - 3, ix + 19, iy + 19, 0xFF000000);
+            context.drawItem(icon, ix, iy, 150);
         }
-        // 拡大変換をここで終了（等倍に戻す）。
-        context.getMatrices().pop();
 
         // 2) テキスト: Z方向のみ整数で平行移動し、すべて整数座標・等倍で描画。
         context.getMatrices().push();
         context.getMatrices().translate(0, 0, 300);
 
+        context.drawTextWithShadow(this.textRenderer,
+                Text.literal("[" + (index + 1) + "]").formatted(Formatting.YELLOW),
+                (int) (x + 6), (int) (y + 6), 0xFFFFFF55);
         context.drawCenteredTextWithShadow(this.textRenderer,
                 Text.literal(ContentRegistry.nameOf(id)).formatted(Formatting.BOLD, Formatting.WHITE),
                 (int) (x + CARD_WIDTH / 2), (int) (y + 78), TEXT_WHITE);

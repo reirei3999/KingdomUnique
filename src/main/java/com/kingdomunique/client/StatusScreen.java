@@ -112,14 +112,10 @@ public final class StatusScreen extends Screen {
         context.fill(x, y, x + 2, y + CARD_HEIGHT, frame);
         context.fill(x + CARD_WIDTH - 2, y, x + CARD_WIDTH, y + CARD_HEIGHT, frame);
 
-        // 拡大アイコン（アイコンのみ変換、テキストは等倍で描画）。
+        // アイコンは等倍でくっきり描画（拡大するとテクスチャがぼやける）。
         ItemStack icon = SelectionIcons.iconFor(id);
         if (!icon.isEmpty()) {
-            context.getMatrices().push();
-            context.getMatrices().translate(x + 24, y + 26, 150.0F);
-            context.getMatrices().scale(1.6F, 1.6F, 1.0F);
-            context.drawItem(icon, -8, -8, 150);
-            context.getMatrices().pop();
+            context.drawItem(icon, (int) (x + 12), (int) (y + 12), 150);
         }
 
         // テキストは等倍・整数座標。長文は wrapLines で等倍のまま改行する。

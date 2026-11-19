@@ -66,6 +66,22 @@ public final class SelectionEventHandler {
                                 return player != null && SelectionManager.reopenOrOpen(player,
                                         ContentRegistry.Kind.CURSE) ? 1 : 0;
                             })))
+                    // ショートカット: /ku relic, /ku ability, /ku curse
+                    .then(CommandManager.literal("relic").executes(context -> {
+                        ServerPlayerEntity player = context.getSource().getPlayer();
+                        return player != null && SelectionManager.reopenOrOpen(player,
+                                ContentRegistry.Kind.RELIC) ? 1 : 0;
+                    }))
+                    .then(CommandManager.literal("ability").executes(context -> {
+                        ServerPlayerEntity player = context.getSource().getPlayer();
+                        return player != null && SelectionManager.reopenOrOpen(player,
+                                ContentRegistry.Kind.ABILITY) ? 1 : 0;
+                    }))
+                    .then(CommandManager.literal("curse").executes(context -> {
+                        ServerPlayerEntity player = context.getSource().getPlayer();
+                        return player != null && SelectionManager.reopenOrOpen(player,
+                                ContentRegistry.Kind.CURSE) ? 1 : 0;
+                    }))
                     .then(CommandManager.literal("ally")
                             .then(CommandManager.argument("target",
                                     net.minecraft.command.argument.EntityArgumentType.player())
@@ -106,6 +122,10 @@ public final class SelectionEventHandler {
             ServerPlayerEntity player = context.player();
             SelectionManager.handleChoice(player, payload.kind(), payload.chosenId());
         });
+        // Iキーのメニューおよび専用キーから選択画面を開く要求を受け取る。
+        ServerPlayNetworking.registerGlobalReceiver(
+                com.kingdomunique.network.RequestSelectionPayload.ID, (payload, context) ->
+                        SelectionManager.reopenOrOpen(context.player(), payload.kind()));
 
         ServerLivingEntityEvents.AFTER_DEATH.register(SelectionEventHandler::onDeath);
         ServerLivingEntityEvents.ALLOW_DEATH.register(SelectionEventHandler::allowDeath);
@@ -142,10 +162,13 @@ public final class SelectionEventHandler {
     }
 
     private static void checkCitizens(ServerPlayerEntity player) {
-        int count = player.getServerWorld().getEntitiesByClass(
-                net.minecraft.entity.passive.VillagerEntity.class,
-                player.getBoundingBox().expand(256.0D),
-                villager -> villager.isAlive()).size();
+        int count = com.kingdomunique.kingdom.KingdomManager.getOrCreate(player).population();
+        if (count < 15) {
+            count = player.getServerWorld().getEntitiesByClass(
+                    net.minecraft.entity.passive.VillagerEntity.class,
+                    player.getBoundingBox().expand(256.0D),
+                    villager -> villager.isAlive()).size();
+        }
         SelectionManager.onCitizenCountReached(player, count);
     }
 
