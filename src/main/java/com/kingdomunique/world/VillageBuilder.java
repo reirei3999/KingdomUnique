@@ -63,13 +63,13 @@ public final class VillageBuilder {
         forceLoadChunks(world, centerX, centerZ);
 
         StructureTemplateManager manager = world.getStructureTemplateManager();
-        int baseY = world.getTopY(Heightmap.Type.WORLD_SURFACE, centerX, centerZ) + 1;
+        int baseY = world.getTopY(Heightmap.Type.WORLD_SURFACE, centerX, centerZ);
 
         // 中心の井戸（テンプレートの基準点は床面）。
         placeTemplate(manager, world, WELL, centerX, centerZ);
 
-        // 家々を円状に配置。テンプレート実サイズから必要チャンクをロードし、
-        // 地表〜上空をクリアした上で基礎を埋め立てる。
+        // 家々を円状に配置。地形を一律に削ったり埋め立てたりせず、
+        // 各建物の位置の地表高に合わせて配置する。
         int placed = 0;
         for (int i = 0; i < HOUSE_TEMPLATES.length; i++) {
             double angle = (i * 2.0D * Math.PI / HOUSE_TEMPLATES.length) + Math.PI / 4.0D;
@@ -93,8 +93,7 @@ public final class VillageBuilder {
 
     /**
      * バニラテンプレートを1つ配置する。テンプレートの実サイズから
-     * 必要チャンクをすべてロードし、地表〜上空を空気でクリアし、
-     * 建物下端から地面までの隙間を土／丸石で埋めてから配置する。
+     * 必要チャンクをすべてロードし、地形の高さに合わせて配置する。
      */
     private static boolean placeTemplate(StructureTemplateManager manager, ServerWorld world,
                                          Identifier id, int centerX, int centerZ) {
@@ -105,10 +104,10 @@ public final class VillageBuilder {
         net.minecraft.util.math.Vec3i size = template.getSize();
         int halfX = size.getX() / 2;
         int halfZ = size.getZ() / 2;
-        int minX = centerX - halfX - 2;
-        int maxX = centerX + halfX + 2;
-        int minZ = centerZ - halfZ - 2;
-        int maxZ = centerZ + halfZ + 2;
+        int minX = centerX - halfX;
+        int maxX = centerX + halfX;
+        int minZ = centerZ - halfZ;
+        int maxZ = centerZ + halfZ;
 
         // 構造物がまたがる全チャンクを確実にロード／生成する。
         for (int cx = minX >> 4; cx <= maxX >> 4; cx++) {
@@ -117,25 +116,7 @@ public final class VillageBuilder {
             }
         }
 
-        int groundY = world.getTopY(Heightmap.Type.WORLD_SURFACE, centerX, centerZ) + 1;
-        // 地表から上空までを空気でクリア（建物が途中で切れないように）。
-        for (int x = minX; x <= maxX; x++) {
-            for (int z = minZ; z <= maxZ; z++) {
-                for (int y = groundY; y <= groundY + size.getY() + 4; y++) {
-                    world.setBlockState(new BlockPos(x, y, z), Blocks.AIR.getDefaultState());
-                }
-            }
-        }
-        // 建物下端〜地面の隙間を自然な土／丸石で埋める（空中浮き・埋もれ防止）。
-        for (int x = minX; x <= maxX; x++) {
-            for (int z = minZ; z <= maxZ; z++) {
-                for (int y = groundY - 4; y < groundY; y++) {
-                    world.setBlockState(new BlockPos(x, y, z),
-                            (y < groundY - 1) ? Blocks.COBBLESTONE.getDefaultState()
-                                    : Blocks.DIRT.getDefaultState());
-                }
-            }
-        }
+        int groundY = world.getTopY(Heightmap.Type.WORLD_SURFACE, centerX, centerZ);
 
         StructurePlacementData data = new StructurePlacementData()
                 .setRotation(BlockRotation.NONE)
@@ -145,20 +126,6 @@ public final class VillageBuilder {
                 .setUpdateNeighbors(true);
         BlockPos pos = new BlockPos(centerX - halfX, groundY, centerZ - halfZ);
         return template.place(world, pos, BlockPos.ORIGIN, data, world.getRandom(), Block.NOTIFY_ALL);
-    }
-
-    /** 旧方式の基礎整地（フォールバック用）。 */
-    private static void prepareFoundation(ServerWorld world, int x, int y, int z) {
-        for (int dx = -5; dx <= 5; dx++) {
-            for (int dz = -5; dz <= 5; dz++) {
-                BlockPos p = new BlockPos(x + dx, y, z + dz);
-                for (int h = 1; h <= 8; h++) {
-                    world.setBlockState(p.up(h), Blocks.AIR.getDefaultState());
-                }
-                world.setBlockState(p.down(1), Blocks.DIRT.getDefaultState());
-                world.setBlockState(p, Blocks.GRASS_BLOCK.getDefaultState());
-            }
-        }
     }
 
     /** 村の範囲を含むチャンクを確実にロード／生成する。 */
@@ -176,28 +143,12 @@ public final class VillageBuilder {
 
     /** テンプレートが無い場合の旧方式（直接ブロック配置）。 */
     private static void legacyVillage(ServerWorld world, int centerX, int baseY, int centerZ) {
-        flatten(world, centerX, baseY, centerZ);
         buildWell(world, centerX, baseY, centerZ);
         buildHouse(world, centerX - 8, baseY, centerZ - 8, Blocks.RED_BED);
         buildHouse(world, centerX + 8, baseY, centerZ - 8, Blocks.BLUE_BED);
         buildHouse(world, centerX, baseY, centerZ + 8, Blocks.GREEN_BED);
         buildFarm(world, centerX - 8, baseY, centerZ + 8);
         placeJobBlocks(world, centerX, baseY, centerZ);
-    }
-
-    private static void flatten(ServerWorld world, int centerX, int y, int centerZ) {
-        for (int dx = -RADIUS; dx <= RADIUS; dx++) {
-            for (int dz = -RADIUS; dz <= RADIUS; dz++) {
-                BlockPos p = new BlockPos(centerX + dx, y, centerZ + dz);
-                for (int h = 1; h <= 10; h++) {
-                    world.setBlockState(p.up(h), Blocks.AIR.getDefaultState());
-                }
-                for (int h = 2; h >= 1; h--) {
-                    world.setBlockState(p.down(h), Blocks.DIRT.getDefaultState());
-                }
-                world.setBlockState(p, Blocks.GRASS_BLOCK.getDefaultState());
-            }
-        }
     }
 
     private static void buildWell(ServerWorld world, int x, int y, int z) {
@@ -300,9 +251,12 @@ public final class VillageBuilder {
             float angle = (float) (i * Math.PI * 2.0D / Math.max(1, missing));
             double vx = x + 2.5D + Math.cos(angle) * 2.5D;
             double vz = z + 2.5D + Math.sin(angle) * 2.5D;
-            villager.refreshPositionAndAngles(vx, y + 1, vz, 0.0F, 0.0F);
+            int villagerY = world.getTopY(Heightmap.Type.WORLD_SURFACE,
+                    BlockPos.ofFloored(vx, y, vz).getX(), BlockPos.ofFloored(vx, y, vz).getZ());
+            villager.refreshPositionAndAngles(vx, villagerY, vz, 0.0F, 0.0F);
             villager.setPersistent();
             world.spawnEntity(villager);
         }
     }
 }
+
