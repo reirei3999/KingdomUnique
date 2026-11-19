@@ -26,7 +26,7 @@ public final class StarterSpawn {
     private static final int MIN_DISTANCE = 500;
     private static final int MAX_ATTEMPTS = 256;
 
-    /** 接続直後に積み、次のサーバーティックで処理するプレイヤー。 */
+    /** 次ティックで処理するプレイヤー（JOIN 契機に加え、毎ティックの検出でも積む）。 */
     private static final Queue<UUID> PENDING = new ArrayDeque<>();
 
     private StarterSpawn() {
@@ -51,13 +51,21 @@ public final class StarterSpawn {
     }
 
     private static void onServerTick(MinecraftServer server) {
-        if (PENDING.isEmpty()) {
-            return;
-        }
         ServerWorld world = server.getWorld(World.OVERWORLD);
         if (world == null) {
             return;
         }
+        KingdomData kingdomData = KingdomData.getOrCreate(world);
+
+        // シングルプレイ（統合サーバー）では JOIN イベントの順番が環境に依存するため、
+        // 毎ティック「王国がまだ登録されていないプレイヤー」を検出して予約する。
+        for (ServerPlayerEntity player : server.getPlayerManager().getPlayerList()) {
+            UUID uuid = player.getUuid();
+            if (kingdomData.get(uuid) == null && !PENDING.contains(uuid)) {
+                PENDING.add(uuid);
+            }
+        }
+
         int remaining = PENDING.size();
         while (remaining-- > 0 && !PENDING.isEmpty()) {
             UUID uuid = PENDING.poll();
@@ -66,7 +74,7 @@ public final class StarterSpawn {
                 continue;
             }
             // 予約から次のティックまでに王国が作られていたら二重生成しない。
-            if (KingdomData.getOrCreate(world).get(uuid) != null) {
+            if (kingdomData.get(uuid) != null) {
                 continue;
             }
             spawn(player, server, world);
@@ -76,9 +84,11 @@ public final class StarterSpawn {
     private static void spawn(ServerPlayerEntity player, MinecraftServer server, ServerWorld world) {
         BlockPos villageCenter = findSafeSpawn(world);
         if (villageCenter == null) {
-            KingdomUniqueMod.LOGGER.warn("[KingdomUnique] Could not find a safe starter spawn for {}.",
+            // 安全地点が見つからなくても王国は必ず作成し、再予約ループを防ぐ。
+            villageCenter = player.getBlockPos();
+            KingdomUniqueMod.LOGGER.warn(
+                    "[KingdomUnique] No safe random spot for {}; using current position as village center.",
                     player.getName().getString());
-            return;
         }
 
         world.getChunk(villageCenter.getX() >> 4, villageCenter.getZ() >> 4);
