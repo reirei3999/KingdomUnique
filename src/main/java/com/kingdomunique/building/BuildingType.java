@@ -48,6 +48,35 @@ public enum BuildingType {
             map.put(Items.GOLD_INGOT, 8);
             return map;
         }
+    },
+    WATCHTOWER("国境監視塔", 0, 18 * 20) {
+        @Override
+        public Map<Item, Integer> materials() {
+            Map<Item, Integer> map = new LinkedHashMap<>();
+            map.put(Items.COBBLESTONE, 48);
+            map.put(Items.OAK_PLANKS, 16);
+            map.put(Items.IRON_INGOT, 8);
+            map.put(Items.LANTERN, 4);
+            return map;
+        }
+    },
+    GATE("国の門", 0, 25 * 20) {
+        @Override
+        public Map<Item, Integer> materials() {
+            Map<Item, Integer> map = new LinkedHashMap<>();
+            map.put(Items.COBBLESTONE, 40);
+            map.put(Items.IRON_INGOT, 24);
+            return map;
+        }
+    },
+    WALL("防壁", 0, 12 * 20) {
+        @Override
+        public Map<Item, Integer> materials() {
+            Map<Item, Integer> map = new LinkedHashMap<>();
+            map.put(Items.COBBLESTONE, 64);
+            map.put(Items.STONE_BRICKS, 32);
+            return map;
+        }
     };
 
     private final String displayName;
@@ -81,6 +110,9 @@ public enum BuildingType {
             case BARRACKS -> 12;
             case BLACKSMITH -> 10;
             case TOWN_HALL -> 12;
+            case WATCHTOWER -> 5;
+            case GATE -> 4;
+            case WALL -> 5;
         };
     }
 }

@@ -15,6 +15,9 @@ public final class ModBlocks {
     public static final BlueprintBlock BARRACKS = register("blueprint_barracks", BuildingType.BARRACKS);
     public static final BlueprintBlock BLACKSMITH = register("blueprint_blacksmith", BuildingType.BLACKSMITH);
     public static final BlueprintBlock TOWN_HALL = register("blueprint_town_hall", BuildingType.TOWN_HALL);
+    public static final BlueprintBlock WATCHTOWER = register("blueprint_watchtower", BuildingType.WATCHTOWER);
+    public static final BlueprintBlock GATE = register("blueprint_gate", BuildingType.GATE);
+    public static final BlueprintBlock WALL = register("blueprint_wall", BuildingType.WALL);
 
     private static BlueprintBlock register(String path, BuildingType type) {
         Identifier id = Identifier.of(KingdomUniqueMod.MOD_ID, path);

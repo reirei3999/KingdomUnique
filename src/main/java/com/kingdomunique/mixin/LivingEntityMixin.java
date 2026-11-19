@@ -3,6 +3,8 @@ package com.kingdomunique.mixin;
 import com.kingdomunique.ability.AbilityPassives;
 import com.kingdomunique.ability.AbilityState;
 import com.kingdomunique.ability.AlliedMobManager;
+import com.kingdomunique.entity.CitizenVillager;
+import com.kingdomunique.kingdom.PolicyManager;
 import com.kingdomunique.registry.UniqueContentRegistry;
 import net.minecraft.entity.LivingEntity;
 import net.minecraft.entity.damage.DamageSource;
@@ -27,6 +29,20 @@ public abstract class LivingEntityMixin {
         if (self instanceof ServerPlayerEntity && attacker instanceof MobEntity
                 && !AlliedMobManager.canAttackPlayer((MobEntity) attacker, self)) {
             return 0.0F;
+        }
+
+        // 兵士NPCの攻撃力へ王国政策（富国強兵令/殖産興業令）と軍旗を反映する。
+        if (attacker instanceof CitizenVillager soldier && !self.getWorld().isClient()) {
+            String owner = soldier.ku$getOwnerUuid();
+            if (!owner.isEmpty()) {
+                try {
+                    amount *= (float) PolicyManager.soldierAttackMultiplier(
+                            (net.minecraft.server.world.ServerWorld) self.getWorld(),
+                            java.util.UUID.fromString(owner));
+                } catch (IllegalArgumentException ignored) {
+                    // 不正なUUIDは無視する。
+                }
+            }
         }
 
         if (attacker instanceof ServerPlayerEntity player) {

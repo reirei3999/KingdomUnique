@@ -161,11 +161,30 @@ public final class EnhancementUtil {
         }
 
         // 強化後も名前が斜体にならないように明示的にスタイルを上書きする。
-        MutableText baseName = result.getItem().getName().copy()
+        Text existingName = result.get(DataComponentTypes.CUSTOM_NAME);
+        String plainName = existingName == null ? "" : existingName.getString();
+        String title = "";
+        if (plainName.startsWith("[神域] ")) {
+            title = "[神域] ";
+            plainName = plainName.substring(5);
+        } else if (plainName.startsWith("[精錬] ")) {
+            title = "[精錬] ";
+            plainName = plainName.substring(5);
+        }
+        if (targetLevel >= 10) {
+            title = "[神域] ";
+        } else if (targetLevel >= 5 && title.isEmpty()) {
+            title = "[精錬] ";
+        }
+        if (plainName.isEmpty()) {
+            plainName = result.getItem().getName().getString();
+        }
+        MutableText baseName = Text.literal(plainName)
                 .styled(style -> style.withItalic(false));
         Text suffix = Text.literal(" +" + targetLevel)
                 .styled(style -> style.withColor(Formatting.GRAY).withItalic(false));
-        result.set(DataComponentTypes.CUSTOM_NAME, baseName.append(suffix));
+        result.set(DataComponentTypes.CUSTOM_NAME,
+                Text.literal(title).append(baseName).append(suffix));
 
         return result;
     }

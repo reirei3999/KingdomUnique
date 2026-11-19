@@ -17,6 +17,9 @@ public final class StructurePlacer {
             case BARRACKS -> barracks(world, center);
             case BLACKSMITH -> blacksmith(world, center);
             case TOWN_HALL -> townHall(world, center);
+            case WATCHTOWER -> watchtower(world, center);
+            case GATE -> gate(world, center);
+            case WALL -> wall(world, center);
         }
     }
 
@@ -26,6 +29,9 @@ public final class StructurePlacer {
             case BARRACKS -> 6;
             case BLACKSMITH -> 5;
             case TOWN_HALL -> 8;
+            case WATCHTOWER -> 5;
+            case GATE -> 4;
+            case WALL -> 5;
         };
     }
 
@@ -112,6 +118,60 @@ public final class StructurePlacer {
         for (int x = -5; x <= 5; x += 5) {
             for (int z = -5; z <= 5; z += 5) {
                 world.setBlockState(center.add(x, 6, z), Blocks.LANTERN.getDefaultState());
+            }
+        }
+    }
+
+    /** 門扉（閉じているときのブロック）の相対位置定義。 */
+    public static final int GATE_LEAF_HALF_WIDTH = 1;
+    public static final int GATE_LEAF_HEIGHT = 3;
+
+    /** 国境監視塔：石レンガの柱と木の見張り台。 */
+    private static void watchtower(ServerWorld world, BlockPos center) {
+        for (int dx = -1; dx <= 1; dx++) {
+            for (int dz = -1; dz <= 1; dz++) {
+                world.setBlockState(center.add(dx, -1, dz), Blocks.COBBLESTONE.getDefaultState());
+                world.setBlockState(center.add(dx, 7, dz), Blocks.OAK_PLANKS.getDefaultState());
+                world.setBlockState(center.add(dx, 9, dz), Blocks.STONE_BRICKS.getDefaultState());
+                boolean corner = Math.abs(dx) == 1 && Math.abs(dz) == 1;
+                for (int y = 0; y <= 6; y++) {
+                    world.setBlockState(center.add(dx, y, dz),
+                            corner ? Blocks.STONE_BRICKS.getDefaultState() : Blocks.AIR.getDefaultState());
+                }
+                if (Math.abs(dx) == 1 || Math.abs(dz) == 1) {
+                    world.setBlockState(center.add(dx, 8, dz), Blocks.OAK_PLANKS.getDefaultState());
+                }
+            }
+        }
+        world.setBlockState(center.add(0, 8, 0), Blocks.LANTERN.getDefaultState());
+    }
+
+    /** 国の門：中央の門扉は DefensesSystem が開閉する。 */
+    private static void gate(ServerWorld world, BlockPos center) {
+        for (int dx = -2; dx <= 2; dx++) {
+            world.setBlockState(center.add(dx, -1, 0), Blocks.COBBLESTONE.getDefaultState());
+            world.setBlockState(center.add(dx, 4, 0), Blocks.STONE_BRICKS.getDefaultState());
+        }
+        for (int y = 0; y <= 3; y++) {
+            world.setBlockState(center.add(-2, y, 0), Blocks.STONE_BRICKS.getDefaultState());
+            world.setBlockState(center.add(2, y, 0), Blocks.STONE_BRICKS.getDefaultState());
+        }
+        for (int dx = -1; dx <= 1; dx++) {
+            for (int y = 0; y < GATE_LEAF_HEIGHT; y++) {
+                world.setBlockState(center.add(dx, y, 0), Blocks.IRON_BLOCK.getDefaultState());
+            }
+        }
+    }
+
+    /** 防壁：幅5・高さ5の石レンガモジュール。 */
+    private static void wall(ServerWorld world, BlockPos center) {
+        for (int dx = -2; dx <= 2; dx++) {
+            world.setBlockState(center.add(dx, -1, 0), Blocks.COBBLESTONE.getDefaultState());
+            for (int y = 0; y <= 4; y++) {
+                world.setBlockState(center.add(dx, y, 0), Blocks.STONE_BRICKS.getDefaultState());
+            }
+            if (dx % 2 == 0) {
+                world.setBlockState(center.add(dx, 5, 0), Blocks.STONE_BRICK_WALL.getDefaultState());
             }
         }
     }

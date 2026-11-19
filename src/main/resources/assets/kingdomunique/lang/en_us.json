@@ -13,6 +13,9 @@
   "item.kingdomunique.blueprint_barracks": "Blueprint: Barracks",
   "item.kingdomunique.blueprint_blacksmith": "Blueprint: Blacksmith",
   "item.kingdomunique.blueprint_town_hall": "Blueprint: Town Hall",
+  "item.kingdomunique.blueprint_watchtower": "Blueprint: Watchtower",
+  "item.kingdomunique.blueprint_gate": "Blueprint: Kingdom Gate",
+  "item.kingdomunique.blueprint_wall": "Blueprint: Kingdom Wall",
   "item.kingdomunique.excalibur": "Excalibur",
   "item.kingdomunique.gae_bolg": "Gae Bolg",
   "item.kingdomunique.muramasa": "Muramasa",
@@ -23,5 +26,8 @@
   "block.kingdomunique.blueprint_barracks": "Blueprint: Barracks",
   "block.kingdomunique.blueprint_blacksmith": "Blueprint: Blacksmith",
   "block.kingdomunique.blueprint_town_hall": "Blueprint: Town Hall",
+  "block.kingdomunique.blueprint_watchtower": "Blueprint: Watchtower",
+  "block.kingdomunique.blueprint_gate": "Blueprint: Kingdom Gate",
+  "block.kingdomunique.blueprint_wall": "Blueprint: Kingdom Wall",
   "entity.kingdomunique.hero": "Kingdom Hero"
 }

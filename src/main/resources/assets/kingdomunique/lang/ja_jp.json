@@ -13,6 +13,9 @@
   "item.kingdomunique.blueprint_barracks": "設計図：兵舎",
   "item.kingdomunique.blueprint_blacksmith": "設計図：鍛冶工房",
   "item.kingdomunique.blueprint_town_hall": "設計図：王城・役場",
+  "item.kingdomunique.blueprint_watchtower": "設計図：国境監視塔",
+  "item.kingdomunique.blueprint_gate": "設計図：国の門",
+  "item.kingdomunique.blueprint_wall": "設計図：防壁",
   "item.kingdomunique.excalibur": "聖剣 エクスカリバー",
   "item.kingdomunique.gae_bolg": "魔槍 ゲイボルグ",
   "item.kingdomunique.muramasa": "妖刀 ムラマサ",
@@ -23,5 +26,8 @@
   "block.kingdomunique.blueprint_barracks": "設計図：兵舎",
   "block.kingdomunique.blueprint_blacksmith": "設計図：鍛冶工房",
   "block.kingdomunique.blueprint_town_hall": "設計図：王城・役場",
+  "block.kingdomunique.blueprint_watchtower": "設計図：国境監視塔",
+  "block.kingdomunique.blueprint_gate": "設計図：国の門",
+  "block.kingdomunique.blueprint_wall": "設計図：防壁",
   "entity.kingdomunique.hero": "王国の英雄"
 }

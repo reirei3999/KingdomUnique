@@ -60,7 +60,13 @@ public final class RelicEffects {
 
     /** 兵士NPCの攻撃力倍率（戦勝の軍旗で1.2倍）。 */
     public static double getSoldierAttackMultiplier(ServerPlayerEntity player) {
-        return has(player, RelicRegistry.BANNER) ? 1.2D : 1.0D;
+        return getSoldierAttackMultiplierOwner(
+                player.getServerWorld(), player.getUuid());
+    }
+
+    /** UUID指定で兵士の攻撃力倍率を返す（政策との合成用）。 */
+    public static double getSoldierAttackMultiplierOwner(ServerWorld world, UUID owner) {
+        return WorldUniqueData.getOrCreate(world).hasId(owner, RelicRegistry.BANNER) ? 1.2D : 1.0D;
     }
 
     /** 英雄NPCの召喚上限枠ボーナス。 */

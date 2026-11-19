@@ -328,4 +328,28 @@ public final class KingdomManager {
         double radius = info.territoryRadius();
         return dx * dx + dz * dz <= radius * radius;
     }
+
+    /** 指定王国の領地内か（他プレイヤーの領土判定用）。 */
+    public static boolean isInTerritory(ServerWorld world, UUID owner, net.minecraft.util.math.Vec3d pos) {
+        KingdomData.KingdomInfo info = KingdomData.getOrCreate(world).get(owner);
+        if (info == null) {
+            return false;
+        }
+        double dx = pos.x - info.centerX();
+        double dz = pos.z - info.centerZ();
+        double radius = info.territoryRadius();
+        return dx * dx + dz * dz <= radius * radius;
+    }
+
+    /** 王国の中心座標（未設定なら null）。 */
+    public static net.minecraft.util.math.BlockPos centerOf(ServerWorld world, UUID owner) {
+        KingdomData.KingdomInfo info = KingdomData.getOrCreate(world).get(owner);
+        return info == null ? null : new net.minecraft.util.math.BlockPos(info.centerX(), 0, info.centerZ());
+    }
+
+    /** 王国の領地半径。 */
+    public static int territoryRadius(ServerWorld world, UUID owner) {
+        KingdomData.KingdomInfo info = KingdomData.getOrCreate(world).get(owner);
+        return info == null ? 100 : info.territoryRadius();
+    }
 }

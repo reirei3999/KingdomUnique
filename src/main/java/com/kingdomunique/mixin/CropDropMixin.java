@@ -29,7 +29,12 @@ public abstract class CropDropMixin {
                 continue;
             }
             if (UniqueContentRegistry.FERTILITY.equals(UniqueContentRegistry.getAbility(player))) {
-                Block.dropStack(world, pos, new ItemStack(crop.asItem()));
+                // 富国強兵令の農民効率-20%を収穫ドロップにも反映する。
+                double rate = com.kingdomunique.kingdom.PolicyManager.cropGrowthMultiplier(
+                        world, player.getUuid());
+                if (java.util.concurrent.ThreadLocalRandom.current().nextDouble() < rate) {
+                    Block.dropStack(world, pos, new ItemStack(crop.asItem()));
+                }
                 return;
             }
         }

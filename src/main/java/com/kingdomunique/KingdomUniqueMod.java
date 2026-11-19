@@ -61,14 +61,19 @@ public class KingdomUniqueMod implements ModInitializer {
         // ステップ5: 国民・英雄エンティティと王国イベントを登録する。
         ModEntities.initialize();
         KingdomEventHandler.register();
+        com.kingdomunique.kingdom.PolicyManager.register();
+        com.kingdomunique.building.DefenseSystem.register();
+        com.kingdomunique.util.EnhancementAuraSystem.register();
 
         // ステップ6: 設計図ブロック・一点モノ武器・最終統合イベントを登録する。
         ModBlocks.initialize();
         UniqueWeapons.initialize();
         FinalEventHandler.register();
 
-        // 追加: 王国間外交・スマートヘイト。
+        // 追加: 王国間外交・スマートヘイト・王権略奪・7日ごとの大襲撃。
         WarfareEventHandler.register();
+        com.kingdomunique.war.SpoilsSystem.register();
+        com.kingdomunique.war.RaidSystem.register();
 
         // /i コマンド（アイテム披露）を登録する。
         CommandRegistrationCallback.EVENT.register((dispatcher, registryAccess, environment) -> {

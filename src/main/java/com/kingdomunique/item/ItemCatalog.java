@@ -24,6 +24,10 @@ public final class ItemCatalog {
         ENTRIES.add(new Entry("blueprint_barracks", "設計図：兵舎", () -> new ItemStack(ModBlocks.BARRACKS)));
         ENTRIES.add(new Entry("blueprint_blacksmith", "設計図：鍛冶工房", () -> new ItemStack(ModBlocks.BLACKSMITH)));
         ENTRIES.add(new Entry("blueprint_town_hall", "設計図：王城", () -> new ItemStack(ModBlocks.TOWN_HALL)));
+        ENTRIES.add(new Entry("blueprint_watchtower", "設計図：国境監視塔",
+                () -> new ItemStack(ModBlocks.WATCHTOWER)));
+        ENTRIES.add(new Entry("blueprint_gate", "設計図：国の門", () -> new ItemStack(ModBlocks.GATE)));
+        ENTRIES.add(new Entry("blueprint_wall", "設計図：防壁", () -> new ItemStack(ModBlocks.WALL)));
         ENTRIES.add(new Entry("slaughter_blade", "殺戮の宝剣（遺物）", () -> new ItemStack(ModItems.SLAUGHTER_BLADE)));
         ENTRIES.add(new Entry("destruction_pickaxe", "破壊衝動のツルハシ（呪物）",
                 () -> new ItemStack(ModItems.DESTRUCTION_PICKAXE)));

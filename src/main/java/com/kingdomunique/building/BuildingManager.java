@@ -42,7 +42,9 @@ public final class BuildingManager {
 
     /** 建築時間倍率（現場監督30%、設計盤50%、ヘファイストス30%短縮）。 */
     public static double timeMultiplier(ServerPlayerEntity player) {
-        double multiplier = RelicEffects.getBuildTimeMultiplier(player);
+        double multiplier = RelicEffects.getBuildTimeMultiplier(player)
+                * com.kingdomunique.kingdom.PolicyManager.buildTimeMultiplier(
+                        player.getServerWorld(), player.getUuid());
         if (unique(player, "site_supervisor")) {
             multiplier -= 0.30D;
         }
@@ -142,8 +144,10 @@ public final class BuildingManager {
                 }
                 if (progress >= required) {
                     StructurePlacer.place(world, site.pos(), site.type());
+                    DefenseData.register(world, site.pos(), site.type(), owner.getUuid());
                     if (site.type() == BuildingType.TOWN_HALL) {
                         KingdomManager.markTownHall(owner, site.pos());
+                        com.kingdomunique.kingdom.PolicyManager.sendPolicyOffer(owner);
                     } else if (site.type().getPopulationCapBonus() > 0) {
                         KingdomManager.addCapBonus(owner, site.type().getPopulationCapBonus());
                     }

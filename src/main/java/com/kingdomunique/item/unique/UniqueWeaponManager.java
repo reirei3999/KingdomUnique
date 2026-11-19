@@ -165,6 +165,23 @@ public final class UniqueWeaponManager {
         };
     }
 
+    /** 遺物・呪物・ユニーク武器のIDから対応する実体アイテムを生成する（実体が無ければ空）。 */
+    public static ItemStack createStackForId(String id) {
+        if (id == null) {
+            return ItemStack.EMPTY;
+        }
+        if (java.util.Arrays.asList(UniqueWeapons.ALL_IDS).contains(id)) {
+            return uniqueStack(id);
+        }
+        if ("blade_of_slaughter".equals(id)) {
+            return new ItemStack(com.kingdomunique.item.ModItems.SLAUGHTER_BLADE);
+        }
+        if ("pickaxe_of_destruction".equals(id)) {
+            return new ItemStack(com.kingdomunique.item.ModItems.DESTRUCTION_PICKAXE);
+        }
+        return ItemStack.EMPTY;
+    }
+
     public static boolean held(ServerPlayerEntity player, String id) {
         return id.equals(player.getMainHandStack().get(ModDataComponents.UNIQUE_WEAPON_ID));
     }
