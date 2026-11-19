@@ -1,0 +1,29 @@
+{
+  "required": true,
+  "package": "com.kingdomunique.mixin",
+  "compatibilityLevel": "JAVA_21",
+  "mixins": [
+    "AnvilScreenHandlerMixin",
+    "AreaMiningMixin",
+    "BowShotMixin",
+    "CitizenVillagerMixin",
+    "CombatCurseMixin",
+    "CraftBonusMixin",
+    "CropDropMixin",
+    "DestructionDropMixin",
+    "EnchantmentScreenHandlerMixin",
+    "ForgingScreenHandlerAccessor",
+    "LivingEntityAccessor",
+    "ItemTooltipMixin",
+    "LivingEntityMixin",
+    "MobEntityAccessor",
+    "PlayerCurseMixin",
+    "RangedDamageMixin",
+    "StatusEffectMixin",
+    "UniqueWeaponMixin"
+  ],
+  "client": [],
+  "injectors": {
+    "defaultRequire": 1
+  }
+}

@@ -1,0 +1,19 @@
+{
+  "type": "minecraft:crafting_shaped",
+  "category": "building",
+  "pattern": [
+    "AAA",
+    "PMP",
+    "CCC"
+  ],
+  "key": {
+    "A": { "item": "minecraft:anvil" },
+    "P": { "item": "minecraft:paper" },
+    "M": { "item": "minecraft:emerald" },
+    "C": { "item": "minecraft:cobblestone" }
+  },
+  "result": {
+    "id": "kingdomunique:blueprint_blacksmith",
+    "count": 1
+  }
+}

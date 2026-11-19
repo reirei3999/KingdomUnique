@@ -1,0 +1,19 @@
+{
+  "type": "minecraft:crafting_shaped",
+  "category": "building",
+  "pattern": [
+    "III",
+    "PMP",
+    "CCC"
+  ],
+  "key": {
+    "I": { "item": "minecraft:iron_ingot" },
+    "P": { "item": "minecraft:paper" },
+    "M": { "item": "minecraft:emerald" },
+    "C": { "item": "minecraft:cobblestone" }
+  },
+  "result": {
+    "id": "kingdomunique:blueprint_barracks",
+    "count": 1
+  }
+}

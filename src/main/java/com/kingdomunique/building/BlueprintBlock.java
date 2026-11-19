@@ -1,0 +1,137 @@
+package com.kingdomunique.building;
+
+import net.minecraft.block.Block;
+import net.minecraft.block.BlockEntityProvider;
+import net.minecraft.block.BlockState;
+import net.minecraft.block.entity.BlockEntity;
+import net.minecraft.entity.LivingEntity;
+import net.minecraft.entity.player.PlayerEntity;
+import net.minecraft.item.ItemStack;
+import net.minecraft.server.network.ServerPlayerEntity;
+import net.minecraft.server.world.ServerWorld;
+import net.minecraft.text.Text;
+import net.minecraft.util.ActionResult;
+import net.minecraft.util.Hand;
+import net.minecraft.util.hit.BlockHitResult;
+import net.minecraft.util.math.BlockPos;
+import net.minecraft.world.BlockView;
+import net.minecraft.world.World;
+
+/** 設置して直接資材を投入すると自動建築が始まる設計図ブロック（素手で即時回収可能）。 */
+public final class BlueprintBlock extends Block implements BlockEntityProvider {
+
+    private final BuildingType type;
+
+    public BlueprintBlock(BuildingType type, Settings settings) {
+        super(settings);
+        this.type = type;
+    }
+
+    public BuildingType getType() {
+        return type;
+    }
+
+    @Override
+    public BlockEntity createBlockEntity(BlockPos pos, BlockState state) {
+        return new BlueprintBlockEntity(pos, state, type);
+    }
+
+    /** どんな状態でも一瞬で壊せる。 */
+    @Override
+    public float calcBlockBreakingDelta(BlockState state, PlayerEntity player, BlockView world, BlockPos pos) {
+        return 1.0F;
+    }
+
+    @Override
+    public void onPlaced(World world, BlockPos pos, BlockState state,
+                         LivingEntity placer, ItemStack itemStack) {
+        super.onPlaced(world, pos, state, placer, itemStack);
+        if (world.isClient() || !(placer instanceof ServerPlayerEntity player)) {
+            return;
+        }
+        BuildData data = BuildData.getOrCreate((ServerWorld) world);
+        data.add(new BuildData.BuildSite(pos.toImmutable(), type, 0, false, player.getUuid()));
+        player.sendMessage(Text.literal("§6[設計図] " + type.getDisplayName()
+                + " に直接建材を右クリックで投入し、空手で右クリックして確認してください。"), false);
+    }
+
+    @Override
+    public net.minecraft.util.ItemActionResult onUseWithItem(ItemStack stack, BlockState state, World world,
+                                                             BlockPos pos, PlayerEntity player, Hand hand,
+                                                             BlockHitResult hit) {
+        if (world.isClient() || !(player instanceof ServerPlayerEntity serverPlayer)) {
+            return net.minecraft.util.ItemActionResult.PASS_TO_DEFAULT_BLOCK_INTERACTION;
+        }
+        if (!(world.getBlockEntity(pos) instanceof BlueprintBlockEntity be)) {
+            return net.minecraft.util.ItemActionResult.PASS_TO_DEFAULT_BLOCK_INTERACTION;
+        }
+        if (be.isReady()) {
+            player.sendMessage(Text.literal("§7[設計図] すでに建築が開始されています。"), false);
+            return net.minecraft.util.ItemActionResult.success(true);
+        }
+
+        ItemStack held = stack.copy();
+        if (be.insert(held)) {
+            stack.setCount(held.getCount());
+            serverPlayer.sendMessage(Text.literal("§6[設計図] " + stack.getName().getString()
+                    + " を投入しました。"), true);
+        } else {
+            serverPlayer.sendMessage(Text.literal("§c[設計図] この資材は必要ありません（枠が一杯です）。"), false);
+        }
+        return net.minecraft.util.ItemActionResult.success(true);
+    }
+
+    @Override
+    public ActionResult onUse(BlockState state, World world, BlockPos pos,
+                              PlayerEntity player, BlockHitResult hit) {
+        if (world.isClient() || !(player instanceof ServerPlayerEntity serverPlayer)) {
+            return ActionResult.SUCCESS;
+        }
+        if (!(world.getBlockEntity(pos) instanceof BlueprintBlockEntity be)) {
+            return ActionResult.SUCCESS;
+        }
+        if (be.isReady()) {
+            player.sendMessage(Text.literal("§7[設計図] すでに建築が開始されています。"), false);
+            return ActionResult.SUCCESS;
+        }
+
+        // 空手: 必要資材が揃っていれば、ここで初めて消費して建築を開始する。
+        double multiplier = BuildingManager.costMultiplier(serverPlayer);
+        if (!be.hasAllMaterials(type, multiplier)) {
+            serverPlayer.sendMessage(Text.literal("§c[設計図] 資材が不足しています。"), false);
+            return ActionResult.SUCCESS;
+        }
+        be.consume(type, multiplier);
+        be.setReady(true);
+
+        BuildData data = BuildData.getOrCreate((ServerWorld) world);
+        for (BuildData.BuildSite candidate : new java.util.ArrayList<>(data.sites())) {
+            if (candidate.pos().equals(pos)) {
+                data.sites().remove(candidate);
+                data.add(candidate.withReady(true));
+                break;
+            }
+        }
+        serverPlayer.sendMessage(Text.literal("§6[設計図] 資材を確認しました。建築士が作業を開始します。"), false);
+        return ActionResult.SUCCESS;
+    }
+
+    /** 破壊時: 投入済み資材を全額返却し、建築サイトもキャンセルする。 */
+    @Override
+    public void onStateReplaced(BlockState state, net.minecraft.world.World world, BlockPos pos,
+                                BlockState newState, boolean moved) {
+        if (!state.isOf(newState.getBlock())) {
+            if (world.getBlockEntity(pos) instanceof BlueprintBlockEntity be) {
+                be.dropAll(world, pos);
+            }
+            BuildData data = BuildData.getOrCreate((ServerWorld) world);
+            for (BuildData.BuildSite site : new java.util.ArrayList<>(data.sites())) {
+                if (site.pos().equals(pos)) {
+                    data.sites().remove(site);
+                    break;
+                }
+            }
+        }
+        super.onStateReplaced(state, world, pos, newState, moved);
+    }
+}

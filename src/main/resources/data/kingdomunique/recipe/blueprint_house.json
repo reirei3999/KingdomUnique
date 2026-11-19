@@ -1,0 +1,19 @@
+{
+  "type": "minecraft:crafting_shaped",
+  "category": "building",
+  "pattern": [
+    "WWW",
+    "PMP",
+    "CCC"
+  ],
+  "key": {
+    "W": { "item": "minecraft:oak_planks" },
+    "P": { "item": "minecraft:paper" },
+    "M": { "item": "minecraft:emerald" },
+    "C": { "item": "minecraft:cobblestone" }
+  },
+  "result": {
+    "id": "kingdomunique:blueprint_house",
+    "count": 1
+  }
+}

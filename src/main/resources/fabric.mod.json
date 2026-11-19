@@ -1,0 +1,30 @@
+{
+  "schemaVersion": 1,
+  "id": "kingdomunique",
+  "version": "${version}",
+  "name": "KingdomUnique",
+  "description": "建国とユニーク能力をテーマにした Fabric Mod。ワールド制限・ユニーク排他管理・初期覚醒を提供します。",
+  "authors": [
+    "KingdomUnique Developer"
+  ],
+  "contact": {},
+  "license": "MIT",
+  "environment": "*",
+  "entrypoints": {
+    "main": [
+      "com.kingdomunique.KingdomUniqueMod"
+    ],
+    "client": [
+      "com.kingdomunique.KingdomUniqueClientMod"
+    ]
+  },
+  "mixins": [
+    "kingdomunique.mixins.json"
+  ],
+  "depends": {
+    "fabricloader": ">=0.16.0",
+    "minecraft": "~1.21.1",
+    "java": ">=21",
+    "fabric-api": ">=0.105.0"
+  }
+}

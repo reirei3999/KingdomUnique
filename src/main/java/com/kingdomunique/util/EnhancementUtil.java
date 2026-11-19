@@ -1,0 +1,282 @@
+package com.kingdomunique.util;
+
+import com.kingdomunique.component.ModDataComponents;
+import com.kingdomunique.data.WorldUniqueData;
+import net.minecraft.component.DataComponentTypes;
+import net.minecraft.component.type.AttributeModifiersComponent;
+import net.minecraft.entity.attribute.EntityAttributeModifier;
+import net.minecraft.entity.player.PlayerEntity;
+import net.minecraft.item.ArmorItem;
+import net.minecraft.item.Item;
+import net.minecraft.item.ItemStack;
+import net.minecraft.item.MaceItem;
+import net.minecraft.item.RangedWeaponItem;
+import net.minecraft.item.ToolItem;
+import net.minecraft.item.TridentItem;
+import net.minecraft.server.MinecraftServer;
+import net.minecraft.server.network.ServerPlayerEntity;
+import net.minecraft.server.world.ServerWorld;
+import net.minecraft.text.Style;
+import net.minecraft.text.Text;
+import net.minecraft.util.Formatting;
+import net.minecraft.util.Identifier;
+import net.minecraft.world.World;
+
+import java.util.ArrayList;
+import java.util.List;
+import java.util.concurrent.ThreadLocalRandom;
+
+/**
+ * 無限強化合成の計算ロジック。
+ *
+ * 強化段階 N に対する性能補正は 1.1^N 倍。
+ * 段階を N から M に上げるときは、既に補正済みのコンポーネント値に
+ * (1.1^M / 1.1^N) = 1.1^(M-N) を掛けることで累乗誤差なく更新する。
+ */
+public final class EnhancementUtil {
+
+    /** ユニーク能力「神匠」のID。 */
+    public static final String DIVINE_SMITH_ID = "divine_smith";
+
+    /** 強化1段階あたりの倍率。 */
+    public static final double MULTIPLIER_PER_LEVEL = 1.1D;
+
+    /** 神匠の発動確率（0-99）。15%で+3、25%で+2、残り60%で通常の+1。 */
+    private static final int DIVINE_JUMP_3_CHANCE = 15;
+    private static final int DIVINE_JUMP_2_CHANCE = 40;
+
+    /** 金床で必要な経験レベル（無限強化を可能にするため常に1）。 */
+    public static final int LEVEL_COST = 1;
+
+    private EnhancementUtil() {
+    }
+
+    /** 1.1^level を返す。 */
+    public static double multiplier(int level) {
+        return Math.pow(MULTIPLIER_PER_LEVEL, Math.max(0, level));
+    }
+
+    /** アイテムの強化段階を返す（未設定なら0）。 */
+    public static int getLevel(ItemStack stack) {
+        Integer level = stack.get(ModDataComponents.ENHANCE_LEVEL);
+        return level == null ? 0 : Math.max(0, level);
+    }
+
+    /** 強化対象かどうかを判定する（武器・ツール・防具）。 */
+    public static boolean isEnhanceable(ItemStack stack) {
+        if (stack == null || stack.isEmpty()) {
+            return false;
+        }
+        // 一点モノのユニーク武器は無限強化の対象外。
+        if (stack.get(com.kingdomunique.component.ModDataComponents.UNIQUE_WEAPON_ID) != null) {
+            return false;
+        }
+        Item item = stack.getItem();
+        return item instanceof ToolItem
+                || item instanceof ArmorItem
+                || item instanceof RangedWeaponItem
+                || item instanceof TridentItem
+                || item instanceof MaceItem;
+    }
+
+    /**
+     * 2つのスロットから強化結果を生成する。
+     *
+     * @return 条件を満たさない場合は null（バニラの金床処理に委譲する）
+     */
+    public static EnhancementResult tryEnhance(ItemStack left, ItemStack right, PlayerEntity player) {
+        if (!isEnhanceable(left) || !isEnhanceable(right)) {
+            return null;
+        }
+        if (left.getItem() != right.getItem()) {
+            return null;
+        }
+
+        int currentLevel = getLevel(left);
+        if (currentLevel != getLevel(right)) {
+            return null;
+        }
+
+        int increment = player instanceof ServerPlayerEntity serverPlayer
+                ? computeIncrement(serverPlayer)
+                : 1;
+        int targetLevel = currentLevel + increment;
+
+        ItemStack result = applyLevel(left, currentLevel, targetLevel);
+        return new EnhancementResult(result, LEVEL_COST, increment > 1, targetLevel);
+    }
+
+    /**
+     * 強化段階を currentLevel から targetLevel へ変更した新しい ItemStack を返す。
+     */
+    public static ItemStack applyLevel(ItemStack source, int currentLevel, int targetLevel) {
+        ItemStack result = source.copy();
+        result.setCount(1);
+        result.set(ModDataComponents.ENHANCE_LEVEL, targetLevel);
+
+        double factor = multiplier(targetLevel - currentLevel);
+
+        AttributeModifiersComponent modifiers = result.get(DataComponentTypes.ATTRIBUTE_MODIFIERS);
+        if (modifiers != null && !modifiers.modifiers().isEmpty()) {
+            List<AttributeModifiersComponent.Entry> scaled = new ArrayList<>();
+            for (AttributeModifiersComponent.Entry entry : modifiers.modifiers()) {
+                EntityAttributeModifier old = entry.modifier();
+                double newValue;
+                if (old.operation() == EntityAttributeModifier.Operation.ADD_VALUE && old.value() < 0.0D) {
+                    // 攻撃速度のような負の加算補正は、値を掛けるとさらに遅くなる。
+                    // 絶対値を 1.1^N で割ることで実効値が 1.1^N 倍になるようにする。
+                    newValue = old.value() / factor;
+                } else {
+                    newValue = old.value() * factor;
+                }
+                EntityAttributeModifier updated = new EntityAttributeModifier(
+                        old.id(), newValue, old.operation());
+                scaled.add(new AttributeModifiersComponent.Entry(entry.attribute(), updated, entry.slot()));
+            }
+            result.set(DataComponentTypes.ATTRIBUTE_MODIFIERS,
+                    new AttributeModifiersComponent(scaled, modifiers.showInTooltip()));
+        }
+
+        // 1.21.1 のツール採掘速度は AttributeModifiers ではなく TOOL コンポーネントで定義される。
+        net.minecraft.component.type.ToolComponent tool = result.get(DataComponentTypes.TOOL);
+        if (tool != null) {
+            List<net.minecraft.component.type.ToolComponent.Rule> scaledRules = new ArrayList<>();
+            for (net.minecraft.component.type.ToolComponent.Rule rule : tool.rules()) {
+                scaledRules.add(new net.minecraft.component.type.ToolComponent.Rule(
+                        rule.blocks(),
+                        rule.speed().map(speed -> speed * (float) factor),
+                        rule.correctForDrops()));
+            }
+            result.set(DataComponentTypes.TOOL, new net.minecraft.component.type.ToolComponent(
+                    scaledRules,
+                    tool.defaultMiningSpeed() * (float) factor,
+                    tool.damagePerBlock()));
+        }
+
+        Integer maxDamage = result.get(DataComponentTypes.MAX_DAMAGE);
+        if (maxDamage != null && maxDamage > 0) {
+            int scaledMax = Math.max(1, (int) Math.round(maxDamage * factor));
+            result.set(DataComponentTypes.MAX_DAMAGE, scaledMax);
+        }
+
+        Text suffix = Text.literal(" +" + targetLevel)
+                .setStyle(Style.EMPTY.withColor(Formatting.GRAY));
+        result.set(DataComponentTypes.CUSTOM_NAME, result.getItem().getName().copy().append(suffix));
+
+        return result;
+    }
+
+    /** 神匠ボーナスを含めた上昇段階数を返す。 */
+    private static int computeIncrement(ServerPlayerEntity player) {
+        if (!hasDivineSmith(player)) {
+            return 1;
+        }
+        int roll = ThreadLocalRandom.current().nextInt(100);
+        if (roll < DIVINE_JUMP_3_CHANCE) {
+            return 3;
+        }
+        if (roll < DIVINE_JUMP_2_CHANCE) {
+            return 2;
+        }
+        return 1;
+    }
+
+    /** プレイヤーが「神匠」を所持しているかを永続データから判定する。 */
+    private static boolean hasDivineSmith(ServerPlayerEntity player) {
+        MinecraftServer server = player.getServer();
+        if (server == null) {
+            return false;
+        }
+        ServerWorld overworld = server.getWorld(World.OVERWORLD);
+        if (overworld == null) {
+            return false;
+        }
+        WorldUniqueData data = WorldUniqueData.getOrCreate(overworld);
+        return DIVINE_SMITH_ID.equals(data.getClaimedId(player.getUuid()));
+    }
+
+    /** 神匠のクラフトボーナス（攻撃力・攻撃速度・採掘速度を個別に反映）。 */
+    public static void applyDivineBonuses(ItemStack stack, float attack, float speed, float mining) {
+        net.minecraft.util.Identifier attackId =
+                net.minecraft.util.Identifier.of("kingdomunique", "divine_attack_damage");
+        net.minecraft.util.Identifier speedId =
+                net.minecraft.util.Identifier.of("kingdomunique", "divine_attack_speed");
+        net.minecraft.util.Identifier miningId =
+                net.minecraft.util.Identifier.of("kingdomunique", "divine_mining_speed");
+        List<net.minecraft.util.Identifier> ids = List.of(attackId, speedId, miningId);
+
+        stack.set(ModDataComponents.DIVINE_ATTACK_DAMAGE, attack);
+        stack.set(ModDataComponents.DIVINE_ATTACK_SPEED, speed);
+        stack.set(ModDataComponents.DIVINE_MINING_SPEED, mining);
+
+        net.minecraft.component.type.AttributeModifiersComponent current =
+                stack.get(DataComponentTypes.ATTRIBUTE_MODIFIERS);
+        List<net.minecraft.component.type.AttributeModifiersComponent.Entry> entries = new ArrayList<>();
+        if (current != null) {
+            for (net.minecraft.component.type.AttributeModifiersComponent.Entry entry : current.modifiers()) {
+                if (!ids.contains(entry.modifier().id())) {
+                    entries.add(entry);
+                }
+            }
+        }
+        EntityAttributeModifier.Operation op = EntityAttributeModifier.Operation.ADD_MULTIPLIED_TOTAL;
+        addIfPositive(entries, net.minecraft.entity.attribute.EntityAttributes.GENERIC_ATTACK_DAMAGE,
+                attackId, attack, op);
+        addIfPositive(entries, net.minecraft.entity.attribute.EntityAttributes.GENERIC_ATTACK_SPEED,
+                speedId, speed, op);
+        addIfPositive(entries, net.minecraft.entity.attribute.EntityAttributes.PLAYER_MINING_EFFICIENCY,
+                miningId, mining, op);
+        stack.set(DataComponentTypes.ATTRIBUTE_MODIFIERS,
+                new net.minecraft.component.type.AttributeModifiersComponent(
+                        entries, current == null || current.showInTooltip()));
+
+        net.minecraft.component.type.ToolComponent tool = stack.get(DataComponentTypes.TOOL);
+        if (tool != null && mining > 0.0F) {
+            List<net.minecraft.component.type.ToolComponent.Rule> rules = new ArrayList<>();
+            for (net.minecraft.component.type.ToolComponent.Rule rule : tool.rules()) {
+                rules.add(new net.minecraft.component.type.ToolComponent.Rule(
+                        rule.blocks(),
+                        rule.speed().map(value -> value * (1.0F + mining)),
+                        rule.correctForDrops()));
+            }
+            stack.set(DataComponentTypes.TOOL, new net.minecraft.component.type.ToolComponent(
+                    rules, tool.defaultMiningSpeed() * (1.0F + mining), tool.damagePerBlock()));
+        }
+    }
+
+    private static void addIfPositive(List<net.minecraft.component.type.AttributeModifiersComponent.Entry> entries,
+                                      net.minecraft.registry.entry.RegistryEntry<net.minecraft.entity.attribute.EntityAttribute> attribute,
+                                      Identifier id, float value,
+                                      EntityAttributeModifier.Operation operation) {
+        if (value > 0.0F) {
+            entries.add(new net.minecraft.component.type.AttributeModifiersComponent.Entry(
+                    attribute, new EntityAttributeModifier(id, value, operation),
+                    net.minecraft.component.type.AttributeModifierSlot.MAINHAND));
+        }
+    }
+
+    /** 殺戮の宝剣の攻撃力ボーナスをコンポーネントへ反映する。 */
+    public static void applySlaughterBonus(ItemStack stack, float bonus) {
+        net.minecraft.component.type.AttributeModifiersComponent current =
+                stack.get(DataComponentTypes.ATTRIBUTE_MODIFIERS);
+        java.util.List<net.minecraft.component.type.AttributeModifiersComponent.Entry> entries =
+                new java.util.ArrayList<>();
+        if (current != null) {
+            entries.addAll(current.modifiers());
+        }
+        net.minecraft.util.Identifier id = net.minecraft.util.Identifier.of("kingdomunique", "slaughter_bonus");
+        entries.removeIf(entry -> entry.modifier().id().equals(id));
+        entries.add(new net.minecraft.component.type.AttributeModifiersComponent.Entry(
+                net.minecraft.entity.attribute.EntityAttributes.GENERIC_ATTACK_DAMAGE,
+                new EntityAttributeModifier(id, bonus, EntityAttributeModifier.Operation.ADD_VALUE),
+                net.minecraft.component.type.AttributeModifierSlot.MAINHAND
+        ));
+        stack.set(DataComponentTypes.ATTRIBUTE_MODIFIERS,
+                new net.minecraft.component.type.AttributeModifiersComponent(
+                        entries, current == null || current.showInTooltip()));
+    }
+
+    /** 強化結果。 */
+    public record EnhancementResult(ItemStack stack, int levelCost, boolean divineBonus, int newLevel) {
+    }
+}

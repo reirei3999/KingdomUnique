@@ -1,0 +1,19 @@
+{
+  "type": "minecraft:crafting_shaped",
+  "category": "building",
+  "pattern": [
+    "GGG",
+    "PMP",
+    "CCC"
+  ],
+  "key": {
+    "G": { "item": "minecraft:gold_ingot" },
+    "P": { "item": "minecraft:paper" },
+    "M": { "item": "minecraft:emerald" },
+    "C": { "item": "minecraft:cobblestone" }
+  },
+  "result": {
+    "id": "kingdomunique:blueprint_town_hall",
+    "count": 1
+  }
+}

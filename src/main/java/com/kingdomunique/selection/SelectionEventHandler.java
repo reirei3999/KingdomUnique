@@ -1,0 +1,212 @@
+package com.kingdomunique.selection;
+
+import com.kingdomunique.component.ModDataComponents;
+import com.kingdomunique.effect.CurseEffects;
+import com.kingdomunique.effect.RelicEffects;
+import com.kingdomunique.item.ModItems;
+import com.kingdomunique.network.SelectionChoicePayload;
+import com.kingdomunique.registry.CurseRegistry;
+import com.kingdomunique.registry.RelicRegistry;
+import com.kingdomunique.util.EnhancementUtil;
+import net.fabricmc.fabric.api.command.v2.CommandRegistrationCallback;
+import net.fabricmc.fabric.api.entity.event.v1.ServerLivingEntityEvents;
+import net.fabricmc.fabric.api.event.lifecycle.v1.ServerTickEvents;
+import net.fabricmc.fabric.api.networking.v1.ServerPlayConnectionEvents;
+import net.fabricmc.fabric.api.networking.v1.ServerPlayNetworking;
+import net.minecraft.entity.LivingEntity;
+import net.minecraft.entity.damage.DamageSource;
+import net.minecraft.entity.effect.StatusEffectInstance;
+import net.minecraft.entity.effect.StatusEffects;
+import net.minecraft.entity.mob.HostileEntity;
+import net.minecraft.item.ItemStack;
+import net.minecraft.server.MinecraftServer;
+import net.minecraft.server.command.CommandManager;
+import net.minecraft.server.network.ServerPlayerEntity;
+import net.minecraft.server.world.ServerWorld;
+import net.minecraft.text.Text;
+import net.minecraft.world.World;
+
+import java.util.Map;
+import java.util.UUID;
+import java.util.concurrent.ConcurrentHashMap;
+
+/** ステップ4のトリガー・効果イベント・コマンドをまとめて登録する。 */
+public final class SelectionEventHandler {
+
+    private static final long GLUTTONY_TICKS = 200L;
+    private static final Map<UUID, Long> GLUTTONY_UNTIL = new ConcurrentHashMap<>();
+    private static final Map<UUID, Long> PHOENIX_LAST = new ConcurrentHashMap<>();
+    private static final long DAY = 24000L;
+
+    private SelectionEventHandler() {
+    }
+
+    public static void register() {
+        CommandRegistrationCallback.EVENT.register((dispatcher, registryAccess, environment) -> {
+            dispatcher.register(CommandManager.literal("ku")
+                    .then(CommandManager.literal("select").executes(context -> {
+                        ServerPlayerEntity player = context.getSource().getPlayer();
+                        if (player == null) {
+                            return 0;
+                        }
+                        return SelectionManager.reopen(player) ? 1 : 0;
+                    }))
+                    .then(CommandManager.literal("ally")
+                            .then(CommandManager.argument("target",
+                                    net.minecraft.command.argument.EntityArgumentType.player())
+                                    .executes(context -> {
+                                        ServerPlayerEntity self = context.getSource().getPlayer();
+                                        ServerPlayerEntity target =
+                                                net.minecraft.command.argument.EntityArgumentType.getPlayer(context, "target");
+                                        if (self == null || self == target) {
+                                            return 0;
+                                        }
+                                        com.kingdomunique.war.Warfare.setAlly(self, target);
+                                        return 1;
+                                    })))
+                    .then(CommandManager.literal("war")
+                            .then(CommandManager.argument("target",
+                                    net.minecraft.command.argument.EntityArgumentType.player())
+                                    .executes(context -> {
+                                        ServerPlayerEntity self = context.getSource().getPlayer();
+                                        ServerPlayerEntity target =
+                                                net.minecraft.command.argument.EntityArgumentType.getPlayer(context, "target");
+                                        if (self == null || self == target) {
+                                            return 0;
+                                        }
+                                        com.kingdomunique.war.Warfare.declareWar(self, target);
+                                        return 1;
+                                    }))));
+        });
+
+        ServerTickEvents.END_SERVER_TICK.register(SelectionEventHandler::onTick);
+        ServerPlayConnectionEvents.DISCONNECT.register((handler, server) -> {
+            SelectionManager.remove(handler.getPlayer());
+            GLUTTONY_UNTIL.remove(handler.getPlayer().getUuid());
+            PHOENIX_LAST.remove(handler.getPlayer().getUuid());
+        });
+
+        ServerPlayNetworking.registerGlobalReceiver(SelectionChoicePayload.ID, (payload, context) -> {
+            ServerPlayerEntity player = context.player();
+            SelectionManager.handleChoice(player, payload.kind(), payload.chosenId());
+        });
+
+        ServerLivingEntityEvents.AFTER_DEATH.register(SelectionEventHandler::onDeath);
+        ServerLivingEntityEvents.ALLOW_DEATH.register(SelectionEventHandler::allowDeath);
+    }
+
+    private static void onTick(MinecraftServer server) {
+        RelicEffects.onServerTick(server);
+        CurseEffects.onServerTick(server);
+
+        for (ServerPlayerEntity player : server.getPlayerManager().getPlayerList()) {
+            checkDiamond(player);
+            checkNether(player);
+            checkCitizens(player);
+            tickGluttony(player);
+            blockHostileSpawns(player);
+        }
+    }
+
+    /** ダイヤモンド（原石／インゴット）を初めて所持したらトリガーA。 */
+    private static void checkDiamond(ServerPlayerEntity player) {
+        for (int i = 0; i < player.getInventory().size(); i++) {
+            ItemStack stack = player.getInventory().getStack(i);
+            if (!stack.isEmpty() && stack.isOf(net.minecraft.item.Items.DIAMOND)) {
+                SelectionManager.onDiamondObtained(player);
+                return;
+            }
+        }
+    }
+
+    private static void checkNether(ServerPlayerEntity player) {
+        if (player.getWorld().getRegistryKey() == World.NETHER) {
+            SelectionManager.onNetherEntered(player);
+        }
+    }
+
+    private static void checkCitizens(ServerPlayerEntity player) {
+        int count = player.getServerWorld().getEntitiesByClass(
+                net.minecraft.entity.passive.VillagerEntity.class,
+                player.getBoundingBox().expand(256.0D),
+                villager -> villager.isAlive()).size();
+        SelectionManager.onCitizenCountReached(player, count);
+    }
+
+    /** 暴食の指輪：空腹の減少を3倍にし、空腹0で猛毒。 */
+    private static void tickGluttony(ServerPlayerEntity player) {
+        if (!CurseEffects.has(player, CurseRegistry.GLUTTONY)) {
+            return;
+        }
+        long now = player.getServerWorld().getTime();
+        Long until = GLUTTONY_UNTIL.get(player.getUuid());
+        boolean buffActive = until != null && now < until;
+        if (buffActive) {
+            if (player.getHungerManager().getFoodLevel() == 0 && now % 20L == 0L) {
+                player.addStatusEffect(new StatusEffectInstance(StatusEffects.POISON, 40, 1));
+            }
+            player.addExhaustion(0.06F);
+        } else {
+            player.addExhaustion(0.02F);
+        }
+    }
+
+    /** 守護の結界石：王国範囲内の敵対Mobを除去する。 */
+    private static void blockHostileSpawns(ServerPlayerEntity player) {
+        if (!RelicEffects.isHostileSpawnBlocked(player)) {
+            return;
+        }
+        ServerWorld world = player.getServerWorld();
+        for (HostileEntity hostile : world.getEntitiesByClass(HostileEntity.class,
+                player.getBoundingBox().expand(128.0D), h -> h.isAlive())) {
+            hostile.discard();
+        }
+    }
+
+    /** 撃破時の処理：宝剣の攻撃力上昇、暴食のバフ、背徳の呪いダメージ。 */
+    private static void onDeath(LivingEntity entity, DamageSource source) {
+        if (!(source.getAttacker() instanceof ServerPlayerEntity player)) {
+            return;
+        }
+
+        ItemStack weapon = player.getMainHandStack();
+        if (weapon.isOf(ModItems.SLAUGHTER_BLADE)
+                && RelicEffects.has(player, RelicRegistry.BLADE)) {
+            float bonus = weapon.getOrDefault(ModDataComponents.SLAUGHTER_BONUS, 0.0F) + 0.1F;
+            weapon.set(ModDataComponents.SLAUGHTER_BONUS, bonus);
+            EnhancementUtil.applySlaughterBonus(weapon, bonus);
+        }
+
+        if (CurseEffects.has(player, CurseRegistry.GLUTTONY)) {
+            GLUTTONY_UNTIL.put(player.getUuid(),
+                    player.getServerWorld().getTime() + GLUTTONY_TICKS);
+        }
+
+        if (CurseEffects.has(player, CurseRegistry.CONTRACT)
+                && entity instanceof net.minecraft.entity.passive.VillagerEntity) {
+            float curse = Math.max(player.getHealth(), player.getMaxHealth()) / 2.0F;
+            player.damage(player.getDamageSources().magic(), curse);
+            player.sendMessage(Text.literal("§5[背徳の契約書] 国民の死が呪いとなって襲いました。"), false);
+        }
+    }
+
+    /** 不死鳥の羽根：1日1回、死亡をキャンセルして全回復。 */
+    private static boolean allowDeath(LivingEntity entity, DamageSource source, float amount) {
+        if (!(entity instanceof ServerPlayerEntity player)) {
+            return true;
+        }
+        if (!RelicEffects.has(player, RelicRegistry.PHOENIX)) {
+            return true;
+        }
+        long day = player.getServerWorld().getTimeOfDay() / DAY;
+        Long last = PHOENIX_LAST.get(player.getUuid());
+        if (last != null && last == day) {
+            return true;
+        }
+        PHOENIX_LAST.put(player.getUuid(), day);
+        player.setHealth(player.getMaxHealth());
+        player.getHungerManager().setFoodLevel(20);
+        player.sendMessage(Text.literal("§6[不死鳥の羽根] あなたは灰の中から蘇りました。"), false);
+        return false;
+    }
+}

@@ -1,0 +1,34 @@
+package com.kingdomunique;
+
+import com.kingdomunique.client.BlueprintClientOverlay;
+import com.kingdomunique.client.KeyBindings;
+import com.kingdomunique.client.SelectionClient;
+import com.kingdomunique.client.render.HeroEntityRenderer;
+import com.kingdomunique.component.ModDataComponents;
+import com.kingdomunique.entity.ModEntities;
+import net.fabricmc.fabric.api.client.rendering.v1.EntityRendererRegistry;
+import net.fabricmc.api.ClientModInitializer;
+
+/** KingdomUnique のクライアントサイドエントリポイント。 */
+public class KingdomUniqueClientMod implements ClientModInitializer {
+
+    @Override
+    public void onInitializeClient() {
+        // カスタムコンポーネントのネットワークコーデックをクライアント側でも登録する。
+        ModDataComponents.initialize();
+
+        // 能力発動キー(R) / モード切替キー(V) を登録する。
+        KeyBindings.initialize();
+
+        // 選択GUIのパケット受信を登録する。
+        SelectionClient.initialize();
+
+        // 英雄NPCのレンダラーを登録する（Bipedモデル＋防具/手持ち描画）。
+        EntityRendererRegistry.register(ModEntities.HERO, HeroEntityRenderer::new);
+
+        // 設計図の建材HUDと3Dプレビュー。
+        BlueprintClientOverlay.initialize();
+
+        KingdomUniqueMod.LOGGER.info("[KingdomUnique] Client entrypoint initialized.");
+    }
+}
