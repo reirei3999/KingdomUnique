@@ -25,7 +25,6 @@ public final class StarterSpawn {
     private static final int RANGE = 2000;
     private static final int MIN_DISTANCE = 500;
     private static final int MAX_ATTEMPTS = 256;
-    private static final int VILLAGE_OFFSET = 12;
 
     /** 接続直後に積み、次のサーバーティックで処理するプレイヤー。 */
     private static final Queue<UUID> PENDING = new ArrayDeque<>();
@@ -75,32 +74,63 @@ public final class StarterSpawn {
     }
 
     private static void spawn(ServerPlayerEntity player, MinecraftServer server, ServerWorld world) {
-        BlockPos spawn = findSafeSpawn(world);
-        if (spawn == null) {
+        BlockPos villageCenter = findSafeSpawn(world);
+        if (villageCenter == null) {
             KingdomUniqueMod.LOGGER.warn("[KingdomUnique] Could not find a safe starter spawn for {}.",
                     player.getName().getString());
             return;
         }
 
-        world.getChunk(spawn.getX() >> 4, spawn.getZ() >> 4);
-        // 指定シグネチャで確実にテレポートする。
-        player.teleport(world, spawn.getX() + 0.5D, spawn.getY() + 1.0D, spawn.getZ() + 0.5D,
+        world.getChunk(villageCenter.getX() >> 4, villageCenter.getZ() >> 4);
+
+        // まず村を生成し、その中（井戸の周囲）で安全な立ち位置を探す。
+        VillageBuilder.generateStarterVillage(world, villageCenter.getX(), villageCenter.getZ());
+        BlockPos spawn = findVillageSpawn(world, villageCenter);
+        if (spawn == null) {
+            KingdomUniqueMod.LOGGER.warn("[KingdomUnique] No free spot in village, using center for {}.",
+                    player.getName().getString());
+            spawn = villageCenter.up();
+        }
+
+        // 指定シグネチャで確実にテレポートする（村の中へ）。
+        player.teleport(world, spawn.getX() + 0.5D, spawn.getY(), spawn.getZ() + 0.5D,
                 java.util.Set.<PositionFlag>of(), 0.0F, 0.0F);
-        player.setSpawnPoint(World.OVERWORLD, spawn.up(), 0.0F, false, false);
+        player.setSpawnPoint(World.OVERWORLD, spawn, 0.0F, false, false);
         PlayerSpawnData.getOrCreate(world).put(player.getUuid(), spawn);
 
         // テレポート地点そのものを王国の中心（初期領土半径100）として保存する。
         KingdomData.getOrCreate(world).put(player.getUuid(),
                 new KingdomData.KingdomInfo(spawn.getX(), spawn.getZ(), 0, 10, 0, false, 0, true, 100));
 
-        // すぐ近く（半径15以内）に初期村を生成する。
-        int vx = spawn.getX() + VILLAGE_OFFSET;
-        int vz = spawn.getZ() + VILLAGE_OFFSET;
-        VillageBuilder.generateStarterVillage(world, vx, vz);
         player.sendMessage(Text.literal("§6[KingdomUnique] この地があなたの王国となった。"
-                + "すぐそばに初期村が築かれた。"), false);
-        KingdomUniqueMod.LOGGER.info("[KingdomUnique] Starter spawn {} -> village ({}, {}) for {}.",
-                spawn.getX() + "," + spawn.getZ(), vx, vz, player.getName().getString());
+                + "村の中心に到着した。村人6人が出迎える。"), false);
+        KingdomUniqueMod.LOGGER.info("[KingdomUnique] Starter spawn inside village ({}, {}) -> ({}, {}) for {}.",
+                villageCenter.getX(), villageCenter.getZ(), spawn.getX(), spawn.getZ(),
+                player.getName().getString());
+    }
+
+    /** 村の井戸周囲から、足元・頭上が空で地面が固体の安全な立ち位置を探す。 */
+    private static BlockPos findVillageSpawn(ServerWorld world, BlockPos center) {
+        int groundY = center.getY() + 1;
+        for (int radius = 2; radius <= 8; radius++) {
+            for (int i = 0; i < 16; i++) {
+                double angle = i * Math.PI * 2.0D / 16.0D;
+                int x = center.getX() + (int) Math.round(Math.cos(angle) * radius);
+                int z = center.getZ() + (int) Math.round(Math.sin(angle) * radius);
+                for (int y = groundY + 8; y >= groundY - 4; y--) {
+                    BlockPos feet = new BlockPos(x, y, z);
+                    net.minecraft.block.BlockState below = world.getBlockState(feet.down());
+                    if (world.getBlockState(feet).isAir()
+                            && world.getBlockState(feet.up()).isAir()
+                            && !below.isAir()
+                            && !below.isOf(Blocks.WATER)
+                            && !below.isOf(Blocks.LAVA)) {
+                        return feet;
+                    }
+                }
+            }
+        }
+        return null;
     }
 
     /** 海・マグマを避け、他プレイヤーの王国から500マス以上離れた地上座標を探す。 */
