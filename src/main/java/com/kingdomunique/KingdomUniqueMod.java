@@ -67,6 +67,7 @@ public class KingdomUniqueMod implements ModInitializer {
         com.kingdomunique.building.DefenseSystem.register();
         com.kingdomunique.util.EnhancementAuraSystem.register();
         com.kingdomunique.util.RoadSpeedSystem.register();
+        com.kingdomunique.world.StarterSpawn.register();
 
         // ステップ6: 設計図ブロック・一点モノ武器・最終統合イベントを登録する。
         ModBlocks.initialize();

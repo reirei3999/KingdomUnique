@@ -47,7 +47,7 @@ public final class SelectionIcons {
 
     public static String[] effectsFor(String id) {
         return switch (id) {
-            case "divine_smith" -> new String[]{"製作物にランダム強化", "Vキーで範囲採掘"};
+            case "divine_smith" -> new String[]{"製作物にランダム強化", "Vキーで範囲採掘（最大3x3）"};
             case "trickery" -> new String[]{"視線20マスの対象と入れ替わり", "盲目+鈍足付与＆分身でヘイト回避", "_CT 12秒"};
             case "fertility" -> new String[]{"作物成長を加速", "収穫ドロップ2倍"};
             case "site_supervisor" -> new String[]{"リーチ延長", "建築コスト/時間短縮"};

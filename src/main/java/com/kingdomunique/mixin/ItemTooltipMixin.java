@@ -46,20 +46,30 @@ public abstract class ItemTooltipMixin {
         float dmg = stack.getOrDefault(ModDataComponents.DIVINE_ATTACK_DAMAGE, 0.0F);
         float spd = stack.getOrDefault(ModDataComponents.DIVINE_ATTACK_SPEED, 0.0F);
         float mine = stack.getOrDefault(ModDataComponents.DIVINE_MINING_SPEED, 0.0F);
-        if (dmg > 0.0F || spd > 0.0F || mine > 0.0F) {
+        float armorBonus = stack.getOrDefault(ModDataComponents.DIVINE_ARMOR, 0.0F);
+        float toughBonus = stack.getOrDefault(ModDataComponents.DIVINE_TOUGHNESS, 0.0F);
+        if (dmg > 0.0F || spd > 0.0F || mine > 0.0F || armorBonus > 0.0F || toughBonus > 0.0F) {
             tooltip.add(Text.literal(""));
             tooltip.add(Text.literal("【神匠の加護】").formatted(Formatting.GOLD, Formatting.BOLD));
             if (dmg > 0.0F) {
-                tooltip.add(Text.literal("  攻撃力 +" + String.format("%.1f", dmg * 100.0F) + "%")
+                tooltip.add(Text.literal("  神匠ボーナス：攻撃力 +" + percent(dmg))
                         .formatted(Formatting.YELLOW));
             }
             if (spd > 0.0F) {
-                tooltip.add(Text.literal("  攻撃速度 +" + String.format("%.1f", spd * 100.0F) + "%")
+                tooltip.add(Text.literal("  神匠ボーナス：攻撃速度 +" + percent(spd))
                         .formatted(Formatting.AQUA));
             }
             if (mine > 0.0F) {
-                tooltip.add(Text.literal("  採掘速度 +" + String.format("%.1f", mine * 100.0F) + "%")
+                tooltip.add(Text.literal("  神匠ボーナス：採掘速度 +" + percent(mine))
                         .formatted(Formatting.GREEN));
+            }
+            if (armorBonus > 0.0F) {
+                tooltip.add(Text.literal("  神匠ボーナス：防御力 +" + percent(armorBonus))
+                        .formatted(Formatting.AQUA));
+            }
+            if (toughBonus > 0.0F) {
+                tooltip.add(Text.literal("  神匠ボーナス：防具強度 +" + percent(toughBonus))
+                        .formatted(Formatting.LIGHT_PURPLE));
             }
         }
 
@@ -84,6 +94,10 @@ public abstract class ItemTooltipMixin {
                         .withBold(true).withItalic(false)));
             }
         }
+    }
+
+    private static String percent(float value) {
+        return String.format("%.1f", value * 100.0F) + "%";
     }
 
     private static void appendUniqueWeapon(List<Text> tooltip, String id, ItemStack stack) {

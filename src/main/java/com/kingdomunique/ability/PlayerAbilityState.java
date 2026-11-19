@@ -27,8 +27,9 @@ public final class PlayerAbilityState {
         return miningRange;
     }
 
+    /** 採掘範囲は 1x1 ⇄ 3x3（最大）の2段階。 */
     public void cycleMiningRange() {
-        miningRange = miningRange == 1 ? 3 : (miningRange == 3 ? 5 : 1);
+        miningRange = miningRange == 1 ? 3 : 1;
     }
 
     public long getLastDamageTimeMillis() {

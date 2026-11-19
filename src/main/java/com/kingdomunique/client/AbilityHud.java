@@ -67,7 +67,7 @@ public final class AbilityHud {
         if (UniqueContentRegistry.DIVINE_SMITH.equals(abilityId)) {
             int range = Math.max(1, status.miningRange());
             context.drawTextWithShadow(client.textRenderer,
-                    Text.literal("採掘範囲: " + range + "x" + range),
+                    Text.literal("採掘範囲: " + range + "x" + range + "（最大3x3）"),
                     x + 22, y + 28, 0xFF55FFFF);
         }
     }

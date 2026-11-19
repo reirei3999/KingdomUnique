@@ -69,6 +69,20 @@ public final class ModDataComponents {
             ComponentType.<Float>builder().codec(Codec.FLOAT).packetCodec(PacketCodecs.FLOAT).build()
     );
 
+    /** 神匠: 防具の防御力ボーナス。 */
+    public static final ComponentType<Float> DIVINE_ARMOR = Registry.register(
+            Registries.DATA_COMPONENT_TYPE,
+            Identifier.of(KingdomUniqueMod.MOD_ID, "divine_armor"),
+            ComponentType.<Float>builder().codec(Codec.FLOAT).packetCodec(PacketCodecs.FLOAT).build()
+    );
+
+    /** 神匠: 防具の防具強度ボーナス。 */
+    public static final ComponentType<Float> DIVINE_TOUGHNESS = Registry.register(
+            Registries.DATA_COMPONENT_TYPE,
+            Identifier.of(KingdomUniqueMod.MOD_ID, "divine_toughness"),
+            ComponentType.<Float>builder().codec(Codec.FLOAT).packetCodec(PacketCodecs.FLOAT).build()
+    );
+
     /** プレイヤーの累計撃破数（ムラマサの100キル条件に使用）。 */
     public static final ComponentType<Integer> TOTAL_KILLS = Registry.register(
             Registries.DATA_COMPONENT_TYPE,

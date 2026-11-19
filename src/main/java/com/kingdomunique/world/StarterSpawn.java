@@ -2,7 +2,9 @@ package com.kingdomunique.world;
 
 import com.kingdomunique.KingdomUniqueMod;
 import com.kingdomunique.kingdom.KingdomData;
+import net.fabricmc.fabric.api.event.lifecycle.v1.ServerTickEvents;
 import net.minecraft.block.Blocks;
+import net.minecraft.network.packet.s2c.play.PositionFlag;
 import net.minecraft.registry.tag.BiomeTags;
 import net.minecraft.server.MinecraftServer;
 import net.minecraft.server.network.ServerPlayerEntity;
@@ -12,6 +14,9 @@ import net.minecraft.util.math.BlockPos;
 import net.minecraft.world.Heightmap;
 import net.minecraft.world.World;
 
+import java.util.ArrayDeque;
+import java.util.Queue;
+import java.util.UUID;
 import java.util.concurrent.ThreadLocalRandom;
 
 /** 初回ログイン時の 4000x4000 ランダムスポーンと初期村生成。 */
@@ -22,36 +27,73 @@ public final class StarterSpawn {
     private static final int MAX_ATTEMPTS = 256;
     private static final int VILLAGE_OFFSET = 12;
 
+    /** 接続直後に積み、次のサーバーティックで処理するプレイヤー。 */
+    private static final Queue<UUID> PENDING = new ArrayDeque<>();
+
     private StarterSpawn() {
     }
 
+    public static void register() {
+        ServerTickEvents.END_SERVER_TICK.register(StarterSpawn::onServerTick);
+    }
+
+    /** 接続直後: 王国が未登録なら次ティックのランダムスポーンを予約する。 */
     public static void onJoin(ServerPlayerEntity player, MinecraftServer server) {
         ServerWorld world = server.getWorld(World.OVERWORLD);
         if (world == null) {
             return;
         }
-        PlayerSpawnData data = PlayerSpawnData.getOrCreate(world);
-        if (data.has(player.getUuid())) {
+        KingdomData data = KingdomData.getOrCreate(world);
+        // 初回参加判定は「このプレイヤーの王国が KingdomData にまだ無いこと」。
+        if (data.get(player.getUuid()) != null) {
             return;
         }
+        PENDING.add(player.getUuid());
+    }
 
-        BlockPos spawn = findSafeSpawn(world, data);
+    private static void onServerTick(MinecraftServer server) {
+        if (PENDING.isEmpty()) {
+            return;
+        }
+        ServerWorld world = server.getWorld(World.OVERWORLD);
+        if (world == null) {
+            return;
+        }
+        int remaining = PENDING.size();
+        while (remaining-- > 0 && !PENDING.isEmpty()) {
+            UUID uuid = PENDING.poll();
+            ServerPlayerEntity player = server.getPlayerManager().getPlayer(uuid);
+            if (player == null) {
+                continue;
+            }
+            // 予約から次のティックまでに王国が作られていたら二重生成しない。
+            if (KingdomData.getOrCreate(world).get(uuid) != null) {
+                continue;
+            }
+            spawn(player, server, world);
+        }
+    }
+
+    private static void spawn(ServerPlayerEntity player, MinecraftServer server, ServerWorld world) {
+        BlockPos spawn = findSafeSpawn(world);
         if (spawn == null) {
             KingdomUniqueMod.LOGGER.warn("[KingdomUnique] Could not find a safe starter spawn for {}.",
                     player.getName().getString());
             return;
         }
 
-        // チャンクを確実にロードしてからテレポート
         world.getChunk(spawn.getX() >> 4, spawn.getZ() >> 4);
-        player.teleport(spawn.getX() + 0.5D, spawn.getY() + 1.0D, spawn.getZ() + 0.5D, false);
+        // 指定シグネチャで確実にテレポートする。
+        player.teleport(world, spawn.getX() + 0.5D, spawn.getY() + 1.0D, spawn.getZ() + 0.5D,
+                java.util.Set.<PositionFlag>of(), 0.0F, 0.0F);
         player.setSpawnPoint(World.OVERWORLD, spawn.up(), 0.0F, false, false);
-        data.put(player.getUuid(), spawn);
+        PlayerSpawnData.getOrCreate(world).put(player.getUuid(), spawn);
 
-        // スポーン地点そのものを王国の中心（初期領土半径100）として即時登録する。
-        com.kingdomunique.kingdom.KingdomManager.setKingdomCenter(player, spawn, true);
+        // テレポート地点そのものを王国の中心（初期領土半径100）として保存する。
+        KingdomData.getOrCreate(world).put(player.getUuid(),
+                new KingdomData.KingdomInfo(spawn.getX(), spawn.getZ(), 0, 10, 0, false, 0, true, 100));
 
-        // 村はプレイヤーの目の前〜半径15ブロック以内に生成する（ズレをなくす）。
+        // すぐ近く（半径15以内）に初期村を生成する。
         int vx = spawn.getX() + VILLAGE_OFFSET;
         int vz = spawn.getZ() + VILLAGE_OFFSET;
         VillageBuilder.generateStarterVillage(world, vx, vz);
@@ -61,8 +103,9 @@ public final class StarterSpawn {
                 spawn.getX() + "," + spawn.getZ(), vx, vz, player.getName().getString());
     }
 
-    /** 海・マグマを避け、既存スポーンから600マス以上離れた地上座標を探す。 */
-    private static BlockPos findSafeSpawn(ServerWorld world, PlayerSpawnData data) {
+    /** 海・マグマを避け、他プレイヤーの王国から500マス以上離れた地上座標を探す。 */
+    private static BlockPos findSafeSpawn(ServerWorld world) {
+        KingdomData kingdomData = KingdomData.getOrCreate(world);
         for (int attempt = 0; attempt < MAX_ATTEMPTS; attempt++) {
             int x = ThreadLocalRandom.current().nextInt(-RANGE, RANGE + 1);
             int z = ThreadLocalRandom.current().nextInt(-RANGE, RANGE + 1);
@@ -76,25 +119,12 @@ public final class StarterSpawn {
                 continue;
             }
             boolean tooClose = false;
-            // 既存プレイヤーのスポーン座標との距離。
-            for (BlockPos existing : data.all()) {
-                double dx = existing.getX() - x;
-                double dz = existing.getZ() - z;
+            for (KingdomData.KingdomInfo info : kingdomData.all().values()) {
+                double dx = info.centerX() - x;
+                double dz = info.centerZ() - z;
                 if (dx * dx + dz * dz < MIN_DISTANCE * MIN_DISTANCE) {
                     tooClose = true;
                     break;
-                }
-            }
-            // 既存王国の中心座標との距離（こちらも最低500マス離す）。
-            if (!tooClose) {
-                for (KingdomData.KingdomInfo info
-                        : KingdomData.getOrCreate(world).all().values()) {
-                    double dx = info.centerX() - x;
-                    double dz = info.centerZ() - z;
-                    if (dx * dx + dz * dz < MIN_DISTANCE * MIN_DISTANCE) {
-                        tooClose = true;
-                        break;
-                    }
                 }
             }
             if (tooClose) {

@@ -28,7 +28,7 @@ public final class AbilityDescriptions {
             return "Rキー：発動（CT " + (ct / 20) + "秒）";
         }
         if (UniqueContentRegistry.DIVINE_SMITH.equals(id)) {
-            return "Vキー：採掘範囲切替 / 金床で無限強化";
+            return "Vキー：採掘範囲切替（最大3x3）/ 金床で無限強化";
         }
         return "常在効果（操作キーなし）";
     }
@@ -42,7 +42,7 @@ public final class AbilityDescriptions {
             case UniqueContentRegistry.DIVINE_SMITH -> new String[]{
                     "・金床で同じアイテム同士を合成すると無限強化（+1、稀に+2/+3）",
                     "・完成品は攻撃力・攻撃速度・採掘速度・耐久が 1.1^n 倍",
-                    "・Vキーで採掘範囲を 1x1 / 3x3 / 5x5 に切り替え"
+                    "・Vキーで採掘範囲を 1x1 / 3x3（最大）に切り替え"
             };
             case UniqueContentRegistry.TRICKERY -> new String[]{
                     "・Rキー：視線20マス以内の対象と位置・向きを入れ替える",

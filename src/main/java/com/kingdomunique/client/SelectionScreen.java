@@ -100,18 +100,23 @@ public final class SelectionScreen extends Screen {
     public void render(DrawContext context, int mouseX, int mouseY, float delta) {
         this.renderBackground(context, mouseX, mouseY, delta);
         context.fill(0, 0, this.width, this.height, 0xAA000000);
-        context.drawCenteredTextWithShadow(this.textRenderer, this.title, this.width / 2, 18, 0xFFFFD700);
+        context.getMatrices().push();
+        context.getMatrices().scale(1.0F, 1.0F, 1.0F);
+        context.drawCenteredTextWithShadow(this.textRenderer, this.title,
+                (int) (this.width / 2), (int) 18, 0xFFFFD700);
         context.drawCenteredTextWithShadow(this.textRenderer,
                 Text.literal("1つだけ選んでください（世界で唯一のアイテムです）"),
-                this.width / 2, 36, TEXT_SUBTLE);
+                (int) (this.width / 2), (int) 36, TEXT_SUBTLE);
 
         if (optionIds.isEmpty()) {
             context.drawCenteredTextWithShadow(this.textRenderer,
                     Text.literal("このカテゴリには選択できるアイテムが残っていません。"),
-                    this.width / 2, this.height / 2, 0xFFFF6666);
+                    (int) (this.width / 2), (int) (this.height / 2), 0xFFFF6666);
+            context.getMatrices().pop();
             super.render(context, mouseX, mouseY, delta);
             return;
         }
+        context.getMatrices().pop();
 
         int totalWidth = optionIds.size() * CARD_WIDTH + (optionIds.size() - 1) * CARD_GAP;
         int startX = this.width / 2 - totalWidth / 2;

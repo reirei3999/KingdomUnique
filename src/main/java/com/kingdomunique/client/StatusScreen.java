@@ -67,19 +67,25 @@ public final class StatusScreen extends Screen {
     public void render(DrawContext context, int mouseX, int mouseY, float delta) {
         this.renderBackground(context, mouseX, mouseY, delta);
         context.fill(0, 0, this.width, this.height, 0xAA000000);
+
+        // テキストは必ず等倍・整数座標で描画する（拡大縮小でフォントがにじまないように）。
+        context.getMatrices().push();
+        context.getMatrices().scale(1.0F, 1.0F, 1.0F);
         context.drawCenteredTextWithShadow(this.textRenderer, this.title,
-                this.width / 2, 16, 0xFFFFD700);
+                (int) (this.width / 2), (int) 16, 0xFFFFD700);
         context.drawCenteredTextWithShadow(this.textRenderer,
                 Text.literal("Kキー / /ku info でいつでも確認できます（ページ " + (page + 1) + "）"),
-                this.width / 2, 34, TEXT_SUBTLE);
+                (int) (this.width / 2), (int) 34, TEXT_SUBTLE);
 
         if (ids.isEmpty()) {
             context.drawCenteredTextWithShadow(this.textRenderer,
                     Text.literal("まだ能力・遺物・呪物を所持していません。"),
-                    this.width / 2, this.height / 2, 0xFFFF6666);
+                    (int) (this.width / 2), (int) (this.height / 2), 0xFFFF6666);
+            context.getMatrices().pop();
             super.render(context, mouseX, mouseY, delta);
             return;
         }
+        context.getMatrices().pop();
 
         int totalWidth = COLUMNS * CARD_WIDTH + (COLUMNS - 1) * CARD_GAP;
         int startX = this.width / 2 - totalWidth / 2;
@@ -116,9 +122,12 @@ public final class StatusScreen extends Screen {
             context.getMatrices().pop();
         }
 
+        // テキストは等倍・整数座標。長文は wrapLines で等倍のまま改行する。
+        context.getMatrices().push();
+        context.getMatrices().scale(1.0F, 1.0F, 1.0F);
         context.drawTextWithShadow(this.textRenderer,
                 Text.literal(ContentRegistry.nameOf(id)).formatted(Formatting.BOLD, Formatting.WHITE),
-                x + 44, y + 12, TEXT_WHITE);
+                (int) (x + 44), (int) (y + 12), TEXT_WHITE);
 
         String[] lines = descriptionLines(id);
         int textY = y + 30;
@@ -128,14 +137,15 @@ public final class StatusScreen extends Screen {
                 if (textY > limit) {
                     break;
                 }
-                context.drawTextWithShadow(this.textRenderer, wrapped, x + 6, textY,
-                        line.startsWith("操作:") ? 0xFFFFDD55 : 0xFFDDDDDD);
+                context.drawTextWithShadow(this.textRenderer, wrapped, (int) (x + 6), (int) textY,
+                        0xFFDDDDDD);
                 textY += 10;
             }
         }
         context.drawTextWithShadow(this.textRenderer,
                 Text.literal("操作: " + AbilityDescriptions.controlHint(id)),
-                x + 6, y + CARD_HEIGHT - 16, 0xFFFFDD55);
+                (int) (x + 6), (int) (y + CARD_HEIGHT - 16), 0xFFFFDD55);
+        context.getMatrices().pop();
     }
 
     private String[] descriptionLines(String id) {

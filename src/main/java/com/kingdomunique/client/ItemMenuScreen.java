@@ -59,10 +59,15 @@ public final class ItemMenuScreen extends Screen {
     public void render(DrawContext context, int mouseX, int mouseY, float delta) {
         this.renderBackground(context, mouseX, mouseY, delta);
         context.fill(0, 0, this.width, this.height, 0x99000000);
-        context.drawCenteredTextWithShadow(this.textRenderer, this.title, this.width / 2, 14, 0xFFFFD700);
+        // テキストは等倍・整数座標で描画する。
+        context.getMatrices().push();
+        context.getMatrices().scale(1.0F, 1.0F, 1.0F);
+        context.drawCenteredTextWithShadow(this.textRenderer, this.title,
+                (int) (this.width / 2), (int) 14, 0xFFFFD700);
         context.drawCenteredTextWithShadow(this.textRenderer,
                 Text.literal("クリックでアイテムを入手（ユニーク武器は世界で一つだけ）"),
-                this.width / 2, 27, 0xFFAAAAAA);
+                (int) (this.width / 2), (int) 27, 0xFFAAAAAA);
+        context.getMatrices().pop();
         super.render(context, mouseX, mouseY, delta);
     }
 

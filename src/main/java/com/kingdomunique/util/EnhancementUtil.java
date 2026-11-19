@@ -3,6 +3,7 @@ package com.kingdomunique.util;
 import com.kingdomunique.component.ModDataComponents;
 import com.kingdomunique.data.WorldUniqueData;
 import net.minecraft.component.DataComponentTypes;
+import net.minecraft.component.type.AttributeModifierSlot;
 import net.minecraft.component.type.AttributeModifiersComponent;
 import net.minecraft.entity.attribute.EntityAttributeModifier;
 import net.minecraft.entity.attribute.EntityAttributes;
@@ -218,41 +219,52 @@ public final class EnhancementUtil {
         return DIVINE_SMITH_ID.equals(data.getClaimedId(player.getUuid()));
     }
 
-    /** 神匠のクラフトボーナス（攻撃力・攻撃速度・採掘速度を個別に反映）。 */
-    public static void applyDivineBonuses(ItemStack stack, float attack, float speed, float mining) {
-        net.minecraft.util.Identifier attackId =
-                net.minecraft.util.Identifier.of("kingdomunique", "divine_attack_damage");
-        net.minecraft.util.Identifier speedId =
-                net.minecraft.util.Identifier.of("kingdomunique", "divine_attack_speed");
-        net.minecraft.util.Identifier miningId =
-                net.minecraft.util.Identifier.of("kingdomunique", "divine_mining_speed");
-        List<net.minecraft.util.Identifier> ids = List.of(attackId, speedId, miningId);
+    /** 神匠のクラフトボーナス。アイテム種別ごとに渡された値のみを反映する。 */
+    public static void applyDivineBonuses(ItemStack stack, float attack, float speed, float mining,
+                                          float armor, float toughness) {
+        Identifier attackId = Identifier.of("kingdomunique", "divine_attack_damage");
+        Identifier speedId = Identifier.of("kingdomunique", "divine_attack_speed");
+        Identifier miningId = Identifier.of("kingdomunique", "divine_mining_speed");
+        Identifier breakSpeedId = Identifier.of("kingdomunique", "divine_block_break_speed");
+        Identifier armorId = Identifier.of("kingdomunique", "divine_armor");
+        Identifier toughnessId = Identifier.of("kingdomunique", "divine_armor_toughness");
+        List<Identifier> ids = List.of(attackId, speedId, miningId, breakSpeedId, armorId, toughnessId);
 
         stack.set(ModDataComponents.DIVINE_ATTACK_DAMAGE, attack);
         stack.set(ModDataComponents.DIVINE_ATTACK_SPEED, speed);
         stack.set(ModDataComponents.DIVINE_MINING_SPEED, mining);
+        stack.set(ModDataComponents.DIVINE_ARMOR, armor);
+        stack.set(ModDataComponents.DIVINE_TOUGHNESS, toughness);
 
-        net.minecraft.component.type.AttributeModifiersComponent current =
-                stack.get(DataComponentTypes.ATTRIBUTE_MODIFIERS);
-        List<net.minecraft.component.type.AttributeModifiersComponent.Entry> entries = new ArrayList<>();
+        AttributeModifiersComponent current = stack.get(DataComponentTypes.ATTRIBUTE_MODIFIERS);
+        List<AttributeModifiersComponent.Entry> entries = new ArrayList<>();
         if (current != null) {
-            for (net.minecraft.component.type.AttributeModifiersComponent.Entry entry : current.modifiers()) {
+            for (AttributeModifiersComponent.Entry entry : current.modifiers()) {
                 if (!ids.contains(entry.modifier().id())) {
                     entries.add(entry);
                 }
             }
         }
         EntityAttributeModifier.Operation op = EntityAttributeModifier.Operation.ADD_MULTIPLIED_TOTAL;
-        addIfPositive(entries, net.minecraft.entity.attribute.EntityAttributes.GENERIC_ATTACK_DAMAGE,
-                attackId, attack, op);
-        addIfPositive(entries, net.minecraft.entity.attribute.EntityAttributes.GENERIC_ATTACK_SPEED,
-                speedId, speed, op);
-        addIfPositive(entries, net.minecraft.entity.attribute.EntityAttributes.PLAYER_MINING_EFFICIENCY,
-                miningId, mining, op);
-        stack.set(DataComponentTypes.ATTRIBUTE_MODIFIERS,
-                new net.minecraft.component.type.AttributeModifiersComponent(
-                        entries, current == null || current.showInTooltip()));
+        AttributeModifierSlot handSlot = AttributeModifierSlot.MAINHAND;
+        addIfPositive(entries, EntityAttributes.GENERIC_ATTACK_DAMAGE, attackId, attack, op, handSlot);
+        addIfPositive(entries, EntityAttributes.GENERIC_ATTACK_SPEED, speedId, speed, op, handSlot);
+        // 採掘ツール: 採掘効率とブロック破壊速度の両方をメインハンドに付与する。
+        addIfPositive(entries, EntityAttributes.PLAYER_MINING_EFFICIENCY, miningId, mining, op, handSlot);
+        addIfPositive(entries, EntityAttributes.PLAYER_BLOCK_BREAK_SPEED, breakSpeedId, mining, op, handSlot);
 
+        // 防具: 元の装備スロットを維持して防御力／防具強度を加算する。
+        AttributeModifierSlot armorSlot = handSlot;
+        if (stack.getItem() instanceof ArmorItem armorItem) {
+            armorSlot = AttributeModifierSlot.forEquipmentSlot(armorItem.getSlotType());
+        }
+        addIfPositive(entries, EntityAttributes.GENERIC_ARMOR, armorId, armor, op, armorSlot);
+        addIfPositive(entries, EntityAttributes.GENERIC_ARMOR_TOUGHNESS, toughnessId, toughness, op, armorSlot);
+
+        stack.set(DataComponentTypes.ATTRIBUTE_MODIFIERS,
+                new AttributeModifiersComponent(entries, current == null || current.showInTooltip()));
+
+        // TOOLコンポーネントの採掘速度も引き上げる（採掘ツールのみ）。
         net.minecraft.component.type.ToolComponent tool = stack.get(DataComponentTypes.TOOL);
         if (tool != null && mining > 0.0F) {
             List<net.minecraft.component.type.ToolComponent.Rule> rules = new ArrayList<>();
@@ -267,14 +279,14 @@ public final class EnhancementUtil {
         }
     }
 
-    private static void addIfPositive(List<net.minecraft.component.type.AttributeModifiersComponent.Entry> entries,
+    private static void addIfPositive(List<AttributeModifiersComponent.Entry> entries,
                                       net.minecraft.registry.entry.RegistryEntry<net.minecraft.entity.attribute.EntityAttribute> attribute,
                                       Identifier id, float value,
-                                      EntityAttributeModifier.Operation operation) {
+                                      EntityAttributeModifier.Operation operation,
+                                      AttributeModifierSlot slot) {
         if (value > 0.0F) {
-            entries.add(new net.minecraft.component.type.AttributeModifiersComponent.Entry(
-                    attribute, new EntityAttributeModifier(id, value, operation),
-                    net.minecraft.component.type.AttributeModifierSlot.MAINHAND));
+            entries.add(new AttributeModifiersComponent.Entry(
+                    attribute, new EntityAttributeModifier(id, value, operation), slot));
         }
     }
 
