@@ -53,3 +53,12 @@ publishing {
         }
     }
 }
+
+// 起動確認用: -Dkingdomunique.verify.seconds=N を渡すと、
+// N 秒後にクライアントを自動終了させるプロパティをゲームJVMへ引き継ぐ。
+tasks.named("runClient") {
+    def verifySeconds = System.getProperty("kingdomunique.verify.seconds")
+    if (verifySeconds != null) {
+        jvmArgs "-Dkingdomunique.verify.seconds=${verifySeconds}"
+    }
+}

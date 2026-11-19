@@ -7,6 +7,7 @@ import com.kingdomunique.client.render.HeroEntityRenderer;
 import com.kingdomunique.component.ModDataComponents;
 import com.kingdomunique.entity.ModEntities;
 import com.kingdomunique.item.unique.UniqueWeapons;
+import net.fabricmc.fabric.api.client.event.lifecycle.v1.ClientTickEvents;
 import net.fabricmc.fabric.api.client.rendering.v1.EntityRendererRegistry;
 import net.fabricmc.api.ClientModInitializer;
 import net.minecraft.client.item.ModelPredicateProviderRegistry;
@@ -43,6 +44,27 @@ public class KingdomUniqueClientMod implements ClientModInitializer {
                         entity != null && entity.isUsingItem()
                                 && entity.getActiveItem() == stack
                                 ? BowItem.getPullProgress(entity.getItemUseTime()) : 0.0F);
+
+        // 起動確認用: -Dkingdomunique.verify.seconds=N を渡すと N 秒後に自動終了する。
+        // 通常プレイではプロパティが無いため何も起きない。
+        String verifySeconds = System.getProperty("kingdomunique.verify.seconds");
+        if (verifySeconds != null) {
+            try {
+                int seconds = Integer.parseInt(verifySeconds);
+                if (seconds > 0) {
+                    final int[] remaining = {seconds * 20};
+                    ClientTickEvents.END_CLIENT_TICK.register(client -> {
+                        if (remaining[0]-- <= 0) {
+                            KingdomUniqueMod.LOGGER.info(
+                                    "[KingdomUnique] Verification complete. Closing client.");
+                            client.scheduleStop();
+                        }
+                    });
+                }
+            } catch (NumberFormatException ignored) {
+                // 不正な値は無視する。
+            }
+        }
 
         KingdomUniqueMod.LOGGER.info("[KingdomUnique] Client entrypoint initialized.");
     }
