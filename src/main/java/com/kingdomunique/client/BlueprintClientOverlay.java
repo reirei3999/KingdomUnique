@@ -124,7 +124,8 @@ public final class BlueprintClientOverlay {
             return;
         }
         MinecraftClient client = MinecraftClient.getInstance();
-        if (client.player == null) {
+        // F1（HUD非表示）中は建材HUDも描画しない。
+        if (client.player == null || client.options.hudHidden) {
             return;
         }
         int y = client.getWindow().getScaledHeight() / 2 + 32;

@@ -25,7 +25,9 @@ public final class AbilityHud {
 
     private static void render(DrawContext context, net.minecraft.client.render.RenderTickCounter tickCounter) {
         MinecraftClient client = MinecraftClient.getInstance();
-        if (client.player == null || client.world == null || client.currentScreen != null) {
+        // F1（HUD非表示）中は独自HUDも描画しない。
+        if (client.player == null || client.world == null || client.currentScreen != null
+                || client.options.hudHidden) {
             return;
         }
         SyncPlayerStatusPayload status = StatusClient.latest();
