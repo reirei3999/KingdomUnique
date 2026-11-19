@@ -299,7 +299,8 @@ public final class KingdomManager {
     private static KingdomData.KingdomInfo copy(KingdomData.KingdomInfo info, int population, int cap,
                                                 int houses, boolean summoned, int count) {
         return new KingdomData.KingdomInfo(info.centerX(), info.centerZ(), population, cap,
-                houses, summoned, count, info.centerSet(), info.territoryRadius());
+                houses, summoned, count, info.centerSet(), info.territoryRadius(),
+                info.villageGenerated());
     }
 
     /** 王国の中心を設定する。force=false のときは既に明示設定済みなら上書きしない。 */
@@ -311,7 +312,8 @@ public final class KingdomManager {
         }
         KingdomData.KingdomInfo updated = new KingdomData.KingdomInfo(
                 center.getX(), center.getZ(), info.population(), info.populationCap(),
-                info.houses(), info.heroSummoned(), info.heroSummonCount(), true, info.territoryRadius());
+                info.houses(), info.heroSummoned(), info.heroSummonCount(), true,
+                info.territoryRadius(), info.villageGenerated());
         data.put(player.getUuid(), updated);
     }
 
@@ -321,7 +323,8 @@ public final class KingdomManager {
         KingdomData.KingdomInfo info = getOrCreate(player);
         data.put(player.getUuid(), new KingdomData.KingdomInfo(
                 center.getX(), center.getZ(), info.population(), info.populationCap(),
-                info.houses(), info.heroSummoned(), info.heroSummonCount(), true, 200));
+                info.houses(), info.heroSummoned(), info.heroSummonCount(), true, 200,
+                info.villageGenerated()));
     }
 
     /** プレイヤーが自国領地内にいるか（通常100、王城完成後200マス）。 */

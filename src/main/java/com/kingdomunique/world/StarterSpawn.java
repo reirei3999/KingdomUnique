@@ -58,10 +58,12 @@ public final class StarterSpawn {
         KingdomData kingdomData = KingdomData.getOrCreate(world);
 
         // シングルプレイ（統合サーバー）では JOIN イベントの順番が環境に依存するため、
-        // 毎ティック「王国がまだ登録されていないプレイヤー」を検出して予約する。
+        // 毎ティック「王国が無い」または「王国はあるが村未生成」のプレイヤーを検出する。
         for (ServerPlayerEntity player : server.getPlayerManager().getPlayerList()) {
             UUID uuid = player.getUuid();
-            if (kingdomData.get(uuid) == null && !PENDING.contains(uuid)) {
+            KingdomData.KingdomInfo info = kingdomData.get(uuid);
+            boolean needsVillage = info == null || !info.villageGenerated();
+            if (needsVillage && !PENDING.contains(uuid)) {
                 PENDING.add(uuid);
             }
         }
@@ -73,12 +75,44 @@ public final class StarterSpawn {
             if (player == null) {
                 continue;
             }
-            // 予約から次のティックまでに王国が作られていたら二重生成しない。
-            if (kingdomData.get(uuid) != null) {
+            KingdomData.KingdomInfo info = kingdomData.get(uuid);
+            if (info != null && info.villageGenerated()) {
                 continue;
             }
-            spawn(player, server, world);
+            if (info == null) {
+                spawn(player, server, world);
+            } else {
+                ensureVillage(player, world, kingdomData, info);
+            }
         }
+    }
+
+    /** 既存王国に村が無い場合: 王国中心に村を生成し、プレイヤーをその中へ移す。 */
+    private static void ensureVillage(ServerPlayerEntity player, ServerWorld world,
+                                      KingdomData kingdomData, KingdomData.KingdomInfo info) {
+        BlockPos center = (info.centerSet())
+                ? new BlockPos(info.centerX(), player.getBlockPos().getY(), info.centerZ())
+                : player.getBlockPos();
+
+        world.getChunk(center.getX() >> 4, center.getZ() >> 4);
+        VillageBuilder.generateStarterVillage(world, center.getX(), center.getZ());
+
+        BlockPos spawn = findVillageSpawn(world, center);
+        if (spawn == null) {
+            spawn = center.up();
+        }
+        player.teleport(world, spawn.getX() + 0.5D, spawn.getY(), spawn.getZ() + 0.5D,
+                java.util.Set.<PositionFlag>of(), 0.0F, 0.0F);
+        player.setSpawnPoint(World.OVERWORLD, spawn, 0.0F, false, false);
+        PlayerSpawnData.getOrCreate(world).put(player.getUuid(), spawn);
+
+        kingdomData.put(player.getUuid(), new KingdomData.KingdomInfo(
+                spawn.getX(), spawn.getZ(),
+                info.population(), info.populationCap(), info.houses(),
+                info.heroSummoned(), info.heroSummonCount(), true, info.territoryRadius(), true));
+        player.sendMessage(Text.literal("§6[KingdomUnique] 王国の村が完成した。村の中心に到着した。"), false);
+        KingdomUniqueMod.LOGGER.info("[KingdomUnique] Generated missing village for {} at ({}, {}).",
+                player.getName().getString(), spawn.getX(), spawn.getZ());
     }
 
     private static void spawn(ServerPlayerEntity player, MinecraftServer server, ServerWorld world) {
@@ -110,7 +144,8 @@ public final class StarterSpawn {
 
         // テレポート地点そのものを王国の中心（初期領土半径100）として保存する。
         KingdomData.getOrCreate(world).put(player.getUuid(),
-                new KingdomData.KingdomInfo(spawn.getX(), spawn.getZ(), 0, 10, 0, false, 0, true, 100));
+                new KingdomData.KingdomInfo(spawn.getX(), spawn.getZ(), 0, 10, 0, false, 0,
+                        true, 100, true));
 
         player.sendMessage(Text.literal("§6[KingdomUnique] この地があなたの王国となった。"
                 + "村の中心に到着した。村人6人が出迎える。"), false);
