@@ -1,9 +1,6 @@
 package com.kingdomunique.mixin;
 
-import com.kingdomunique.ability.TrickeryUtil;
-import com.kingdomunique.registry.UniqueContentRegistry;
 import com.kingdomunique.util.EnhancementUtil;
-import net.minecraft.inventory.CraftingResultInventory;
 import net.minecraft.item.ItemStack;
 import net.minecraft.screen.AnvilScreenHandler;
 import net.minecraft.screen.Property;
@@ -38,22 +35,5 @@ public abstract class AnvilScreenHandlerMixin {
             com.kingdomunique.item.unique.UniqueWeaponTriggers.onEnhanced(serverPlayer, enhancement.newLevel());
         }
         ci.cancel();
-    }
-
-    /** 奇術：バニラ側の金床エンチャント合成結果も上限を引き上げる。 */
-    @Inject(method = "updateResult", at = @At("RETURN"))
-    private void kingdomUnique$boostAnvilEnchantments(CallbackInfo ci) {
-        ForgingScreenHandlerAccessor accessor = (ForgingScreenHandlerAccessor) this;
-        if (!(accessor.ku$player() instanceof net.minecraft.server.network.ServerPlayerEntity serverPlayer)) {
-            return;
-        }
-        if (!UniqueContentRegistry.TRICKERY.equals(UniqueContentRegistry.getAbility(serverPlayer))) {
-            return;
-        }
-        CraftingResultInventory output = accessor.ku$output();
-        ItemStack result = output.getStack(0);
-        if (!result.isEmpty()) {
-            TrickeryUtil.boost(result);
-        }
     }
 }

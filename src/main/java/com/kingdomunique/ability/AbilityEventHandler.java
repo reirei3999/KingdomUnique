@@ -49,6 +49,7 @@ public final class AbilityEventHandler {
 
     private static void onTick(MinecraftServer server) {
         AbilityPassives.onServerTick(server);
+        AbilityActions.tickDecoys(server);
     }
 
     /** 絶対支配：敵対Mob撃破時に25%で味方化して蘇生する。 */

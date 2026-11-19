@@ -24,6 +24,10 @@ public class KingdomUniqueClientMod implements ClientModInitializer {
         // 選択GUIのパケット受信を登録する。
         SelectionClient.initialize();
 
+        // ステータス確認画面（/ku info・Kキー）と能力HUD。
+        com.kingdomunique.client.StatusClient.initialize();
+        com.kingdomunique.client.AbilityHud.initialize();
+
         // 英雄NPCのレンダラーを登録する（Bipedモデル＋防具/手持ち描画）。
         EntityRendererRegistry.register(ModEntities.HERO, HeroEntityRenderer::new);
 

@@ -137,6 +137,13 @@ public final class SelectionManager {
         player.sendMessage(Text.literal(
                 com.kingdomunique.util.RewardUtil.rewardMessage(kind, name)
                         + " §7（世界で唯一）"), false);
+        if (kind == ContentRegistry.Kind.ABILITY) {
+            for (String line : com.kingdomunique.registry.AbilityDescriptions.details(chosenId)) {
+                player.sendMessage(Text.literal("§7" + line), false);
+            }
+            player.sendMessage(Text.literal("§e操作: "
+                    + com.kingdomunique.registry.AbilityDescriptions.controlHint(chosenId)), false);
+        }
     }
 
     /** 初回覚醒で既に能力を持っているか（ステップ1互換）。 */

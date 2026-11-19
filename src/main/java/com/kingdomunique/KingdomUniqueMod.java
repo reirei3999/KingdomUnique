@@ -57,6 +57,7 @@ public class KingdomUniqueMod implements ModInitializer {
         com.kingdomunique.item.ItemMenuHandler.register();
         com.kingdomunique.command.ModCommands.register();
         SelectionEventHandler.register();
+        com.kingdomunique.status.StatusManager.register();
 
         // ステップ5: 国民・英雄エンティティと王国イベントを登録する。
         ModEntities.initialize();
@@ -140,7 +141,12 @@ public class KingdomUniqueMod implements ModInitializer {
         player.sendMessage(Text.literal("§6§l====== 覚醒 ======"), false);
         player.sendMessage(Text.literal("§e" + player.getName().getString() + " §7はユニークな力に目覚めました！"), false);
         player.sendMessage(Text.literal("§f[" + category + "] §a§l" + displayName + " §7(ID: " + chosenId + ")"), false);
+        for (String line : com.kingdomunique.registry.AbilityDescriptions.details(chosenId)) {
+            player.sendMessage(Text.literal("§7" + line), false);
+        }
+        player.sendMessage(Text.literal("§e操作: " + com.kingdomunique.registry.AbilityDescriptions.controlHint(chosenId)), false);
         player.sendMessage(Text.literal("§7この力は世界でたった一つ。同じ力を持つ者は他にいません。"), false);
+        player.sendMessage(Text.literal("§7§oKキー / /ku info でいつでも確認できます。"), false);
         player.sendMessage(Text.literal("§6§l=================="), false);
         player.sendMessage(Text.literal(""), false);
 

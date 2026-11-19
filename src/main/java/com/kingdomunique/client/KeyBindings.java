@@ -4,6 +4,7 @@ import com.kingdomunique.network.AbilityKeyPayload;
 import com.kingdomunique.network.PossessionPayload;
 import com.kingdomunique.network.DetonatePayload;
 import com.kingdomunique.network.RequestOpenItemMenuPayload;
+import com.kingdomunique.network.RequestStatusPayload;
 import net.fabricmc.api.EnvType;
 import net.fabricmc.api.Environment;
 import net.fabricmc.fabric.api.client.event.lifecycle.v1.ClientTickEvents;
@@ -23,6 +24,7 @@ public final class KeyBindings {
     private static KeyBinding modeKey;
     private static KeyBinding possessionKey;
     private static KeyBinding itemMenuKey;
+    private static KeyBinding statusKey;
     private static boolean initialized = false;
 
     private KeyBindings() {
@@ -61,6 +63,13 @@ public final class KeyBindings {
                 "category.kingdomunique"
         ));
 
+        statusKey = KeyBindingHelper.registerKeyBinding(new KeyBinding(
+                "key.kingdomunique.status",
+                InputUtil.Type.KEYSYM,
+                GLFW.GLFW_KEY_K,
+                "category.kingdomunique"
+        ));
+
         ClientTickEvents.END_CLIENT_TICK.register(client -> {
             if (client.currentScreen != null) {
                 return;
@@ -80,6 +89,10 @@ public final class KeyBindings {
             if (itemMenuKey.wasPressed()
                     && ClientPlayNetworking.canSend(RequestOpenItemMenuPayload.ID)) {
                 ClientPlayNetworking.send(new RequestOpenItemMenuPayload());
+            }
+            if (statusKey.wasPressed()
+                    && ClientPlayNetworking.canSend(RequestStatusPayload.ID)) {
+                ClientPlayNetworking.send(new RequestStatusPayload());
             }
         });
     }

@@ -3,6 +3,7 @@ package com.kingdomunique.command;
 import com.kingdomunique.item.ItemMenuHandler;
 import com.kingdomunique.kingdom.PolicyManager;
 import com.kingdomunique.selection.SelectionEventHandler;
+import com.kingdomunique.status.StatusManager;
 import com.mojang.brigadier.builder.LiteralArgumentBuilder;
 import net.fabricmc.fabric.api.command.v2.CommandRegistrationCallback;
 import net.minecraft.server.command.CommandManager;
@@ -26,6 +27,7 @@ public final class ModCommands {
             ItemMenuHandler.registerCommands(ku, registryAccess);
             SelectionEventHandler.registerCommands(ku);
             PolicyManager.registerCommands(ku);
+            StatusManager.registerCommands(ku);
             dispatcher.register(ku);
         });
     }

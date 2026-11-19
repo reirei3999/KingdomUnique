@@ -23,8 +23,8 @@ KingdomUnique/
     │   │   ├── AlliedFollowGoal.java      # 味方Mobの追従AI
     │   │   ├── AlliedMobManager.java      # 絶対支配の蘇生・管理
     │   │   ├── PlayerAbilityState.java
-    │   │   ├── SiteSupervisorUtil.java    # 建築時間/資材コスト倍率
-    │   │   └── TrickeryUtil.java          # エンチャント上限拡張
+    │   │   └── SiteSupervisorUtil.java    # 建築時間/資材コスト倍率
+    │   │       # 奇術は AbilityActions#trickery に実装（位置シャッフル＋デコイ）
     │   ├── client/
     │   │   └── KeyBindings.java           # R / V キーバインド
     │   ├── network/
@@ -36,11 +36,10 @@ KingdomUnique/
     │   ├── data/
     │   │   └── WorldUniqueData.java       # PersistentState による排他管理
     │   ├── mixin/
-    │   │   ├── AnvilScreenHandlerMixin.java  # 金床強化＋奇術
+    │   │   ├── AnvilScreenHandlerMixin.java  # 金床の無限強化
     │   │   ├── AreaMiningMixin.java          # 神匠の範囲採掘
     │   │   ├── CraftBonusMixin.java          # 神匠のクラフトボーナス
     │   │   ├── CropDropMixin.java            # 豊穣のドロップ2倍
-    │   │   ├── EnchantmentScreenHandlerMixin.java # 奇術のエンチャントテーブル
     │   │   └── LivingEntityMixin.java        # 覇王/影渡り/味方保護
     │   ├── registry/
     │   │   └── UniqueContentRegistry.java # ユニークID定義（12 + 神匠）
