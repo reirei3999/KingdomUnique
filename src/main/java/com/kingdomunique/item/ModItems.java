@@ -8,6 +8,8 @@ import net.minecraft.item.SwordItem;
 import net.minecraft.item.ToolMaterials;
 import net.minecraft.registry.Registries;
 import net.minecraft.registry.Registry;
+import net.minecraft.text.Text;
+import net.minecraft.util.Formatting;
 import net.minecraft.util.Identifier;
 
 /** 遺物・呪物に紐づく専用アイテム。 */
@@ -23,7 +25,11 @@ public final class ModItems {
                             .component(DataComponentTypes.UNBREAKABLE,
                                     new net.minecraft.component.type.UnbreakableComponent(true))
                             .component(DataComponentTypes.ATTRIBUTE_MODIFIERS,
-                                    SwordItem.createAttributeModifiers(ToolMaterials.DIAMOND, 3, -2.4F))));
+                                    SwordItem.createAttributeModifiers(ToolMaterials.DIAMOND, 3, -2.4F))
+                            .component(DataComponentTypes.CUSTOM_NAME,
+                                    Text.translatable("item.kingdomunique.slaughter_blade")
+                                            .styled(style -> style.withColor(Formatting.AQUA)
+                                                    .withItalic(false)))));
 
     /** 破壊衝動のツルハシ（あらゆるブロックを即破壊する）。 */
     public static final PickaxeItem DESTRUCTION_PICKAXE = register("destruction_pickaxe",
@@ -35,7 +41,11 @@ public final class ModItems {
                             .component(DataComponentTypes.UNBREAKABLE,
                                     new net.minecraft.component.type.UnbreakableComponent(true))
                             .component(DataComponentTypes.ATTRIBUTE_MODIFIERS,
-                                    SwordItem.createAttributeModifiers(ToolMaterials.DIAMOND, 5, -2.8F))));
+                                    SwordItem.createAttributeModifiers(ToolMaterials.DIAMOND, 5, -2.8F))
+                            .component(DataComponentTypes.CUSTOM_NAME,
+                                    Text.translatable("item.kingdomunique.destruction_pickaxe")
+                                            .styled(style -> style.withColor(Formatting.DARK_RED)
+                                                    .withBold(true).withItalic(false)))));
 
     /** 王国の証（村人を国民化する）。 */
     public static final KingdomEmblemItem KINGDOM_EMBLEM = register("kingdom_emblem",

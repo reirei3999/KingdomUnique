@@ -129,6 +129,10 @@ public final class KingdomManager {
             }
         }
 
+        // 最初の国民を獲得した地点を王国の中心として記録する。
+        if (info.population() == 0) {
+            setKingdomCenter(player, villager.getBlockPos(), false);
+        }
         citizen.ku$setOwnerUuid(player.getUuid().toString());
         String role = preferredRole != null ? preferredRole : roleFromHand(player);
         citizen.ku$setRole(role);
@@ -291,6 +295,37 @@ public final class KingdomManager {
     private static KingdomData.KingdomInfo copy(KingdomData.KingdomInfo info, int population, int cap,
                                                 int houses, boolean summoned, int count) {
         return new KingdomData.KingdomInfo(info.centerX(), info.centerZ(), population, cap,
-                houses, summoned, count);
+                houses, summoned, count, info.centerSet(), info.territoryRadius());
+    }
+
+    /** 王国の中心を設定する。force=false のときは既に明示設定済みなら上書きしない。 */
+    public static void setKingdomCenter(ServerPlayerEntity player, BlockPos center, boolean force) {
+        KingdomData data = KingdomData.getOrCreate(player.getServer().getWorld(World.OVERWORLD));
+        KingdomData.KingdomInfo info = getOrCreate(player);
+        if (info.centerSet() && !force) {
+            return;
+        }
+        KingdomData.KingdomInfo updated = new KingdomData.KingdomInfo(
+                center.getX(), center.getZ(), info.population(), info.populationCap(),
+                info.houses(), info.heroSummoned(), info.heroSummonCount(), true, info.territoryRadius());
+        data.put(player.getUuid(), updated);
+    }
+
+    /** 王城・役場の完成: 中心をその場所へ固定し、領地半径を200に拡大する。 */
+    public static void markTownHall(ServerPlayerEntity player, BlockPos center) {
+        KingdomData data = KingdomData.getOrCreate(player.getServer().getWorld(World.OVERWORLD));
+        KingdomData.KingdomInfo info = getOrCreate(player);
+        data.put(player.getUuid(), new KingdomData.KingdomInfo(
+                center.getX(), center.getZ(), info.population(), info.populationCap(),
+                info.houses(), info.heroSummoned(), info.heroSummonCount(), true, 200));
+    }
+
+    /** プレイヤーが自国領地内にいるか（通常100、王城完成後200マス）。 */
+    public static boolean isInTerritory(ServerPlayerEntity player) {
+        KingdomData.KingdomInfo info = getOrCreate(player);
+        double dx = player.getX() - info.centerX();
+        double dz = player.getZ() - info.centerZ();
+        double radius = info.territoryRadius();
+        return dx * dx + dz * dz <= radius * radius;
     }
 }

@@ -17,7 +17,9 @@ public abstract class UniqueWeaponMixin {
         LivingEntity self = (LivingEntity) (Object) this;
         LivingEntity attacker = source.getAttacker() instanceof LivingEntity living ? living : null;
 
-        if (self instanceof ServerPlayerEntity holder && UniqueWeaponManager.held(holder, "excalibur")) {
+        if (attacker instanceof ServerPlayerEntity holder
+                && UniqueWeaponManager.held(holder, "excalibur")
+                && com.kingdomunique.kingdom.KingdomManager.isInTerritory(holder)) {
             amount *= 1.8F;
         }
 

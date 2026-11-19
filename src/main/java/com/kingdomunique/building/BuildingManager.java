@@ -142,7 +142,9 @@ public final class BuildingManager {
                 }
                 if (progress >= required) {
                     StructurePlacer.place(world, site.pos(), site.type());
-                    if (site.type().getPopulationCapBonus() > 0) {
+                    if (site.type() == BuildingType.TOWN_HALL) {
+                        KingdomManager.markTownHall(owner, site.pos());
+                    } else if (site.type().getPopulationCapBonus() > 0) {
                         KingdomManager.addCapBonus(owner, site.type().getPopulationCapBonus());
                     }
                     world.playSound(null, site.pos(), SoundEvents.UI_TOAST_CHALLENGE_COMPLETE,

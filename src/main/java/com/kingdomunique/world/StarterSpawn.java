@@ -50,6 +50,8 @@ public final class StarterSpawn {
         int vx = spawn.getX() + VILLAGE_OFFSET;
         int vz = spawn.getZ() + VILLAGE_OFFSET;
         VillageBuilder.generateStarterVillage(world, vx, vz);
+        com.kingdomunique.kingdom.KingdomManager.setKingdomCenter(player,
+                new BlockPos(vx, spawn.getY(), vz), false);
         player.sendMessage(Text.literal("§6[KingdomUnique] 新しい王国の地に到着した。近くに初期村が築かれた。"), false);
         KingdomUniqueMod.LOGGER.info("[KingdomUnique] Starter spawn {} -> village ({}, {}) for {}.",
                 spawn.getX() + "," + spawn.getZ(), vx, vz, player.getName().getString());

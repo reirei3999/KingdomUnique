@@ -92,6 +92,23 @@ public final class SelectionManager {
         return true;
     }
 
+    /**
+     * /ku select 用: 保留中の選択があればそれを再表示し、
+     * なければ指定カテゴリの選択肢を新規抽選して必ず選択GUIを開く。
+     */
+    public static boolean reopenOrOpen(ServerPlayerEntity player, ContentRegistry.Kind kind) {
+        if (reopen(player)) {
+            return true;
+        }
+        int count = switch (kind) {
+            case ABILITY -> DIAMOND_OPTIONS;
+            case RELIC -> RELIC_OPTIONS;
+            case CURSE -> CURSE_OPTIONS;
+        };
+        openRandom(player, kind, count);
+        return true;
+    }
+
     private static void sendScreen(ServerPlayerEntity player, Pending pending) {
         if (ServerPlayNetworking.canSend(player, OpenSelectionPayload.ID)) {
             ServerPlayNetworking.send(player,

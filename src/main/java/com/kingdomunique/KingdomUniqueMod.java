@@ -55,6 +55,7 @@ public class KingdomUniqueMod implements ModInitializer {
         // ステップ4: 専用アイテム・選択GUI・遺物/呪物の効果を登録する。
         ModItems.initialize();
         com.kingdomunique.item.ItemMenuHandler.register();
+        com.kingdomunique.command.ModCommands.register();
         SelectionEventHandler.register();
 
         // ステップ5: 国民・英雄エンティティと王国イベントを登録する。

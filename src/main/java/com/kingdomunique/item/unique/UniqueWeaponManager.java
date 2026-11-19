@@ -80,7 +80,9 @@ public final class UniqueWeaponManager {
     /** エクスカリバーのオーラと時間停止の解除を毎Tick処理する。 */
     public static void tickEffects(MinecraftServer server) {
         for (ServerPlayerEntity player : server.getPlayerManager().getPlayerList()) {
-            if (held(player, "excalibur") && player.getServerWorld().getTime() % 20L == 0L) {
+            if (held(player, "excalibur")
+                    && com.kingdomunique.kingdom.KingdomManager.isInTerritory(player)
+                    && player.getServerWorld().getTime() % 20L == 0L) {
                 for (net.minecraft.entity.passive.VillagerEntity villager
                         : player.getServerWorld().getEntitiesByClass(
                         net.minecraft.entity.passive.VillagerEntity.class,

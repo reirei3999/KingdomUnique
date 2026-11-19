@@ -70,13 +70,19 @@ public final class BlueprintBlock extends Block implements BlockEntityProvider {
             return net.minecraft.util.ItemActionResult.success(true);
         }
 
+        double multiplier = BuildingManager.costMultiplier(serverPlayer);
         ItemStack held = stack.copy();
-        if (be.insert(held)) {
+        if (be.insert(held, multiplier)) {
+            int inserted = stack.getCount() - held.getCount();
             stack.setCount(held.getCount());
             serverPlayer.sendMessage(Text.literal("§6[設計図] " + stack.getName().getString()
-                    + " を投入しました。"), true);
+                    + " を " + inserted + " 個投入しました。"), true);
+            // 必要資材が全て揃った瞬間に自動で建築を開始する。
+            if (be.hasAllMaterials(type, multiplier)) {
+                startBuilding(world, pos, be, serverPlayer);
+            }
         } else {
-            serverPlayer.sendMessage(Text.literal("§c[設計図] この資材は必要ありません（枠が一杯です）。"), false);
+            serverPlayer.sendMessage(Text.literal("§c[設計図] この資材は不要、または必要数を超えています。"), false);
         }
         return net.minecraft.util.ItemActionResult.success(true);
     }
@@ -101,6 +107,14 @@ public final class BlueprintBlock extends Block implements BlockEntityProvider {
             serverPlayer.sendMessage(Text.literal("§c[設計図] 資材が不足しています。"), false);
             return ActionResult.SUCCESS;
         }
+        startBuilding(world, pos, be, serverPlayer);
+        return ActionResult.SUCCESS;
+    }
+
+    /** 資材を消費して建築サイトを「建築中」へ遷移させる。 */
+    private void startBuilding(World world, BlockPos pos, BlueprintBlockEntity be,
+                               ServerPlayerEntity serverPlayer) {
+        double multiplier = BuildingManager.costMultiplier(serverPlayer);
         be.consume(type, multiplier);
         be.setReady(true);
 
@@ -112,8 +126,7 @@ public final class BlueprintBlock extends Block implements BlockEntityProvider {
                 break;
             }
         }
-        serverPlayer.sendMessage(Text.literal("§6[設計図] 資材を確認しました。建築士が作業を開始します。"), false);
-        return ActionResult.SUCCESS;
+        serverPlayer.sendMessage(Text.literal("§6[設計図] 資材が揃いました。建築士が作業を開始します。"), false);
     }
 
     /** 破壊時: 投入済み資材を全額返却し、建築サイトもキャンセルする。 */

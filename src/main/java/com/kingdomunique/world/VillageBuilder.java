@@ -1,5 +1,6 @@
 package com.kingdomunique.world;
 
+import net.minecraft.block.Block;
 import net.minecraft.block.BedBlock;
 import net.minecraft.block.BlockState;
 import net.minecraft.block.Blocks;
@@ -10,6 +11,12 @@ import net.minecraft.block.enums.DoubleBlockHalf;
 import net.minecraft.entity.EntityType;
 import net.minecraft.entity.passive.VillagerEntity;
 import net.minecraft.server.world.ServerWorld;
+import net.minecraft.structure.StructurePlacementData;
+import net.minecraft.structure.StructureTemplate;
+import net.minecraft.structure.StructureTemplateManager;
+import net.minecraft.util.Identifier;
+import net.minecraft.util.BlockMirror;
+import net.minecraft.util.BlockRotation;
 import net.minecraft.util.math.BlockPos;
 import net.minecraft.util.math.Direction;
 import net.minecraft.world.Heightmap;
@@ -17,17 +24,31 @@ import net.minecraft.world.Heightmap;
 import java.util.List;
 
 /**
- * 外部NBTテンプレートに依存せず、Javaコードの setBlockState だけで村を確実に生成するビルダー。
+ * バニラの村テンプレート（StructureTemplateManager）を利用する村ビルダー。
  *
- *  - チャンクを強制ロードしてから MOTION_BLOCKING_NO_LEAVES で地上Yを確定
- *  - 半径12を整地し、井戸・家3棟・畑・職業ブロックを配置
- *  - 村人を「ちょうど6人」スポーン（永続化）
+ *  - バニラの村パーツ（井戸・家・職業施設）をテンプレートから配置
+ *  - 各建物の下は自然な土/草の地盤を整えるだけ（不自然な立方体の整地はしない）
+ *  - 村人は「ちょうど6人」スポーンして永続化
+ *  - テンプレートが見つからない場合は従来の直接配置へフォールバック
  */
 public final class VillageBuilder {
 
     public static final int VILLAGER_COUNT = 6;
-    private static final int RADIUS = 12;
+    private static final int RADIUS = 16;
     private static final int HOUSE_RADIUS = 2;
+
+    private static final Identifier WELL =
+            Identifier.of("minecraft", "village/common/well_bottom");
+
+    /** 配置に使うバニラの平原村パーツ（いずれも 1.21.1 に実在するID）。 */
+    private static final String[] HOUSE_TEMPLATES = {
+            "village/plains/houses/plains_small_house_1",
+            "village/plains/houses/plains_small_house_3",
+            "village/plains/houses/plains_medium_house_1",
+            "village/plains/houses/plains_fletcher_house_1",
+            "village/plains/houses/plains_library_1",
+            "village/plains/houses/plains_butcher_shop_1"
+    };
 
     private VillageBuilder() {
     }
@@ -37,22 +58,68 @@ public final class VillageBuilder {
         generateStarterVillage(world, centerX, centerZ);
     }
 
-    /** 初期村／中立村を直接ブロック配置で生成する。 */
+    /** 初期村／中立村をバニラテンプレートから生成する。 */
     public static void generateStarterVillage(ServerWorld world, int centerX, int centerZ) {
         forceLoadChunks(world, centerX, centerZ);
 
-        BlockPos top = world.getTopPosition(Heightmap.Type.MOTION_BLOCKING_NO_LEAVES,
-                new BlockPos(centerX, 0, centerZ));
-        int baseY = top.getY();
+        StructureTemplateManager manager = world.getStructureTemplateManager();
+        int baseY = world.getTopY(Heightmap.Type.WORLD_SURFACE, centerX, centerZ) + 1;
 
-        flatten(world, centerX, baseY, centerZ);
-        buildWell(world, centerX, baseY, centerZ);
-        buildHouse(world, centerX - 8, baseY, centerZ - 8, Blocks.RED_BED);
-        buildHouse(world, centerX + 8, baseY, centerZ - 8, Blocks.BLUE_BED);
-        buildHouse(world, centerX, baseY, centerZ + 8, Blocks.GREEN_BED);
-        buildFarm(world, centerX - 8, baseY, centerZ + 8);
-        placeJobBlocks(world, centerX, baseY, centerZ);
+        // 中心の井戸（テンプレートの基準点は床面）。
+        placeTemplate(manager, world, WELL, new BlockPos(centerX, baseY, centerZ));
+
+        // 家々を円状に配置。各自の地面高さに合わせて自然な地盤を作る。
+        int placed = 0;
+        for (int i = 0; i < HOUSE_TEMPLATES.length; i++) {
+            double angle = (i * 2.0D * Math.PI / HOUSE_TEMPLATES.length) + Math.PI / 4.0D;
+            int hx = centerX + (int) Math.round(Math.cos(angle) * 10.0D);
+            int hz = centerZ + (int) Math.round(Math.sin(angle) * 10.0D);
+            int groundY = world.getTopY(Heightmap.Type.WORLD_SURFACE, hx, hz) + 1;
+            prepareFoundation(world, hx, groundY, hz);
+            if (placeTemplate(manager, world,
+                    Identifier.of("minecraft", HOUSE_TEMPLATES[i]), new BlockPos(hx, groundY, hz))) {
+                placed++;
+            }
+        }
+
+        // テンプレートが全く読めない環境では従来の直接配置で村を保証する。
+        if (placed == 0) {
+            legacyVillage(world, centerX, baseY, centerZ);
+        } else {
+            placeJobBlocks(world, centerX, baseY, centerZ);
+            buildFarm(world, centerX - 9, baseY, centerZ + 9);
+        }
         ensureVillagers(world, centerX, baseY, centerZ);
+    }
+
+    /** バニラテンプレートを1つ配置する。失敗時は false。 */
+    private static boolean placeTemplate(StructureTemplateManager manager, ServerWorld world,
+                                         Identifier id, BlockPos pos) {
+        StructureTemplate template = manager.getTemplate(id).orElse(null);
+        if (template == null) {
+            return false;
+        }
+        StructurePlacementData data = new StructurePlacementData()
+                .setRotation(BlockRotation.NONE)
+                .setMirror(BlockMirror.NONE)
+                .setIgnoreEntities(false)
+                .setInitializeMobs(false)
+                .setUpdateNeighbors(true);
+        return template.place(world, pos, BlockPos.ORIGIN, data, world.getRandom(), Block.NOTIFY_ALL);
+    }
+
+    /** 建物の下だけを土・草の自然な地盤に整え、上空の障害物を除く。 */
+    private static void prepareFoundation(ServerWorld world, int x, int y, int z) {
+        for (int dx = -5; dx <= 5; dx++) {
+            for (int dz = -5; dz <= 5; dz++) {
+                BlockPos p = new BlockPos(x + dx, y, z + dz);
+                for (int h = 1; h <= 8; h++) {
+                    world.setBlockState(p.up(h), Blocks.AIR.getDefaultState());
+                }
+                world.setBlockState(p.down(1), Blocks.DIRT.getDefaultState());
+                world.setBlockState(p, Blocks.GRASS_BLOCK.getDefaultState());
+            }
+        }
     }
 
     /** 村の範囲を含むチャンクを確実にロード／生成する。 */
@@ -68,7 +135,17 @@ public final class VillageBuilder {
         }
     }
 
-    /** 木・障害物を除去し、地上を草ブロックで平らにする。 */
+    /** テンプレートが無い場合の旧方式（直接ブロック配置）。 */
+    private static void legacyVillage(ServerWorld world, int centerX, int baseY, int centerZ) {
+        flatten(world, centerX, baseY, centerZ);
+        buildWell(world, centerX, baseY, centerZ);
+        buildHouse(world, centerX - 8, baseY, centerZ - 8, Blocks.RED_BED);
+        buildHouse(world, centerX + 8, baseY, centerZ - 8, Blocks.BLUE_BED);
+        buildHouse(world, centerX, baseY, centerZ + 8, Blocks.GREEN_BED);
+        buildFarm(world, centerX - 8, baseY, centerZ + 8);
+        placeJobBlocks(world, centerX, baseY, centerZ);
+    }
+
     private static void flatten(ServerWorld world, int centerX, int y, int centerZ) {
         for (int dx = -RADIUS; dx <= RADIUS; dx++) {
             for (int dz = -RADIUS; dz <= RADIUS; dz++) {
@@ -84,7 +161,6 @@ public final class VillageBuilder {
         }
     }
 
-    /** 石レンガと丸石の井戸（村の中心シンボル）。 */
     private static void buildWell(ServerWorld world, int x, int y, int z) {
         for (int dx = -1; dx <= 1; dx++) {
             for (int dz = -1; dz <= 1; dz++) {
@@ -102,7 +178,6 @@ public final class VillageBuilder {
         world.setBlockState(new BlockPos(x, y + 3, z), Blocks.BELL.getDefaultState());
     }
 
-    /** オークの家（床・壁・ガラス・ドア・松明・ベッド付き）。 */
     private static void buildHouse(ServerWorld world, int x, int y, int z, net.minecraft.block.Block bedBlock) {
         for (int dx = -HOUSE_RADIUS; dx <= HOUSE_RADIUS; dx++) {
             for (int dz = -HOUSE_RADIUS; dz <= HOUSE_RADIUS; dz++) {
@@ -112,7 +187,6 @@ public final class VillageBuilder {
                         Blocks.OAK_STAIRS.getDefaultState());
             }
         }
-
         for (int h = 1; h <= 3; h++) {
             for (int dx = -HOUSE_RADIUS; dx <= HOUSE_RADIUS; dx++) {
                 for (int dz = -HOUSE_RADIUS; dz <= HOUSE_RADIUS; dz++) {
@@ -133,21 +207,14 @@ public final class VillageBuilder {
                 }
             }
         }
-
         world.setBlockState(new BlockPos(x, y + 3, z), Blocks.TORCH.getDefaultState());
         placeBed(world, x - 1, y + 1, z - 1, Direction.SOUTH, bedBlock);
     }
 
     private static void placeDoor(ServerWorld world, BlockPos pos, int height) {
-        if (height == 1) {
-            world.setBlockState(pos, Blocks.OAK_DOOR.getDefaultState()
-                    .with(DoorBlock.FACING, Direction.SOUTH)
-                    .with(DoorBlock.HALF, DoubleBlockHalf.LOWER));
-        } else {
-            world.setBlockState(pos, Blocks.OAK_DOOR.getDefaultState()
-                    .with(DoorBlock.FACING, Direction.SOUTH)
-                    .with(DoorBlock.HALF, DoubleBlockHalf.UPPER));
-        }
+        world.setBlockState(pos, Blocks.OAK_DOOR.getDefaultState()
+                .with(DoorBlock.FACING, Direction.SOUTH)
+                .with(DoorBlock.HALF, height == 1 ? DoubleBlockHalf.LOWER : DoubleBlockHalf.UPPER));
     }
 
     private static void placeBed(ServerWorld world, int x, int y, int z, Direction facing,
@@ -160,7 +227,6 @@ public final class VillageBuilder {
         world.setBlockState(footPos.offset(facing), foot.with(BedBlock.PART, BedPart.HEAD));
     }
 
-    /** 水路・耕地・小麦の畑。 */
     private static void buildFarm(ServerWorld world, int x, int y, int z) {
         for (int dx = -3; dx <= 3; dx++) {
             world.setBlockState(new BlockPos(x + dx, y, z), Blocks.WATER.getDefaultState());
@@ -174,7 +240,6 @@ public final class VillageBuilder {
         }
     }
 
-    /** 職業ブロック。 */
     private static void placeJobBlocks(ServerWorld world, int x, int y, int z) {
         world.setBlockState(new BlockPos(x - 3, y + 1, z), Blocks.COMPOSTER.getDefaultState());
         world.setBlockState(new BlockPos(x + 3, y + 1, z), Blocks.GRINDSTONE.getDefaultState());

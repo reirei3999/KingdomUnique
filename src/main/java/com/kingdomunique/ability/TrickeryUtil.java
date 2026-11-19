@@ -34,5 +34,9 @@ public final class TrickeryUtil {
             builder.set(enchantment, Math.max(1, boosted));
         }
         stack.set(DataComponentTypes.ENCHANTMENTS, builder.build());
+
+        // 奇術は防具・動物防具の防御力／耐久にも及ぶ（GENERIC_ARMOR,
+        // GENERIC_ARMOR_TOUGHNESS, MAX_DAMAGE を更新）。
+        com.kingdomunique.util.EnhancementUtil.boostArmor(stack, 1.5D);
     }
 }

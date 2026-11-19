@@ -5,6 +5,7 @@ import com.kingdomunique.data.WorldUniqueData;
 import net.minecraft.component.DataComponentTypes;
 import net.minecraft.component.type.AttributeModifiersComponent;
 import net.minecraft.entity.attribute.EntityAttributeModifier;
+import net.minecraft.entity.attribute.EntityAttributes;
 import net.minecraft.entity.player.PlayerEntity;
 import net.minecraft.item.ArmorItem;
 import net.minecraft.item.Item;
@@ -16,7 +17,7 @@ import net.minecraft.item.TridentItem;
 import net.minecraft.server.MinecraftServer;
 import net.minecraft.server.network.ServerPlayerEntity;
 import net.minecraft.server.world.ServerWorld;
-import net.minecraft.text.Style;
+import net.minecraft.text.MutableText;
 import net.minecraft.text.Text;
 import net.minecraft.util.Formatting;
 import net.minecraft.util.Identifier;
@@ -159,9 +160,12 @@ public final class EnhancementUtil {
             result.set(DataComponentTypes.MAX_DAMAGE, scaledMax);
         }
 
+        // 強化後も名前が斜体にならないように明示的にスタイルを上書きする。
+        MutableText baseName = result.getItem().getName().copy()
+                .styled(style -> style.withItalic(false));
         Text suffix = Text.literal(" +" + targetLevel)
-                .setStyle(Style.EMPTY.withColor(Formatting.GRAY));
-        result.set(DataComponentTypes.CUSTOM_NAME, result.getItem().getName().copy().append(suffix));
+                .styled(style -> style.withColor(Formatting.GRAY).withItalic(false));
+        result.set(DataComponentTypes.CUSTOM_NAME, baseName.append(suffix));
 
         return result;
     }
@@ -274,6 +278,38 @@ public final class EnhancementUtil {
         stack.set(DataComponentTypes.ATTRIBUTE_MODIFIERS,
                 new net.minecraft.component.type.AttributeModifiersComponent(
                         entries, current == null || current.showInTooltip()));
+    }
+
+    /**
+     * 奇術の防具ブースト。AnimalArmorItem は ArmorItem のサブクラスなので
+     * 通常の防具と同じくここで防御力・耐久性（GENERIC_ARMOR /
+     * GENERIC_ARMOR_TOUGHNESS / MAX_DAMAGE）を更新できる。
+     */
+    public static void boostArmor(ItemStack stack, double factor) {
+        if (!(stack.getItem() instanceof ArmorItem)) {
+            return;
+        }
+        AttributeModifiersComponent current = stack.get(DataComponentTypes.ATTRIBUTE_MODIFIERS);
+        if (current != null && !current.modifiers().isEmpty()) {
+            List<AttributeModifiersComponent.Entry> scaled = new ArrayList<>();
+            for (AttributeModifiersComponent.Entry entry : current.modifiers()) {
+                boolean armorAttribute = entry.attribute() == EntityAttributes.GENERIC_ARMOR
+                        || entry.attribute() == EntityAttributes.GENERIC_ARMOR_TOUGHNESS;
+                double value = armorAttribute ? entry.modifier().value() * factor : entry.modifier().value();
+                EntityAttributeModifier updated = new EntityAttributeModifier(
+                        entry.modifier().id(), value, entry.modifier().operation());
+                scaled.add(new AttributeModifiersComponent.Entry(
+                        entry.attribute(), updated, entry.slot()));
+            }
+            stack.set(DataComponentTypes.ATTRIBUTE_MODIFIERS,
+                    new AttributeModifiersComponent(scaled, current.showInTooltip()));
+        }
+
+        Integer maxDamage = stack.get(DataComponentTypes.MAX_DAMAGE);
+        if (maxDamage != null && maxDamage > 0) {
+            stack.set(DataComponentTypes.MAX_DAMAGE,
+                    Math.max(1, (int) Math.round(maxDamage * factor)));
+        }
     }
 
     /** 強化結果。 */

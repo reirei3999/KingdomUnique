@@ -8,6 +8,8 @@ import net.minecraft.item.SwordItem;
 import net.minecraft.item.ToolMaterials;
 import net.minecraft.registry.Registries;
 import net.minecraft.registry.Registry;
+import net.minecraft.text.Text;
+import net.minecraft.util.Formatting;
 import net.minecraft.util.Identifier;
 
 /** 世界に一つだけの6本の武器登録。 */
@@ -50,7 +52,11 @@ public final class UniqueWeapons {
                 .maxDamage(durability)
                 .component(ModDataComponents.UNIQUE_WEAPON_ID, uniqueId)
                 .component(DataComponentTypes.UNBREAKABLE,
-                        new net.minecraft.component.type.UnbreakableComponent(true));
+                        new net.minecraft.component.type.UnbreakableComponent(true))
+                .component(DataComponentTypes.CUSTOM_NAME,
+                        Text.translatable("item.kingdomunique." + uniqueId)
+                                .styled(style -> style.withColor(Formatting.GOLD)
+                                        .withBold(true).withItalic(false)));
     }
 
     private static <T extends Item> T register(String path, T item) {

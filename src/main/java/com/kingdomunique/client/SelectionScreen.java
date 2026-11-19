@@ -99,11 +99,19 @@ public final class SelectionScreen extends Screen {
     @Override
     public void render(DrawContext context, int mouseX, int mouseY, float delta) {
         this.renderBackground(context, mouseX, mouseY, delta);
-        context.fill(0, 0, this.width, this.height, 0x99000000);
-        context.drawCenteredTextWithShadow(this.textRenderer, this.title, this.width / 2, 22, 0xFFFFD700);
+        context.fill(0, 0, this.width, this.height, 0xAA000000);
+        context.drawCenteredTextWithShadow(this.textRenderer, this.title, this.width / 2, 18, 0xFFFFD700);
         context.drawCenteredTextWithShadow(this.textRenderer,
                 Text.literal("1つだけ選んでください（世界で唯一のアイテムです）"),
-                this.width / 2, 40, TEXT_SUBTLE);
+                this.width / 2, 36, TEXT_SUBTLE);
+
+        if (optionIds.isEmpty()) {
+            context.drawCenteredTextWithShadow(this.textRenderer,
+                    Text.literal("このカテゴリには選択できるアイテムが残っていません。"),
+                    this.width / 2, this.height / 2, 0xFFFF6666);
+            super.render(context, mouseX, mouseY, delta);
+            return;
+        }
 
         int totalWidth = optionIds.size() * CARD_WIDTH + (optionIds.size() - 1) * CARD_GAP;
         int startX = this.width / 2 - totalWidth / 2;
@@ -124,7 +132,6 @@ public final class SelectionScreen extends Screen {
         int frame = highlight ? FRAME_HIGHLIGHT : frameColor();
         float scale = highlight ? 1.05F : 1.0F;
 
-        // カード全体の拡大変換（ホバー・選択時のみ 1.05 倍）
         context.getMatrices().push();
         if (scale != 1.0F) {
             float cx = x + CARD_WIDTH / 2.0F;
@@ -134,7 +141,7 @@ public final class SelectionScreen extends Screen {
             context.getMatrices().translate(-cx, -cy, 0.0F);
         }
 
-        // 1) 背景と枠線を先に描画する
+        // 1) 背景と枠線（最背面）。不透明 ARGB で描画する。
         context.fill(x, y, x + CARD_WIDTH, y + CARD_HEIGHT, CARD_BG);
         context.fill(x, y, x + CARD_WIDTH, y + 2, frame);
         context.fill(x, y + CARD_HEIGHT - 2, x + CARD_WIDTH, y + CARD_HEIGHT, frame);
@@ -145,19 +152,19 @@ public final class SelectionScreen extends Screen {
             context.fill(x + 3, y + CARD_HEIGHT - 5, x + CARD_WIDTH - 3, y + CARD_HEIGHT - 3, FRAME_HIGHLIGHT);
         }
 
-        // 2) アイテムアイコン: 中心へ translate してから scale する。Z=150 で手前に出す。
+        // 2) アイコン: 行列の Z を 150 にして背景より手前に描画。
         ItemStack icon = SelectionIcons.iconFor(id);
         if (!icon.isEmpty()) {
             context.getMatrices().push();
             context.getMatrices().translate(x + CARD_WIDTH / 2.0F, y + 40, 150.0F);
             context.getMatrices().scale(2.5F, 2.5F, 1.0F);
-            context.drawItem(icon, -8, -8);
+            context.drawItem(icon, -8, -8, 150);
             context.getMatrices().pop();
         }
 
-        // 3) テキスト: 背景・アイコンより後、Z=200 の最前面に描画する。
+        // 3) テキスト: Z=300 の最前面。アイコンが失敗しても名前・説明は必ず出る。
         context.getMatrices().push();
-        context.getMatrices().translate(0.0F, 0.0F, 200.0F);
+        context.getMatrices().translate(0.0F, 0.0F, 300.0F);
 
         context.drawCenteredTextWithShadow(this.textRenderer,
                 Text.literal(ContentRegistry.nameOf(id)).formatted(Formatting.BOLD, Formatting.WHITE),
@@ -182,7 +189,6 @@ public final class SelectionScreen extends Screen {
             }
         }
         context.getMatrices().pop();
-
         context.getMatrices().pop();
     }
 

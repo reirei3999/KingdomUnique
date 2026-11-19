@@ -4,7 +4,6 @@ import com.kingdomunique.component.ModDataComponents;
 import com.kingdomunique.data.WorldUniqueData;
 import com.kingdomunique.network.OpenItemMenuPayload;
 import com.kingdomunique.network.RequestItemPayload;
-import net.fabricmc.fabric.api.command.v2.CommandRegistrationCallback;
 import net.fabricmc.fabric.api.networking.v1.ServerPlayNetworking;
 import net.minecraft.item.ItemStack;
 import net.minecraft.server.MinecraftServer;
@@ -70,8 +69,13 @@ public final class ItemMenuHandler {
             give(player, payload.itemId());
         });
 
-        CommandRegistrationCallback.EVENT.register((dispatcher, registryAccess, environment) -> {
-            dispatcher.register(CommandManager.literal("ku")
+    }
+
+    /** /ku に管理者用サブコマンドを追加する（ModCommands から1度だけ呼ばれる）。 */
+    public static void registerCommands(
+            com.mojang.brigadier.builder.LiteralArgumentBuilder<net.minecraft.server.command.ServerCommandSource> ku,
+            net.minecraft.command.CommandRegistryAccess registryAccess) {
+        ku
                     .then(CommandManager.literal("menu")
                             .requires(source -> source.hasPermissionLevel(2))
                             .executes(context -> {
@@ -126,8 +130,7 @@ public final class ItemMenuHandler {
                                                 player.giveItemStack(stack);
                                                 player.sendMessage(Text.literal("§6[KingdomUnique] +" + level + " のアイテムを付与しました。"), false);
                                                 return 1;
-                                            })))));
-        });
+                                            }))));
     }
 
     private static boolean isAdmin(ServerPlayerEntity player) {

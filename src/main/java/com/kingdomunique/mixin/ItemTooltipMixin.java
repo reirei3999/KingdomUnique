@@ -25,12 +25,22 @@ public abstract class ItemTooltipMixin {
             return;
         }
 
+        boolean relicOrCurseWeapon = stack.isOf(ModItems.SLAUGHTER_BLADE)
+                || stack.isOf(ModItems.DESTRUCTION_PICKAXE);
         String uniqueId = stack.get(ModDataComponents.UNIQUE_WEAPON_ID);
-        if (uniqueId != null) {
+        if (uniqueId != null && !relicOrCurseWeapon) {
             appendUniqueWeapon(tooltip, uniqueId, stack);
         }
         if (stack.isOf(ModItems.SLAUGHTER_BLADE)) {
             appendSlaughterBlade(tooltip, stack);
+        }
+        if (stack.isOf(ModItems.DESTRUCTION_PICKAXE)) {
+            tooltip.add(Text.literal(""));
+            tooltip.add(Text.literal("【呪物（カース）】").formatted(Formatting.DARK_RED, Formatting.BOLD));
+            tooltip.add(Text.literal("  どんな硬いブロックも一瞬で砕く。")
+                    .formatted(Formatting.GRAY, Formatting.ITALIC));
+            tooltip.add(Text.literal("  破壊したブロックのドロップは消滅する")
+                    .formatted(Formatting.RED));
         }
 
         float dmg = stack.getOrDefault(ModDataComponents.DIVINE_ATTACK_DAMAGE, 0.0F);
@@ -58,6 +68,21 @@ public abstract class ItemTooltipMixin {
             tooltip.add(Text.literal(""));
             tooltip.add(Text.literal("◆ 無限強化 +" + level + "（基本性能・耐久値 1.1^"
                     + level + "倍）").formatted(Formatting.AQUA));
+        }
+
+        // アイテム名の色分け: ユニーク武器=金+太字、遺物=水色、呪物=暗赤色+太字。
+        if (!tooltip.isEmpty()) {
+            Text name = tooltip.get(0);
+            if (stack.isOf(ModItems.SLAUGHTER_BLADE)) {
+                tooltip.set(0, name.copy().styled(s -> s.withColor(Formatting.AQUA)
+                        .withItalic(false)));
+            } else if (stack.isOf(ModItems.DESTRUCTION_PICKAXE)) {
+                tooltip.set(0, name.copy().styled(s -> s.withColor(Formatting.DARK_RED)
+                        .withBold(true).withItalic(false)));
+            } else if (uniqueId != null) {
+                tooltip.set(0, name.copy().styled(s -> s.withColor(Formatting.GOLD)
+                        .withBold(true).withItalic(false)));
+            }
         }
     }
 
@@ -88,11 +113,12 @@ public abstract class ItemTooltipMixin {
     private static void appendSlaughterBlade(List<Text> tooltip, ItemStack stack) {
         float bonus = stack.getOrDefault(ModDataComponents.SLAUGHTER_BONUS, 0.0F);
         tooltip.add(Text.literal(""));
-        tooltip.add(Text.literal("【遺物：殺戮の宝剣】").formatted(Formatting.GOLD, Formatting.BOLD));
-        tooltip.add(Text.literal("倒した敵の数だけ剣が sharpen される。").formatted(Formatting.GRAY, Formatting.ITALIC));
-        tooltip.add(Text.literal("  §e現在の攻撃力ボーナス: +" + String.format("%.2f", bonus))
+        tooltip.add(Text.literal("【遺物（レリック）】").formatted(Formatting.AQUA, Formatting.BOLD));
+        tooltip.add(Text.literal("倒した敵の数だけ剣が研ぎ澄まされる。")
+                .formatted(Formatting.GRAY, Formatting.ITALIC));
+        tooltip.add(Text.literal("  現在の攻撃力ボーナス: +" + String.format("%.2f", bonus))
                 .formatted(Formatting.YELLOW));
-        tooltip.add(Text.literal("  撃破ごとに +0.10 ずつ永久上昇").formatted(Formatting.GREEN));
+        tooltip.add(Text.literal("  撃破ごとに +0.05 ずつ永久上昇").formatted(Formatting.GREEN));
     }
 
     private static String flavor(String id) {
@@ -111,6 +137,7 @@ public abstract class ItemTooltipMixin {
         return switch (id) {
             case "excalibur" -> new String[]{
                     "#王国領地内での攻撃力 ×1.8",
+                    "~領地半径100マス（王城で200マス）",
                     "~周囲15マスの自国兵士に攻撃力II・再生I",
                     "近接武器として使用"
             };
@@ -123,7 +150,7 @@ public abstract class ItemTooltipMixin {
             case "muramasa" -> new String[]{
                     "#与ダメージの20%をHP回復",
                     "*撃破ごとに攻撃力 +0.35（永久）",
-                    "#現在の攻覧回数ボーナス: +" + String.format("%.2f",
+                    "#現在の攻撃力ボーナス: +" + String.format("%.2f",
                             stack.getOrDefault(ModDataComponents.SLAUGHTER_BONUS, 0.0F)),
                     "!メインハンド保持中は空腹の減少がわずかに増加"
             };
@@ -136,7 +163,7 @@ public abstract class ItemTooltipMixin {
             case "mjolnir" -> new String[]{
                     "#右クリック: 雷弾を直線レイキャスト",
                     "~高威力固定ダメージ＋着弾点に落雷",
-                    "クールタイム: 4秒 / 割合ダメージなし"
+                    "CT 25秒"
             };
             case "chronos_dagger" -> new String[]{
                     "#非常に速い攻撃速度",

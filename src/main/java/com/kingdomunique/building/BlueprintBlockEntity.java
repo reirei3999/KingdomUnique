@@ -19,10 +19,12 @@ import java.util.Map;
 public final class BlueprintBlockEntity extends BlockEntity {
 
     private final SimpleInventory inventory;
+    private final BuildingType type;
     private boolean ready = false;
 
     public BlueprintBlockEntity(BlockPos pos, BlockState state, BuildingType type) {
         super(ModBlueprintEntities.BLUEPRINT_ENTITY, pos, state);
+        this.type = type;
         this.inventory = new SimpleInventory(Math.max(1, type.materials().size())) {
             @Override
             public void markDirty() {
@@ -39,6 +41,10 @@ public final class BlueprintBlockEntity extends BlockEntity {
         return inventory;
     }
 
+    public BuildingType buildingType() {
+        return type;
+    }
+
     public boolean isReady() {
         return ready;
     }
@@ -48,29 +54,60 @@ public final class BlueprintBlockEntity extends BlockEntity {
         markDirty();
     }
 
-    /** 指定アイテムを投入する（同一アイテムのスロットがあればそこに、なければ空きスロットへ）。 */
+    /** 旧 API 互換（コスト倍率1.0）。 */
     public boolean insert(ItemStack stack) {
+        return insert(stack, 1.0D);
+    }
+
+    /**
+     * 必要な個数だけを手持ちから取り出して投入する（余分な資材は消费しない）。
+     *
+     * @return 1個でも投入できたか
+     */
+    public boolean insert(ItemStack stack, double costMultiplier) {
         if (stack.isEmpty() || ready) {
             return false;
         }
-        for (int i = 0; i < inventory.size(); i++) {
+        int needed = 0;
+        for (Map.Entry<Item, Integer> entry : type.materials().entrySet()) {
+            if (entry.getKey() == stack.getItem()) {
+                needed = Math.max(1, (int) Math.ceil(entry.getValue() * costMultiplier));
+                break;
+            }
+        }
+        if (needed <= 0) {
+            return false;
+        }
+        int remaining = needed - countOf(stack.getItem());
+        if (remaining <= 0) {
+            return false;
+        }
+        int move = Math.min(stack.getCount(), remaining);
+        int original = move;
+
+        for (int i = 0; i < inventory.size() && move > 0; i++) {
             ItemStack slot = inventory.getStack(i);
             if (!slot.isEmpty() && slot.isOf(stack.getItem())
                     && slot.getCount() < slot.getMaxCount()) {
-                int move = Math.min(stack.getCount(), slot.getMaxCount() - slot.getCount());
-                slot.increment(move);
-                stack.decrement(move);
-                markDirty();
-                return true;
+                int n = Math.min(move, slot.getMaxCount() - slot.getCount());
+                slot.increment(n);
+                stack.decrement(n);
+                move -= n;
             }
         }
-        for (int i = 0; i < inventory.size(); i++) {
+        for (int i = 0; i < inventory.size() && move > 0; i++) {
             if (inventory.getStack(i).isEmpty()) {
-                inventory.setStack(i, stack.copy());
-                stack.setCount(0);
-                markDirty();
-                return true;
+                int n = Math.min(move, stack.getMaxCount());
+                ItemStack part = stack.copy();
+                part.setCount(n);
+                inventory.setStack(i, part);
+                stack.decrement(n);
+                move -= n;
             }
+        }
+        if (move < original) {
+            markDirty();
+            return true;
         }
         return false;
     }

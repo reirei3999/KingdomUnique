@@ -1,14 +1,11 @@
 package com.kingdomunique.selection;
 
-import com.kingdomunique.component.ModDataComponents;
 import com.kingdomunique.effect.CurseEffects;
 import com.kingdomunique.effect.RelicEffects;
-import com.kingdomunique.item.ModItems;
 import com.kingdomunique.network.SelectionChoicePayload;
+import com.kingdomunique.registry.ContentRegistry;
 import com.kingdomunique.registry.CurseRegistry;
 import com.kingdomunique.registry.RelicRegistry;
-import com.kingdomunique.util.EnhancementUtil;
-import net.fabricmc.fabric.api.command.v2.CommandRegistrationCallback;
 import net.fabricmc.fabric.api.entity.event.v1.ServerLivingEntityEvents;
 import net.fabricmc.fabric.api.event.lifecycle.v1.ServerTickEvents;
 import net.fabricmc.fabric.api.networking.v1.ServerPlayConnectionEvents;
@@ -41,16 +38,34 @@ public final class SelectionEventHandler {
     private SelectionEventHandler() {
     }
 
-    public static void register() {
-        CommandRegistrationCallback.EVENT.register((dispatcher, registryAccess, environment) -> {
-            dispatcher.register(CommandManager.literal("ku")
-                    .then(CommandManager.literal("select").executes(context -> {
-                        ServerPlayerEntity player = context.getSource().getPlayer();
-                        if (player == null) {
-                            return 0;
-                        }
-                        return SelectionManager.reopen(player) ? 1 : 0;
-                    }))
+    /** /ku に選択・外交サブコマンドを追加する（ModCommands から1度だけ呼ばれる）。 */
+    public static void registerCommands(
+            com.mojang.brigadier.builder.LiteralArgumentBuilder<net.minecraft.server.command.ServerCommandSource> ku) {
+        ku
+                    .then(CommandManager.literal("select")
+                            .executes(context -> {
+                                ServerPlayerEntity player = context.getSource().getPlayer();
+                                if (player == null) {
+                                    return 0;
+                                }
+                                return SelectionManager.reopenOrOpen(player,
+                                        ContentRegistry.Kind.ABILITY) ? 1 : 0;
+                            })
+                            .then(CommandManager.literal("ability").executes(context -> {
+                                ServerPlayerEntity player = context.getSource().getPlayer();
+                                return player != null && SelectionManager.reopenOrOpen(player,
+                                        ContentRegistry.Kind.ABILITY) ? 1 : 0;
+                            }))
+                            .then(CommandManager.literal("relic").executes(context -> {
+                                ServerPlayerEntity player = context.getSource().getPlayer();
+                                return player != null && SelectionManager.reopenOrOpen(player,
+                                        ContentRegistry.Kind.RELIC) ? 1 : 0;
+                            }))
+                            .then(CommandManager.literal("curse").executes(context -> {
+                                ServerPlayerEntity player = context.getSource().getPlayer();
+                                return player != null && SelectionManager.reopenOrOpen(player,
+                                        ContentRegistry.Kind.CURSE) ? 1 : 0;
+                            })))
                     .then(CommandManager.literal("ally")
                             .then(CommandManager.argument("target",
                                     net.minecraft.command.argument.EntityArgumentType.player())
@@ -76,9 +91,10 @@ public final class SelectionEventHandler {
                                         }
                                         com.kingdomunique.war.Warfare.declareWar(self, target);
                                         return 1;
-                                    }))));
-        });
+                                    })));
+    }
 
+    public static void register() {
         ServerTickEvents.END_SERVER_TICK.register(SelectionEventHandler::onTick);
         ServerPlayConnectionEvents.DISCONNECT.register((handler, server) -> {
             SelectionManager.remove(handler.getPlayer());
@@ -169,13 +185,7 @@ public final class SelectionEventHandler {
             return;
         }
 
-        ItemStack weapon = player.getMainHandStack();
-        if (weapon.isOf(ModItems.SLAUGHTER_BLADE)
-                && RelicEffects.has(player, RelicRegistry.BLADE)) {
-            float bonus = weapon.getOrDefault(ModDataComponents.SLAUGHTER_BONUS, 0.0F) + 0.1F;
-            weapon.set(ModDataComponents.SLAUGHTER_BONUS, bonus);
-            EnhancementUtil.applySlaughterBonus(weapon, bonus);
-        }
+        // 殺戮の宝剣の攻撃力上昇は FinalEventHandler.onDeath で一元処理する（二重加算を避ける）。
 
         if (CurseEffects.has(player, CurseRegistry.GLUTTONY)) {
             GLUTTONY_UNTIL.put(player.getUuid(),
