@@ -124,10 +124,18 @@ public final class SelectionScreen extends Screen {
         this.close();
     }
 
+    /**
+     * バニラのぼかし付き背景はやめて単色にする。
+     * ぼかされた背面が文字のフリンジとして滲むのを防ぐため。
+     */
+    @Override
+    public void renderBackground(DrawContext context, int mouseX, int mouseY, float delta) {
+        context.fill(0, 0, this.width, this.height, 0xFF0E0E12);
+    }
+
     @Override
     public void render(DrawContext context, int mouseX, int mouseY, float delta) {
         this.renderBackground(context, mouseX, mouseY, delta);
-        context.fill(0, 0, this.width, this.height, 0xAA000000);
         context.getMatrices().push();
         context.getMatrices().scale(1.0F, 1.0F, 1.0F);
         context.drawCenteredTextWithShadow(this.textRenderer, this.title,
@@ -204,7 +212,7 @@ public final class SelectionScreen extends Screen {
 
         String[] effects = SelectionIcons.effectsFor(id);
         int meritCount = kind == ContentRegistry.Kind.CURSE ? SelectionIcons.meritLineCount(id) : effects.length;
-        int textY = y + 96;
+        int textY = y + 94;
         int limitY = y + CARD_HEIGHT - 8;
         for (int i = 0; i < effects.length; i++) {
             int color = kind == ContentRegistry.Kind.CURSE
@@ -216,8 +224,9 @@ public final class SelectionScreen extends Screen {
                 if (textY > limitY) {
                     break;
                 }
-                context.drawTextWithShadow(this.textRenderer, line, (int) (x + 6), (int) textY, color);
-                textY += 10;
+                // 影なしの等倍描画にしてフリンジをなくす。
+                context.drawText(this.textRenderer, line, (int) (x + 6), (int) textY, color, false);
+                textY += 12;
             }
         }
     }
