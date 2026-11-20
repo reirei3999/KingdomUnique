@@ -121,6 +121,7 @@ public final class BuildingManager {
 
     /** 毎Tickの建築進行。 */
     public static void onServerTick(MinecraftServer server) {
+        BuildingEffectHandler.tick(server);
         for (ServerWorld world : server.getWorlds()) {
             BuildData data = BuildData.getOrCreate(world);
             for (BuildData.BuildSite site : new java.util.ArrayList<>(data.sites())) {
@@ -155,7 +156,12 @@ public final class BuildingManager {
                             SoundCategory.BLOCKS, 0.6F, 1.0F);
                 }
                 if (progress >= required) {
+                    if (!canPlaceSafely(world, site.pos())) {
+                        continue;
+                    }
                     StructurePlacer.place(world, site.pos(), site.type());
+                    BuildingEffectHandler.onCompleted(world, owner.getUuid(), site.type(), site.pos());
+                    CompletedBuildingsData.getOrCreate(world).add(site.pos(), site.type(), owner.getUuid());
                     DefenseData.register(world, site.pos(), site.type(), owner.getUuid());
                     if (site.type() == BuildingType.TOWN_HALL) {
                         KingdomManager.markTownHall(owner, site.pos());
@@ -245,6 +251,11 @@ public final class BuildingManager {
                 instanceof net.minecraft.entity.passive.VillagerEntity villager) {
             villager.getNavigation().stop();
         }
+    }
+    /** チャンク未ロード・高度範囲外での配置を防ぐ（Gemini 提示のバグ③対策）。 */
+    public static boolean canPlaceSafely(ServerWorld world, BlockPos pos) {
+        return world.isChunkLoaded(pos.getX() >> 4, pos.getZ() >> 4)
+                && world.isInBuildLimit(pos);
     }
     /** 建築サイトの完了までに必要なティック数（依頼者の倍率を反映）。 */
     public static int requiredTicks(ServerWorld world, BuildData.BuildSite site) {

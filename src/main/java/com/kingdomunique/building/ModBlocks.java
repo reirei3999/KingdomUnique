@@ -19,6 +19,12 @@ public final class ModBlocks {
     public static final BlueprintBlock GATE = register("blueprint_gate", BuildingType.GATE);
     public static final BlueprintBlock WALL = register("blueprint_wall", BuildingType.WALL);
     public static final BlueprintBlock HERO_SANCTUARY = register("blueprint_hero_sanctuary", BuildingType.HERO_SANCTUARY);
+    public static final BlueprintBlock GRANARY = register("blueprint_granary", BuildingType.GRANARY);
+    public static final BlueprintBlock INFIRMARY = register("blueprint_infirmary", BuildingType.INFIRMARY);
+    public static final BlueprintBlock MARKET = register("blueprint_market", BuildingType.MARKET);
+    public static final BlueprintBlock ARSENAL = register("blueprint_arsenal", BuildingType.ARSENAL);
+    public static final BlueprintBlock TRAINING_GROUND = register("blueprint_training_ground", BuildingType.TRAINING_GROUND);
+    public static final BlueprintBlock ROYAL_PALACE = register("blueprint_royal_palace", BuildingType.ROYAL_PALACE);
 
     private static BlueprintBlock register(String path, BuildingType type) {
         Identifier id = Identifier.of(KingdomUniqueMod.MOD_ID, path);

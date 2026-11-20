@@ -87,6 +87,66 @@ public enum BuildingType {
             map.put(Items.DIAMOND, 2);
             return map;
         }
+    },
+    GRANARY("王立穀物庫", 0, 13 * 20) {
+        @Override
+        public Map<Item, Integer> materials() {
+            Map<Item, Integer> map = new LinkedHashMap<>();
+            map.put(Items.OAK_LOG, 24);
+            map.put(Items.HAY_BLOCK, 12);
+            map.put(Items.COBBLESTONE, 24);
+            return map;
+        }
+    },
+    INFIRMARY("王立救護院", 0, 14 * 20) {
+        @Override
+        public Map<Item, Integer> materials() {
+            Map<Item, Integer> map = new LinkedHashMap<>();
+            map.put(Items.WHITE_WOOL, 16);
+            map.put(Items.CALCITE, 24);
+            map.put(Items.GOLDEN_APPLE, 2);
+            return map;
+        }
+    },
+    MARKET("王都交易場", 0, 16 * 20) {
+        @Override
+        public Map<Item, Integer> materials() {
+            Map<Item, Integer> map = new LinkedHashMap<>();
+            map.put(Items.SPRUCE_PLANKS, 32);
+            map.put(Items.RED_WOOL, 8);
+            map.put(Items.EMERALD, 4);
+            return map;
+        }
+    },
+    ARSENAL("王立軍事庫", 0, 18 * 20) {
+        @Override
+        public Map<Item, Integer> materials() {
+            Map<Item, Integer> map = new LinkedHashMap<>();
+            map.put(Items.STONE_BRICKS, 48);
+            map.put(Items.IRON_BLOCK, 2);
+            map.put(Items.SHIELD, 2);
+            return map;
+        }
+    },
+    TRAINING_GROUND("英雄訓練場", 0, 21 * 20) {
+        @Override
+        public Map<Item, Integer> materials() {
+            Map<Item, Integer> map = new LinkedHashMap<>();
+            map.put(Items.OAK_LOG, 32);
+            map.put(Items.TARGET, 4);
+            map.put(Items.IRON_SWORD, 4);
+            return map;
+        }
+    },
+    ROYAL_PALACE("王宮", 0, 40 * 20) {
+        @Override
+        public Map<Item, Integer> materials() {
+            Map<Item, Integer> map = new LinkedHashMap<>();
+            map.put(Items.QUARTZ_BLOCK, 64);
+            map.put(Items.GOLD_BLOCK, 4);
+            map.put(Items.DIAMOND_BLOCK, 1);
+            return map;
+        }
     };
 
     private final String displayName;
@@ -124,6 +184,10 @@ public enum BuildingType {
             case GATE -> 4;
             case WALL -> 5;
             case HERO_SANCTUARY -> 6;
+            case GRANARY, INFIRMARY, MARKET -> 6;
+            case ARSENAL -> 6;
+            case TRAINING_GROUND -> 7;
+            case ROYAL_PALACE -> 9;
         };
     }
 }

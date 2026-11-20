@@ -45,6 +45,8 @@ public final class StructurePlacer {
             case GATE -> gate(world, center);
             case WALL -> wall(world, center);
             case HERO_SANCTUARY -> com.kingdomunique.world.HeroSanctuaryBuilder.build(world, center);
+            case GRANARY, INFIRMARY, MARKET, ARSENAL, TRAINING_GROUND, ROYAL_PALACE ->
+                    AdditionalStructures.build(world, type, center);
         }
     }
 
@@ -71,6 +73,9 @@ public final class StructurePlacer {
             case GATE -> 4;
             case WALL -> 5;
             case HERO_SANCTUARY -> 6;
+            case GRANARY, INFIRMARY, MARKET, ARSENAL -> 6;
+            case TRAINING_GROUND -> 7;
+            case ROYAL_PALACE -> 9;
         };
     }
 
