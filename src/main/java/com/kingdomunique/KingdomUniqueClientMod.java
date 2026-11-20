@@ -34,6 +34,9 @@ public class KingdomUniqueClientMod implements ClientModInitializer {
         // 設計図の建材HUDと3Dプレビュー。
         BlueprintClientOverlay.initialize();
 
+        // 設計図アイテムを持った際のパーティクル枠線プレビュー（向き・入口・建築可否を表示）。
+        com.kingdomunique.client.BlueprintPreviewRenderer.register();
+
         // 起動確認用: -Dkingdomunique.verify.seconds=N を渡すと N 秒後に自動終了する。
         // 通常プレイではプロパティが無いため何も起きない。
         String verifySeconds = System.getProperty("kingdomunique.verify.seconds");
