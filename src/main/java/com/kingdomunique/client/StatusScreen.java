@@ -109,53 +109,53 @@ public final class StatusScreen extends Screen {
         ContentRegistry.Kind kind = ContentRegistry.kindOf(id);
         int frame = kind == ContentRegistry.Kind.RELIC ? 0xFF55CCFF
                 : kind == ContentRegistry.Kind.CURSE ? 0xFFFF5555 : 0xFFAAAA55;
+        String category = kind == ContentRegistry.Kind.RELIC ? "遺物"
+                : kind == ContentRegistry.Kind.CURSE ? "呪物" : "能力";
 
-        // 背景・枠線（等倍・整数座標）。
+        // 影→本体→枠→ヘッダーの順に重ねて立体感を出す（等倍・整数座標）。
+        context.fill(x + 3, y + 3, x + CARD_WIDTH + 3, y + CARD_HEIGHT + 3, 0x88000000);
         context.fill(x, y, x + CARD_WIDTH, y + CARD_HEIGHT, CARD_BG);
         context.fill(x, y, x + CARD_WIDTH, y + 2, frame);
         context.fill(x, y + CARD_HEIGHT - 2, x + CARD_WIDTH, y + CARD_HEIGHT, frame);
         context.fill(x, y, x + 2, y + CARD_HEIGHT, frame);
         context.fill(x + CARD_WIDTH - 2, y, x + CARD_WIDTH, y + CARD_HEIGHT, frame);
+        context.fill(x + 2, y + 2, x + CARD_WIDTH - 2, y + 18, 0xFF2A2A30);
+        context.fill(x + 2, y + 18, x + CARD_WIDTH - 2, y + 19, frame);
 
-        // アイコンは等倍でくっきり描画（拡大するとテクスチャがぼやける）。
+        context.drawText(this.textRenderer,
+                Text.literal("[" + category + "]").formatted(Formatting.YELLOW),
+                x + 6, y + 5, 0xFFFFFF55, false);
+        context.drawText(this.textRenderer,
+                Text.literal(ContentRegistry.nameOf(id)).formatted(Formatting.BOLD),
+                x + 52, y + 5, TEXT_WHITE, false);
+
         ItemStack icon = SelectionIcons.iconFor(id);
         if (!icon.isEmpty()) {
-            context.drawItem(icon, (int) (x + 12), (int) (y + 12));
+            context.fill(x + 6, y + 26, x + 26, y + 46, 0xFF101014);
+            context.fill(x + 6, y + 26, x + 26, y + 27, frame);
+            context.fill(x + 6, y + 45, x + 26, y + 46, frame);
+            context.drawItem(icon, x + 8, y + 28);
         }
 
-        // テキストは等倍・整数座標。長文は wrapLines で等倍のまま改行する。
-        context.getMatrices().push();
-        context.getMatrices().scale(1.0F, 1.0F, 1.0F);
-        context.drawTextWithShadow(this.textRenderer,
-                Text.literal(ContentRegistry.nameOf(id)).formatted(Formatting.BOLD, Formatting.WHITE),
-                (int) (x + 44), (int) (y + 12), TEXT_WHITE);
-
-        String[] lines = descriptionLines(id);
-        int textY = y + 30;
-        int limit = y + CARD_HEIGHT - 26;
-        for (String line : lines) {
-            for (OrderedText wrapped : this.textRenderer.wrapLines(Text.literal(line), CARD_WIDTH - 12)) {
+        int textY = y + 28;
+        int limit = y + CARD_HEIGHT - 24;
+        for (String line : AbilityDescriptions.details(id)) {
+            for (OrderedText wrapped : this.textRenderer.wrapLines(
+                    Text.literal(line), CARD_WIDTH - 36)) {
                 if (textY > limit) {
                     break;
                 }
-                context.drawText(this.textRenderer, wrapped, (int) (x + 6), (int) textY,
-                        0xFFFFFFFF, false);
-                textY += 12;
+                context.drawText(this.textRenderer, wrapped, x + 32, textY, 0xFFFFFFFF, false);
+                textY += 11;
             }
         }
-        context.drawTextWithShadow(this.textRenderer,
+
+        context.fill(x + 2, y + CARD_HEIGHT - 21, x + CARD_WIDTH - 2,
+                y + CARD_HEIGHT - 2, 0xFF1A1A20);
+        context.drawText(this.textRenderer,
                 Text.literal("操作: " + AbilityDescriptions.controlHint(id)),
-                (int) (x + 6), (int) (y + CARD_HEIGHT - 16), 0xFFFFDD55);
-        context.getMatrices().pop();
+                x + 6, y + CARD_HEIGHT - 17, 0xFFFFDD55, false);
     }
-
-    private String[] descriptionLines(String id) {
-        if (ContentRegistry.kindOf(id) == ContentRegistry.Kind.ABILITY) {
-            return AbilityDescriptions.details(id);
-        }
-        return SelectionIcons.effectsFor(id);
-    }
-
     @Override
     public boolean shouldPause() {
         return false;

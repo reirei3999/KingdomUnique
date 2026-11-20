@@ -1,6 +1,7 @@
 package com.kingdomunique.client;
 
 import com.kingdomunique.network.SelectionChoicePayload;
+import com.kingdomunique.registry.AbilityDescriptions;
 import com.kingdomunique.registry.ContentRegistry;
 import net.fabricmc.api.EnvType;
 import net.fabricmc.api.Environment;
@@ -182,8 +183,11 @@ public final class SelectionScreen extends Screen {
     private void drawCard(DrawContext context, String id, int x, int y, boolean highlight, int index) {
         int frame = highlight ? FRAME_HIGHLIGHT : frameColor();
 
-        // 一切の拡大変換を行わない（小数スケールはテクスチャも文字もぼかす）。
+        // 影→本体→枠→ヘッダー→フッターでカードの厚みを出す（等倍・整数座標）。
+        context.fill(x + 3, y + 3, x + CARD_WIDTH + 3, y + CARD_HEIGHT + 3, 0x88000000);
         context.fill(x, y, x + CARD_WIDTH, y + CARD_HEIGHT, CARD_BG);
+        context.fill(x + 2, y + 2, x + CARD_WIDTH - 2, y + 16, 0xFF2A2A30);
+        context.fill(x + 2, y + 16, x + CARD_WIDTH - 2, y + 17, frame);
         context.fill(x, y, x + CARD_WIDTH, y + 2, frame);
         context.fill(x, y + CARD_HEIGHT - 2, x + CARD_WIDTH, y + CARD_HEIGHT, frame);
         context.fill(x, y, x + 2, y + CARD_HEIGHT, frame);
@@ -213,7 +217,7 @@ public final class SelectionScreen extends Screen {
         String[] effects = SelectionIcons.effectsFor(id);
         int meritCount = kind == ContentRegistry.Kind.CURSE ? SelectionIcons.meritLineCount(id) : effects.length;
         int textY = y + 94;
-        int limitY = y + CARD_HEIGHT - 8;
+        int limitY = y + CARD_HEIGHT - 20;
         for (int i = 0; i < effects.length; i++) {
             int color = kind == ContentRegistry.Kind.CURSE
                     ? (i < meritCount ? TEXT_MERIT : TEXT_DEMERIT)
@@ -229,6 +233,12 @@ public final class SelectionScreen extends Screen {
                 textY += 12;
             }
         }
+
+        context.fill(x + 2, y + CARD_HEIGHT - 19, x + CARD_WIDTH - 2,
+                y + CARD_HEIGHT - 2, 0xFF1A1A20);
+        context.drawText(this.textRenderer,
+                Text.literal(AbilityDescriptions.controlHint(id)),
+                x + 6, y + CARD_HEIGHT - 15, 0xFFFFDD55, false);
     }
 
     private int frameColor() {
