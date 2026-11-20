@@ -44,11 +44,11 @@ public final class VillagerProfessionUtil {
         if (CitizenVillager.ROLE_FARMER.equals(role)) {
             // 農民: 原木→エメラルド / エメラルド→苗木 / エメラルド→小麦の種
             offers.add(new TradeOffer(new TradedItem(Items.OAK_LOG, 4), Optional.empty(),
-                    new ItemStack(Items.EMERALD, 1), 24, 3, 0.02F));
+                    new ItemStack(Items.EMERALD, 1), Integer.MAX_VALUE, 3, 0.0F));
             offers.add(new TradeOffer(new TradedItem(Items.EMERALD, 1), Optional.empty(),
-                    new ItemStack(Items.OAK_SAPLING, 4), 24, 3, 0.02F));
+                    new ItemStack(Items.OAK_SAPLING, 4), Integer.MAX_VALUE, 3, 0.0F));
             offers.add(new TradeOffer(new TradedItem(Items.EMERALD, 3), Optional.empty(),
-                    new ItemStack(Items.WHEAT_SEEDS, 10), 24, 5, 0.02F));
+                    new ItemStack(Items.WHEAT_SEEDS, 10), Integer.MAX_VALUE, 5, 0.0F));
         } else if (CitizenVillager.ROLE_SMITH.equals(role)) {
             // 鍛冶士: レベルが上がるほど豊富な鉱石をエメラルドで買える。
             int level = villager.getVillagerData().getLevel();
@@ -73,6 +73,6 @@ public final class VillagerProfessionUtil {
     private static void addOreTrade(TradeOfferList offers, Item ore,
                                     int emeralds, int amount, int xp) {
         offers.add(new TradeOffer(new TradedItem(Items.EMERALD, emeralds), Optional.empty(),
-                new ItemStack(ore, amount), 24, xp, 0.02F));
+                new ItemStack(ore, amount), Integer.MAX_VALUE, xp, 0.0F));
     }
 }
