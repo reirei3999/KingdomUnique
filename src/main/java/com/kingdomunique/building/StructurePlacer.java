@@ -11,9 +11,19 @@ public final class StructurePlacer {
     }
 
     public static void place(ServerWorld world, BlockPos center, BuildingType type) {
-        // 通常建築はバニラの村テンプレートを主体にする（敵対的な独自構造は使わない）。
+        // 王城は専用の中世ファンタジー風ビルダーで生成する（origin = 北西の角）。
+        if (type == BuildingType.TOWN_HALL) {
+            for (int cx = (center.getX() - 16) >> 4; cx <= (center.getX() + 16) >> 4; cx++) {
+                for (int cz = (center.getZ() - 16) >> 4; cz <= (center.getZ() + 16) >> 4; cz++) {
+                    world.getChunk(cx, cz);
+                }
+            }
+            com.kingdomunique.world.TownHallBuilder.buildTownHall(world, center);
+            return;
+        }
+        // 通常建築はバニラの村テンプレートを主体にする。
         if (type == BuildingType.HOUSE || type == BuildingType.BARRACKS
-                || type == BuildingType.BLACKSMITH || type == BuildingType.TOWN_HALL) {
+                || type == BuildingType.BLACKSMITH) {
             placeVanillaVillageBuilding(world, center, type);
             return;
         }
@@ -44,7 +54,6 @@ public final class StructurePlacer {
             case HOUSE -> "village/plains/houses/plains_small_house_1";
             case BARRACKS -> "village/plains/houses/plains_medium_house_1";
             case BLACKSMITH -> "village/plains/houses/plains_tool_smith_1";
-            case TOWN_HALL -> "village/plains/houses/plains_meeting_point_4";
             default -> "village/plains/houses/plains_small_house_1";
         };
         com.kingdomunique.world.VillageBuilder.placeTemplate(world,
