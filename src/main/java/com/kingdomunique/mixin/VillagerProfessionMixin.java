@@ -3,6 +3,7 @@ package com.kingdomunique.mixin;
 import com.kingdomunique.entity.CitizenVillager;
 import com.kingdomunique.entity.VillagerProfessionUtil;
 import net.minecraft.entity.passive.VillagerEntity;
+import net.minecraft.entity.player.PlayerEntity;
 import net.minecraft.village.VillagerData;
 import org.spongepowered.asm.mixin.Mixin;
 import org.spongepowered.asm.mixin.injection.At;
@@ -48,6 +49,18 @@ public abstract class VillagerProfessionMixin {
                 && (CitizenVillager.ROLE_SMITH.equals(citizen.ku$getRole())
                 || CitizenVillager.ROLE_FARMER.equals(citizen.ku$getRole()))) {
             VillagerProfessionUtil.applyRole(self, CitizenVillager.ROLE_SMITH);
+        }
+    }
+
+    /** 取引画面を開く直前にバニラが职业取引を再生成するため、王国仕様へ上書きする。 */
+    @Inject(method = "prepareOffersFor", at = @At("RETURN"))
+    private void kingdomUnique$prepareCustomOffers(PlayerEntity player, CallbackInfo ci) {
+        VillagerEntity self = (VillagerEntity) (Object) this;
+        if (self instanceof CitizenVillager citizen) {
+            String role = citizen.ku$getRole();
+            if (role != null && !role.isEmpty()) {
+                VillagerProfessionUtil.applyRole(self, role);
+            }
         }
     }
 }
