@@ -151,6 +151,8 @@ public final class VillageBuilder {
         // バニラのジグソー生成（バイオーム別の村プール）を最優先で試す。
         boolean jigsaw = buildVillage(world, new BlockPos(centerX, baseY, centerZ));
         if (jigsaw) {
+            // バニラ村の広場北側に王国の集会所（タウンホール）を配置する。
+            TownHallBuilder.buildTownHall(world, new BlockPos(centerX - 5, baseY, centerZ - 14));
             ensureVillagers(world, centerX, baseY, centerZ, owner);
             com.kingdomunique.KingdomUniqueMod.LOGGER.info("[KingdomUnique] Generated jigsaw village at ({}, {}).",
                     centerX, centerZ);
