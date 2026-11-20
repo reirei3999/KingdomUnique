@@ -50,12 +50,20 @@ public final class ItemMenuHandler {
                     com.kingdomunique.building.BuildingType type = block.getType();
                     double multiplier = com.kingdomunique.building.BuildingManager.costMultiplier(player);
                     java.util.List<String> lines = new java.util.ArrayList<>();
-                    for (java.util.Map.Entry<net.minecraft.item.Item, Integer> entry : type.materials().entrySet()) {
-                        int needed = Math.max(1, (int) Math.ceil(entry.getValue() * multiplier));
-                        int have = be.countOf(entry.getKey());
-                        lines.add(entry.getKey().getName().getString() + " " + have + "/" + needed);
+                    if (be.isReady()) {
+                        // 建築開始後は資材が消費されて空になるため、
+                        // 「0/N（資材待ち）」ではなく「建設中」として表示する。
+                        lines.add("状態: 建設中");
+                        lines.add("完成までしばらくお待ちください");
+                    } else {
+                        for (java.util.Map.Entry<net.minecraft.item.Item, Integer> entry
+                                : type.materials().entrySet()) {
+                            int needed = Math.max(1, (int) Math.ceil(entry.getValue() * multiplier));
+                            int have = be.countOf(entry.getKey());
+                            lines.add(entry.getKey().getName().getString() + " " + have + "/" + needed);
+                        }
+                        lines.add("状態: 資材待ち");
                     }
-                    lines.add(be.isReady() ? "状態: 建築中" : "状態: 資材待ち");
                     ServerPlayNetworking.send(player, new com.kingdomunique.network.BlueprintInfoPayload(
                             payload.pos(), type.getDisplayName(), type.getBuildRadius(), lines));
                 });

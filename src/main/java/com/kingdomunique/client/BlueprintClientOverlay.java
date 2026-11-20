@@ -92,12 +92,13 @@ public final class BlueprintClientOverlay {
             if (client.world.getBlockState(hitPos).getBlock() instanceof BlueprintBlock) {
                 newFocus = hitPos;
             } else if (holdingBlueprint) {
-                newFocus = hitPos.up();
+                // 実際のブロック配置と同じく、クリックした面の隣に配置する。
+                newFocus = hitPos.offset(hit.getSide());
             }
         }
         if (holdingBlueprint && newFocus == null) {
             Vec3d look = client.player.getRotationVec(1.0F);
-            newFocus = client.player.getBlockPos().add(
+            newFocus = client.player.getBlockPos().up().add(
                     (int) Math.round(look.x * 6.0D), 0, (int) Math.round(look.z * 6.0D));
         }
         if (newFocus == null || !newFocus.equals(focusPos)) {
@@ -138,7 +139,7 @@ public final class BlueprintClientOverlay {
                 Text.literal("§6§l" + (buildingName.isEmpty() ? "建築予定" : buildingName)), x, y - 14, 0xFFFFFFFF);
         for (int i = 0; i < lines.size(); i++) {
             String line = lines.get(i);
-            int color = line.contains("建築中") ? 0xFF55FF55
+            int color = (line.contains("建築中") || line.contains("建設中")) ? 0xFF55FF55
                     : (line.matches(".*\\s\\d+/\\d+") ? parseColor(line) : 0xFFFFFFFF);
             context.drawTextWithShadow(client.textRenderer, Text.literal(line), x, y + i * 12, color);
         }
