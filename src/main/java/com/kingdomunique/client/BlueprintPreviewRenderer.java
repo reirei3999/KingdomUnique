@@ -70,11 +70,13 @@ public final class BlueprintPreviewRenderer {
         Direction entranceFacing = player.getHorizontalFacing().getOpposite();
         BlockBox box = StructureRotationUtil.computeBoundingBox(origin, type, entranceFacing);
 
-        // クライアント側で判定できる簡易バリデーション（高度限界・チャンクロード）。
-        boolean isValid = box.getMinY() >= world.getBottomY() + 1
+        // クライアント側バリデーション（高度限界・チャンクロード・既存建築との重複）。
+        boolean inBuildLimit = box.getMinY() >= world.getBottomY() + 1
                 && box.getMaxY() < world.getTopY()
                 && world.isChunkLoaded(box.getMinX() >> 4, box.getMinZ() >> 4)
                 && world.isChunkLoaded(box.getMaxX() >> 4, box.getMaxZ() >> 4);
+        boolean overlapping = ClientBuildingBoxCache.intersectsExistingBuilding(box);
+        boolean isValid = inBuildLimit && !overlapping;
 
         DustParticleEffect frameColor = isValid ? VALID_PARTICLE : INVALID_PARTICLE;
         renderBoundingBoxParticles(world, box, frameColor);
@@ -82,7 +84,8 @@ public final class BlueprintPreviewRenderer {
 
         int width = box.getMaxX() - box.getMinX() + 1;
         int depth = box.getMaxZ() - box.getMinZ() + 1;
-        String statusText = isValid ? "§a[建築可能]" : "§c[高度/範囲外]";
+        String statusText = overlapping ? "§c[既存建築と重複]"
+                : (isValid ? "§a[建築可能]" : "§c[高度/範囲外]");
         player.sendMessage(Text.literal(statusText + " §f" + type.getDisplayName()
                 + " §7(" + width + "x" + depth + " / 入口: " + formatDirectionJa(entranceFacing) + ")"), true);
     }

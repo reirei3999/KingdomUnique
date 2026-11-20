@@ -34,6 +34,9 @@ public class KingdomUniqueClientMod implements ClientModInitializer {
         // 設計図の建材HUDと3Dプレビュー。
         BlueprintClientOverlay.initialize();
 
+        // 建築済み／建築中の占有範囲を受信してプレビューの赤枠判定に使う。
+        com.kingdomunique.client.ClientBuildingBoxCache.registerReceiver();
+
         // 設計図アイテムを持った際のパーティクル枠線プレビュー（向き・入口・建築可否を表示）。
         com.kingdomunique.client.BlueprintPreviewRenderer.register();
 
