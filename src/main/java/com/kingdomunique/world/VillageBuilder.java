@@ -11,6 +11,23 @@ import net.minecraft.block.enums.DoubleBlockHalf;
 import net.minecraft.entity.EntityType;
 import net.minecraft.entity.passive.VillagerEntity;
 import net.minecraft.server.world.ServerWorld;
+import net.minecraft.registry.Registry;
+import net.minecraft.registry.RegistryKeys;
+import net.minecraft.registry.entry.RegistryEntry;
+import net.minecraft.structure.pool.StructurePool;
+import net.minecraft.structure.pool.StructurePoolBasedGenerator;
+import net.minecraft.structure.pool.alias.StructurePoolAliasLookup;
+import net.minecraft.world.gen.chunk.ChunkGenerator;
+import net.minecraft.world.gen.noise.NoiseConfig;
+import net.minecraft.world.gen.structure.DimensionPadding;
+import net.minecraft.world.gen.structure.Structure;
+import net.minecraft.structure.StructureLiquidSettings;
+import net.minecraft.structure.StructurePiece;
+import net.minecraft.util.math.BlockBox;
+import net.minecraft.util.math.ChunkPos;
+import net.minecraft.world.biome.Biome;
+import net.minecraft.world.biome.BiomeKeys;
+
 import net.minecraft.structure.StructurePlacementData;
 import net.minecraft.structure.StructureTemplate;
 import net.minecraft.structure.StructureTemplateManager;
@@ -22,6 +39,7 @@ import net.minecraft.util.math.Direction;
 import net.minecraft.world.Heightmap;
 
 import java.util.List;
+import java.util.Optional;
 
 /**
  * バニラの村テンプレート（StructureTemplateManager）を利用する村ビルダー。
@@ -53,12 +71,73 @@ public final class VillageBuilder {
     private VillageBuilder() {
     }
 
+    /** バイオームに応じたバニラ村のジグソー生成。 */
+    public static boolean buildVillage(ServerWorld world, BlockPos center) {
+        Identifier poolId = selectVillagePoolByBiome(world, center);
+        Registry<StructurePool> registry =
+                world.getRegistryManager().get(RegistryKeys.TEMPLATE_POOL);
+        Optional<RegistryEntry.Reference<StructurePool>> startPool = registry.getEntry(poolId);
+        if (startPool.isEmpty()) {
+            poolId = Identifier.ofVanilla("village/plains/town_centers");
+            startPool = registry.getEntry(poolId);
+        }
+        if (startPool.isEmpty()) {
+            return false;
+        }
+        try {
+            ChunkGenerator generator = world.getChunkManager().getChunkGenerator();
+            NoiseConfig noiseConfig = world.getChunkManager().getNoiseConfig();
+            Structure.Context context = new Structure.Context(
+                    world.getRegistryManager(), generator, generator.getBiomeSource(),
+                    noiseConfig, world.getStructureTemplateManager(), world.getSeed(),
+                    new ChunkPos(center), world, biome -> true);
+            Optional<Structure.StructurePosition> position =
+                    StructurePoolBasedGenerator.generate(
+                            context, startPool.get(), Optional.empty(), 6,
+                            center, false, Optional.empty(), 80,
+                            StructurePoolAliasLookup.EMPTY, DimensionPadding.NONE,
+                            StructureLiquidSettings.IGNORE_WATERLOGGING);
+            if (position.isEmpty()) {
+                return false;
+            }
+            BlockBox box = new BlockBox(center.getX() - 96, world.getBottomY(), center.getZ() - 96,
+                    center.getX() + 96, world.getTopY(), center.getZ() + 96);
+            for (StructurePiece piece : position.get().generate().toList().pieces()) {
+                piece.generate(world, world.getStructureAccessor(), generator,
+                        world.getRandom(), box, new ChunkPos(center), center);
+            }
+            return true;
+        } catch (Throwable t) {
+            com.kingdomunique.KingdomUniqueMod.LOGGER.error(
+                    "[KingdomUnique] Jigsaw village generation failed.", t);
+            return false;
+        }
+    }
+    private static Identifier selectVillagePoolByBiome(ServerWorld world, BlockPos pos) {
+        RegistryEntry<Biome> biome = world.getBiome(pos);
+        if (biome.matchesKey(BiomeKeys.DESERT)) {
+            return Identifier.ofVanilla("village/desert/town_centers");
+        }
+        if (biome.matchesKey(BiomeKeys.SAVANNA) || biome.matchesKey(BiomeKeys.SAVANNA_PLATEAU)
+                || biome.matchesKey(BiomeKeys.WINDSWEPT_SAVANNA)) {
+            return Identifier.ofVanilla("village/savanna/town_centers");
+        }
+        if (biome.matchesKey(BiomeKeys.TAIGA)
+                || biome.matchesKey(BiomeKeys.OLD_GROWTH_PINE_TAIGA)
+                || biome.matchesKey(BiomeKeys.OLD_GROWTH_SPRUCE_TAIGA)) {
+            return Identifier.ofVanilla("village/taiga/town_centers");
+        }
+        if (biome.matchesKey(BiomeKeys.SNOWY_PLAINS) || biome.matchesKey(BiomeKeys.SNOWY_TAIGA)) {
+            return Identifier.ofVanilla("village/snowy/town_centers");
+        }
+        return Identifier.ofVanilla("village/plains/town_centers");
+    }
     /** 既存 API 互換のエントリ。 */
     public static void build(ServerWorld world, int centerX, int centerZ) {
         generateStarterVillage(world, centerX, centerZ);
     }
 
-    /** 初期村／中立村をバニラテンプレートから生成する。 */
+    /** 初期村／中立村を生成する（バニラのジグソー生成を優先）。 */
     public static void generateStarterVillage(ServerWorld world, int centerX, int centerZ) {
         generateStarterVillage(world, centerX, centerZ, null);
     }
@@ -67,9 +146,20 @@ public final class VillageBuilder {
     public static void generateStarterVillage(ServerWorld world, int centerX, int centerZ,
                                               java.util.UUID owner) {
         forceLoadChunks(world, centerX, centerZ);
+        int baseY = world.getTopY(Heightmap.Type.WORLD_SURFACE, centerX, centerZ) + 1;
+
+        // バニラのジグソー生成（バイオーム別の村プール）を最優先で試す。
+        boolean jigsaw = buildVillage(world, new BlockPos(centerX, baseY, centerZ));
+        if (jigsaw) {
+            ensureVillagers(world, centerX, baseY, centerZ, owner);
+            com.kingdomunique.KingdomUniqueMod.LOGGER.info("[KingdomUnique] Generated jigsaw village at ({}, {}).",
+                    centerX, centerZ);
+            return;
+        }
+        com.kingdomunique.KingdomUniqueMod.LOGGER.warn("[KingdomUnique] Jigsaw village failed at ({}, {}); using templates.",
+                centerX, centerZ);
 
         StructureTemplateManager manager = world.getStructureTemplateManager();
-        int baseY = world.getTopY(Heightmap.Type.WORLD_SURFACE, centerX, centerZ) + 1;
 
         // 中心の井戸（テンプレートの基準点は床面）。
         placeTemplate(manager, world, WELL, centerX, centerZ);
