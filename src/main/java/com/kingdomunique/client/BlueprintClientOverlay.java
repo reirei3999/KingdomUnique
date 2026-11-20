@@ -64,12 +64,15 @@ public final class BlueprintClientOverlay {
             MatrixStack matrices = context.matrixStack();
             VertexConsumerProvider consumers = context.consumers();
             VertexConsumer consumer = consumers.getBuffer(RenderLayer.getLines());
+            // プレビューを配置位置(focusPos)中心の対称な枠にする。
+            // 高さは StructurePlacer のクリア範囲(y=-2〜14)に合わせる。
             double minX = focusPos.getX() - radius;
-            double minY = focusPos.getY();
+            double minY = focusPos.getY() - 1;
             double minZ = focusPos.getZ() - radius;
             WorldRenderer.drawBox(matrices, consumer,
                     new Box(minX, minY, minZ,
-                            minX + radius * 2 + 2, minY + 10, minZ + radius * 2 + 2),
+                            focusPos.getX() + radius + 1, focusPos.getY() + 15,
+                            focusPos.getZ() + radius + 1),
                     0.30F, 0.85F, 1.0F, 0.85F);
         });
     }

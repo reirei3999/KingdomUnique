@@ -26,6 +26,8 @@ public final class KeyBindings {
     private static KeyBinding itemMenuKey;
     private static KeyBinding statusKey;
     private static boolean initialized = false;
+    /** 左クリックのエッジ検出用（wasPressed はバニラに消費されるため自前で管理する）。 */
+    private static boolean prevAttackPressed = false;
 
     private KeyBindings() {
     }
@@ -83,9 +85,13 @@ public final class KeyBindings {
             if (possessionKey.wasPressed()) {
                 ClientPlayNetworking.send(new PossessionPayload());
             }
-            if (client.options.attackKey.wasPressed()) {
+            // ブロックを押さず空中をクリックした場合も発射できるよう、
+            // バニラに消費されない isPressed で自前エッジ検出する。
+            boolean attackPressed = client.options.attackKey.isPressed();
+            if (attackPressed && !prevAttackPressed) {
                 ClientPlayNetworking.send(new DetonatePayload());
             }
+            prevAttackPressed = attackPressed;
             if (itemMenuKey.wasPressed()
                     && ClientPlayNetworking.canSend(RequestOpenItemMenuPayload.ID)) {
                 ClientPlayNetworking.send(new RequestOpenItemMenuPayload());

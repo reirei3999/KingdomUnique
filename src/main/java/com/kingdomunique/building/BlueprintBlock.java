@@ -133,6 +133,10 @@ public final class BlueprintBlock extends Block implements BlockEntityProvider {
     @Override
     public void onStateReplaced(BlockState state, net.minecraft.world.World world, BlockPos pos,
                                 BlockState newState, boolean moved) {
+        // クライアント側では BlockEntity の破壊演出のみ行い、ServerWorld へのキャストはしない。
+        if (world.isClient()) {
+            return;
+        }
         if (!state.isOf(newState.getBlock())) {
             if (world.getBlockEntity(pos) instanceof BlueprintBlockEntity be) {
                 be.dropAll(world, pos);
