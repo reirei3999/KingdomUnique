@@ -1,6 +1,7 @@
 package com.kingdomunique.kingdom;
 
 import com.kingdomunique.effect.CurseEffects;
+import com.kingdomunique.war.DiplomacyData;
 import com.kingdomunique.effect.RelicEffects;
 import com.kingdomunique.entity.CitizenVillager;
 import com.kingdomunique.entity.HeroClass;
@@ -140,7 +141,8 @@ public final class KingdomManager {
         citizen.ku$setOwnerUuid(player.getUuid().toString());
         String role = preferredRole != null ? preferredRole : roleFromHand(player);
         citizen.ku$setRole(role);
-        villager.setCustomName(citizenName(getKingdomName(player.getServerWorld(), player.getUuid()), role));
+        villager.setCustomName(citizenName(player.getServerWorld(), player.getUuid(), player.getUuid(),
+                    getKingdomName(player.getServerWorld(), player.getUuid()), role));
         villager.setCustomNameVisible(true);
         villager.setPersistent();
 
@@ -303,9 +305,37 @@ public final class KingdomManager {
                 ? "無名の王国" : info.kingdomName();
     }
 
-    /** 国民の名札テキスト（王国名＋役職）。 */
+    /** 国民の名札テキスト（王国名＋役職＋関係色: 自国=緑 / 同盟=黄 / 敵対=赤）。 */
+    public static Text citizenName(ServerWorld world, java.util.UUID viewer,
+                                   java.util.UUID owner, String kingdomName, String role) {
+        String color = "§a";
+        if (viewer != null && owner != null && !viewer.equals(owner)) {
+            color = DiplomacyData.getOrCreate(world).isAllied(viewer, owner) ? "§e" : "§c";
+        }
+        return Text.literal(color + "[" + kingdomName + "] [" + roleName(role) + "] 国民");
+    }
+
+    /** 旧API互換（自国として緑で表示）。 */
     public static Text citizenName(String kingdomName, String role) {
         return Text.literal("§a[" + kingdomName + "] [" + roleName(role) + "] 国民");
+    }
+
+    /** 外交変更時に国民の名札色を更新する。 */
+    public static void refreshCitizenNameplates(ServerWorld world, java.util.UUID viewer,
+                                                java.util.UUID owner) {
+        String kingdomName = getKingdomName(world, owner);
+        net.minecraft.util.math.Box box = new net.minecraft.util.math.Box(
+                -4_000_000.0D, -512.0D, -4_000_000.0D,
+                4_000_000.0D, 512.0D, 4_000_000.0D);
+        for (VillagerEntity villager : world.getEntitiesByClass(VillagerEntity.class,
+                box, v -> v.isAlive())) {
+            if (villager instanceof CitizenVillager citizen
+                    && owner.toString().equals(citizen.ku$getOwnerUuid())) {
+                villager.setCustomName(citizenName(world, viewer, owner,
+                        kingdomName, citizen.ku$getRole()));
+                villager.setCustomNameVisible(true);
+            }
+        }
     }
 
     /** 王国名を設定し、既存の国民の名札も更新する。 */
@@ -332,7 +362,7 @@ public final class KingdomManager {
                 v -> v.isAlive())) {
             if (villager instanceof CitizenVillager citizen
                     && player.getUuid().toString().equals(citizen.ku$getOwnerUuid())) {
-                villager.setCustomName(citizenName(name, citizen.ku$getRole()));
+                villager.setCustomName(citizenName(world, player.getUuid(), player.getUuid(), name, citizen.ku$getRole()));
                 villager.setCustomNameVisible(true);
                 updatedNameplates++;
             }

@@ -342,6 +342,7 @@ public final class VillageBuilder {
             citizen.ku$setOwnerUuid(owner.toString());
             citizen.ku$setRole(role);
             villager.setCustomName(com.kingdomunique.kingdom.KingdomManager.citizenName(
+                    world, owner, owner,
                     com.kingdomunique.kingdom.KingdomManager.getKingdomName(world, owner), role));
             villager.setCustomNameVisible(true);
             villager.setPersistent();

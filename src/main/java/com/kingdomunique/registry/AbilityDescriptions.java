@@ -21,6 +21,15 @@ public final class AbilityDescriptions {
         };
     }
 
+    /**
+     * 残りティックを0.5秒刻みの文字列にする（小数部は 0.0 か 0.5 のみ）。
+     */
+    public static String formatSeconds(int ticks) {
+        double seconds = Math.max(0.0D, ticks / 20.0D);
+        double rounded = Math.round(seconds * 2.0D) / 2.0D;
+        return String.format(java.util.Locale.ROOT, "%.1f", rounded);
+    }
+
     /** 操作キーのヒント。 */
     public static String controlHint(String id) {
         int ct = cooldownTicks(id);
