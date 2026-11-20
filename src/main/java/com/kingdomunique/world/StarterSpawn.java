@@ -95,7 +95,8 @@ public final class StarterSpawn {
                 : player.getBlockPos();
 
         world.getChunk(center.getX() >> 4, center.getZ() >> 4);
-        VillageBuilder.generateStarterVillage(world, center.getX(), center.getZ());
+        VillageBuilder.generateStarterVillage(world, center.getX(), center.getZ(), player.getUuid());
+        com.kingdomunique.kingdom.KingdomManager.setPopulation(player, 6);
 
         BlockPos spawn = findVillageSpawn(world, center);
         if (spawn == null) {
@@ -109,12 +110,24 @@ public final class StarterSpawn {
         kingdomData.put(player.getUuid(), new KingdomData.KingdomInfo(
                 spawn.getX(), spawn.getZ(),
                 info.population(), info.populationCap(), info.houses(),
-                info.heroSummoned(), info.heroSummonCount(), true, info.territoryRadius(), true));
+                info.heroSummoned(), info.heroSummonCount(), true, info.territoryRadius(),
+                true, info.kingdomName()));
         player.sendMessage(Text.literal("§6[KingdomUnique] 王国の村が完成した。村の中心に到着した。"), false);
+        if (info.kingdomName() == null || info.kingdomName().isEmpty()) {
+            askKingdomName(player);
+        }
         KingdomUniqueMod.LOGGER.info("[KingdomUnique] Generated missing village for {} at ({}, {}).",
                 player.getName().getString(), spawn.getX(), spawn.getZ());
     }
 
+    /** 初回建国時に国名入力画面を開かせる。 */
+    private static void askKingdomName(ServerPlayerEntity player) {
+        if (net.fabricmc.fabric.api.networking.v1.ServerPlayNetworking.canSend(player,
+                com.kingdomunique.network.RequestKingdomNamePayload.ID)) {
+            net.fabricmc.fabric.api.networking.v1.ServerPlayNetworking.send(player,
+                    new com.kingdomunique.network.RequestKingdomNamePayload());
+        }
+    }
     private static void spawn(ServerPlayerEntity player, MinecraftServer server, ServerWorld world) {
         BlockPos villageCenter = findSafeSpawn(world);
         if (villageCenter == null) {
@@ -128,7 +141,8 @@ public final class StarterSpawn {
         world.getChunk(villageCenter.getX() >> 4, villageCenter.getZ() >> 4);
 
         // まず村を生成し、その中（井戸の周囲）で安全な立ち位置を探す。
-        VillageBuilder.generateStarterVillage(world, villageCenter.getX(), villageCenter.getZ());
+        VillageBuilder.generateStarterVillage(world, villageCenter.getX(), villageCenter.getZ(), player.getUuid());
+        com.kingdomunique.kingdom.KingdomManager.setPopulation(player, 6);
         BlockPos spawn = findVillageSpawn(world, villageCenter);
         if (spawn == null) {
             KingdomUniqueMod.LOGGER.warn("[KingdomUnique] No free spot in village, using center for {}.",
@@ -145,10 +159,11 @@ public final class StarterSpawn {
         // テレポート地点そのものを王国の中心（初期領土半径100）として保存する。
         KingdomData.getOrCreate(world).put(player.getUuid(),
                 new KingdomData.KingdomInfo(spawn.getX(), spawn.getZ(), 0, 10, 0, false, 0,
-                        true, 100, true));
+                        true, 100, true, ""));
 
         player.sendMessage(Text.literal("§6[KingdomUnique] この地があなたの王国となった。"
                 + "村の中心に到着した。村人6人が出迎える。"), false);
+        askKingdomName(player);
         KingdomUniqueMod.LOGGER.info("[KingdomUnique] Starter spawn inside village ({}, {}) -> ({}, {}) for {}.",
                 villageCenter.getX(), villageCenter.getZ(), spawn.getX(), spawn.getZ(),
                 player.getName().getString());

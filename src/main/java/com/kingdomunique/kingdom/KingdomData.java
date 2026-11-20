@@ -46,7 +46,8 @@ public class KingdomData extends PersistentState {
                         entry.getBoolean("centerSet"),
                         entry.getInt("territoryRadius") > 0
                                 ? entry.getInt("territoryRadius") : 100,
-                        entry.getBoolean("villageGenerated")
+                        entry.getBoolean("villageGenerated"),
+                        entry.getString("kingdomName")
                 ));
             } catch (IllegalArgumentException ignored) {
                 // 壊れたエントリは無視する。
@@ -75,6 +76,7 @@ public class KingdomData extends PersistentState {
             c.putBoolean("centerSet", info.centerSet());
             c.putInt("territoryRadius", info.territoryRadius());
             c.putBoolean("villageGenerated", info.villageGenerated());
+            c.putString("kingdomName", info.kingdomName() == null ? "" : info.kingdomName());
             list.add(c);
         }
         nbt.put("kingdoms", list);
@@ -88,7 +90,7 @@ public class KingdomData extends PersistentState {
     public KingdomInfo getOrCreate(UUID owner, int centerX, int centerZ) {
         return kingdoms.computeIfAbsent(owner, ignored -> {
             markDirty();
-            return new KingdomInfo(centerX, centerZ, 0, 10, 0, false, 0, false, 100, false);
+            return new KingdomInfo(centerX, centerZ, 0, 10, 0, false, 0, false, 100, false, "");
         });
     }
 
@@ -105,6 +107,6 @@ public class KingdomData extends PersistentState {
     public record KingdomInfo(int centerX, int centerZ, int population, int populationCap,
                               int houses, boolean heroSummoned, int heroSummonCount,
                               boolean centerSet, int territoryRadius,
-                              boolean villageGenerated) {
+                              boolean villageGenerated, String kingdomName) {
     }
 }

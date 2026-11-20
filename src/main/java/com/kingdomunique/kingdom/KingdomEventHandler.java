@@ -5,6 +5,7 @@ import com.kingdomunique.entity.HeroClass;
 import com.kingdomunique.entity.HeroEntity;
 import com.kingdomunique.mixin.LivingEntityAccessor;
 import com.kingdomunique.network.PossessionPayload;
+import com.kingdomunique.network.SetKingdomNamePayload;
 import com.kingdomunique.world.WorldInitializer;
 import net.fabricmc.fabric.api.entity.event.v1.ServerLivingEntityEvents;
 import net.fabricmc.fabric.api.event.lifecycle.v1.ServerTickEvents;
@@ -33,6 +34,9 @@ public final class KingdomEventHandler {
     }
 
     public static void register() {
+        ServerPlayNetworking.registerGlobalReceiver(SetKingdomNamePayload.ID, (payload, context) -> {
+            KingdomManager.setKingdomName(context.player(), payload.name());
+        });
         ServerWorldEvents.LOAD.register((server, world) -> {
             if (world.getRegistryKey() == World.OVERWORLD) {
                 KingdomManager.adjustVillagePopulations(world);

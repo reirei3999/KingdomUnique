@@ -4,7 +4,7 @@ import com.kingdomunique.data.WorldUniqueData;
 import com.kingdomunique.kingdom.KingdomData;
 import net.fabricmc.fabric.api.entity.event.v1.ServerLivingEntityEvents;
 import net.minecraft.entity.damage.DamageSource;
-import net.minecraft.entity.mob.HostileEntity;
+import net.minecraft.server.network.ServerPlayerEntity;
 import net.minecraft.entity.passive.VillagerEntity;
 import net.minecraft.server.world.ServerWorld;
 
@@ -23,9 +23,11 @@ public final class VillageProtection {
 
     private static boolean allowDamage(net.minecraft.entity.LivingEntity entity,
                                        DamageSource source, float amount) {
-        if (!(entity instanceof VillagerEntity)
-                || !(source.getAttacker() instanceof HostileEntity)
-                || entity.getWorld().isClient()) {
+        if (!(entity instanceof VillagerEntity) || entity.getWorld().isClient()) {
+            return true;
+        }
+        // プレイヤーが意図的に攻撃した場合は通常どおりダメージを通す。
+        if (source.getAttacker() instanceof ServerPlayerEntity) {
             return true;
         }
         ServerWorld world = (ServerWorld) entity.getWorld();

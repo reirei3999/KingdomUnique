@@ -140,7 +140,7 @@ public final class KingdomManager {
         citizen.ku$setOwnerUuid(player.getUuid().toString());
         String role = preferredRole != null ? preferredRole : roleFromHand(player);
         citizen.ku$setRole(role);
-        villager.setCustomName(Text.literal("§a[" + roleName(role) + "] 国民"));
+        villager.setCustomName(citizenName(getKingdomName(player.getServerWorld(), player.getUuid()), role));
         villager.setCustomNameVisible(true);
         villager.setPersistent();
 
@@ -296,11 +296,58 @@ public final class KingdomManager {
         POSSESSING.remove(player.getUuid());
     }
 
+    /** 王国名を返す（未設定なら「無名の王国」）。 */
+    public static String getKingdomName(ServerWorld world, UUID owner) {
+        KingdomData.KingdomInfo info = KingdomData.getOrCreate(world).get(owner);
+        return info == null || info.kingdomName() == null || info.kingdomName().isEmpty()
+                ? "無名の王国" : info.kingdomName();
+    }
+
+    /** 国民の名札テキスト（王国名＋役職）。 */
+    public static Text citizenName(String kingdomName, String role) {
+        return Text.literal("§a[" + kingdomName + "] [" + roleName(role) + "] 国民");
+    }
+
+    /** 王国名を設定し、既存の国民の名札も更新する。 */
+    public static void setKingdomName(ServerPlayerEntity player, String rawName) {
+        String name = rawName == null ? "" : rawName.trim()
+                .replace('\n', ' ').replace('\r', ' ');
+        if (name.isEmpty()) {
+            name = "無名の王国";
+        }
+        if (name.length() > 24) {
+            name = name.substring(0, 24);
+        }
+        ServerWorld world = player.getServerWorld();
+        KingdomData data = KingdomData.getOrCreate(world);
+        KingdomData.KingdomInfo info = getOrCreate(player);
+        data.put(player.getUuid(), new KingdomData.KingdomInfo(
+                info.centerX(), info.centerZ(), info.population(), info.populationCap(),
+                info.houses(), info.heroSummoned(), info.heroSummonCount(), info.centerSet(),
+                info.territoryRadius(), info.villageGenerated(), name));
+
+        int updatedNameplates = 0;
+        for (VillagerEntity villager : world.getEntitiesByClass(VillagerEntity.class,
+                new net.minecraft.util.math.Box(player.getBlockPos()).expand(512.0D),
+                v -> v.isAlive())) {
+            if (villager instanceof CitizenVillager citizen
+                    && player.getUuid().toString().equals(citizen.ku$getOwnerUuid())) {
+                villager.setCustomName(citizenName(name, citizen.ku$getRole()));
+                villager.setCustomNameVisible(true);
+                updatedNameplates++;
+            }
+        }
+        com.kingdomunique.KingdomUniqueMod.LOGGER.info(
+                "[KingdomUnique] Kingdom name set to {}. Updated {} citizen nameplates.",
+                name, updatedNameplates);
+        player.sendMessage(Text.literal("§6[王国] 国名を「" + name + "」に決定しました。"), false);
+        KingdomData.getOrCreate(world).markDirty();
+    }
     private static KingdomData.KingdomInfo copy(KingdomData.KingdomInfo info, int population, int cap,
                                                 int houses, boolean summoned, int count) {
         return new KingdomData.KingdomInfo(info.centerX(), info.centerZ(), population, cap,
                 houses, summoned, count, info.centerSet(), info.territoryRadius(),
-                info.villageGenerated());
+                info.villageGenerated(), info.kingdomName());
     }
 
     /** 王国の中心を設定する。force=false のときは既に明示設定済みなら上書きしない。 */
@@ -313,7 +360,7 @@ public final class KingdomManager {
         KingdomData.KingdomInfo updated = new KingdomData.KingdomInfo(
                 center.getX(), center.getZ(), info.population(), info.populationCap(),
                 info.houses(), info.heroSummoned(), info.heroSummonCount(), true,
-                info.territoryRadius(), info.villageGenerated());
+                info.territoryRadius(), info.villageGenerated(), info.kingdomName());
         data.put(player.getUuid(), updated);
     }
 
@@ -324,7 +371,7 @@ public final class KingdomManager {
         data.put(player.getUuid(), new KingdomData.KingdomInfo(
                 center.getX(), center.getZ(), info.population(), info.populationCap(),
                 info.houses(), info.heroSummoned(), info.heroSummonCount(), true, 200,
-                info.villageGenerated()));
+                info.villageGenerated(), info.kingdomName()));
     }
 
     /** プレイヤーが自国領地内にいるか（通常100、王城完成後200マス）。 */

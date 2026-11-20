@@ -60,6 +60,12 @@ public final class VillageBuilder {
 
     /** 初期村／中立村をバニラテンプレートから生成する。 */
     public static void generateStarterVillage(ServerWorld world, int centerX, int centerZ) {
+        generateStarterVillage(world, centerX, centerZ, null);
+    }
+
+    /** 所有者付きで初期村を生成し、村人を国民（建築士含む）として割り当てる。 */
+    public static void generateStarterVillage(ServerWorld world, int centerX, int centerZ,
+                                              java.util.UUID owner) {
         forceLoadChunks(world, centerX, centerZ);
 
         StructureTemplateManager manager = world.getStructureTemplateManager();
@@ -85,10 +91,10 @@ public final class VillageBuilder {
         if (placed == 0) {
             legacyVillage(world, centerX, baseY, centerZ);
         } else {
-            placeJobBlocks(world, centerX, baseY, centerZ);
+            // 初期村では役職ブロックを生成しない（村人の役職が上書きされるため）。
             buildFarm(world, centerX - 9, baseY, centerZ + 9);
         }
-        ensureVillagers(world, centerX, baseY, centerZ);
+        ensureVillagers(world, centerX, baseY, centerZ, owner);
     }
 
     /**
@@ -182,7 +188,6 @@ public final class VillageBuilder {
         buildHouse(world, centerX + 8, baseY, centerZ - 8, Blocks.BLUE_BED);
         buildHouse(world, centerX, baseY, centerZ + 8, Blocks.GREEN_BED);
         buildFarm(world, centerX - 8, baseY, centerZ + 8);
-        placeJobBlocks(world, centerX, baseY, centerZ);
     }
 
     private static void flatten(ServerWorld world, int centerX, int y, int centerZ) {
@@ -286,12 +291,23 @@ public final class VillageBuilder {
         world.setBlockState(new BlockPos(x, y + 1, z + 3), Blocks.LECTERN.getDefaultState());
     }
 
-    /** 村人をちょうど6人に調整する（不足分のみスポーン）。 */
-    public static void ensureVillagers(ServerWorld world, int x, int y, int z) {
+    /** 初期村の役割割当（建築士を必ず2人含める）。 */
+    private static final String[] VILLAGER_ROLES = {
+            com.kingdomunique.entity.CitizenVillager.ROLE_BUILDER,
+            com.kingdomunique.entity.CitizenVillager.ROLE_FARMER,
+            com.kingdomunique.entity.CitizenVillager.ROLE_BUILDER,
+            com.kingdomunique.entity.CitizenVillager.ROLE_SMITH,
+            com.kingdomunique.entity.CitizenVillager.ROLE_SOLDIER,
+            com.kingdomunique.entity.CitizenVillager.ROLE_FARMER
+    };
+
+    /** 村人をちょうど6人に調整し、王国民として役割を割り当てる。 */
+    public static void ensureVillagers(ServerWorld world, int x, int y, int z, java.util.UUID owner) {
         List<VillagerEntity> existing = world.getEntitiesByClass(VillagerEntity.class,
                 new net.minecraft.util.math.Box(x - RADIUS, y - 4, z - RADIUS,
                         x + RADIUS, y + 10, z + RADIUS), v -> v.isAlive());
         int missing = VILLAGER_COUNT - existing.size();
+        int spawned = 0;
         for (int i = 0; i < missing; i++) {
             VillagerEntity villager = EntityType.VILLAGER.create(world);
             if (villager == null) {
@@ -300,9 +316,74 @@ public final class VillageBuilder {
             float angle = (float) (i * Math.PI * 2.0D / Math.max(1, missing));
             double vx = x + 2.5D + Math.cos(angle) * 2.5D;
             double vz = z + 2.5D + Math.sin(angle) * 2.5D;
-            villager.refreshPositionAndAngles(vx, y + 1, vz, 0.0F, 0.0F);
+            BlockPos safe = findSafeGround(world, (int) Math.floor(vx), (int) Math.floor(vz), y + 1);
+            villager.refreshPositionAndAngles(
+                    safe == null ? vx : safe.getX() + 0.5D,
+                    safe == null ? y + 1 : safe.getY(),
+                    safe == null ? vz : safe.getZ() + 0.5D, 0.0F, 0.0F);
             villager.setPersistent();
             world.spawnEntity(villager);
+            existing.add(villager);
+            spawned++;
         }
+        if (owner == null) {
+            return;
+        }
+        com.kingdomunique.KingdomUniqueMod.LOGGER.info(
+                "[KingdomUnique] Assigned village roles (incl. builders) for owner {}", owner);
+        // 無所属の村人に王国民としての役割を割り当てる（建築士を必ず含める）。
+        int index = 0;
+        for (VillagerEntity villager : existing) {
+            if (!(villager instanceof com.kingdomunique.entity.CitizenVillager citizen)
+                    || !"".equals(citizen.ku$getOwnerUuid())) {
+                continue;
+            }
+            String role = VILLAGER_ROLES[index % VILLAGER_ROLES.length];
+            citizen.ku$setOwnerUuid(owner.toString());
+            citizen.ku$setRole(role);
+            villager.setCustomName(com.kingdomunique.kingdom.KingdomManager.citizenName(
+                    com.kingdomunique.kingdom.KingdomManager.getKingdomName(world, owner), role));
+            villager.setCustomNameVisible(true);
+            villager.setPersistent();
+            index++;
+        }
+    }
+
+    /** 村人の足元／頭上が空で、下が固体の安全な位置を探す。 */
+    private static BlockPos findSafeGround(ServerWorld world, int cx, int cz, int baseY) {
+        for (int r = 0; r <= 5; r++) {
+            for (int dx = -r; dx <= r; dx++) {
+                for (int dz = -r; dz <= r; dz++) {
+                    if (Math.max(Math.abs(dx), Math.abs(dz)) != r) {
+                        continue;
+                    }
+                    for (int y = baseY + 4; y >= baseY - 4; y--) {
+                        BlockPos feet = new BlockPos(cx + dx, y, cz + dz);
+                        net.minecraft.block.BlockState below = world.getBlockState(feet.down());
+                        if (world.getBlockState(feet).isAir()
+                                && world.getBlockState(feet.up()).isAir()
+                                && !below.isAir()
+                                && !below.isOf(net.minecraft.block.Blocks.WATER)
+                                && !below.isOf(net.minecraft.block.Blocks.LAVA)) {
+                            return feet;
+                        }
+                    }
+                }
+            }
+        }
+        return null;
+    }
+    /** 旧API互換（所有者なし）。 */
+    public static void ensureVillagers(ServerWorld world, int x, int y, int z) {
+        ensureVillagers(world, x, y, z, null);
+    }
+
+    private static String roleName(String role) {
+        return switch (role) {
+            case com.kingdomunique.entity.CitizenVillager.ROLE_BUILDER -> "建築士";
+            case com.kingdomunique.entity.CitizenVillager.ROLE_SMITH -> "鍛冶屋";
+            case com.kingdomunique.entity.CitizenVillager.ROLE_SOLDIER -> "兵士";
+            default -> "農民";
+        };
     }
 }
