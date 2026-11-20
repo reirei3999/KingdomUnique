@@ -27,10 +27,11 @@ public final class SelectionScreen extends Screen {
     private static final int CARD_GAP = 12;
     private static final int FRAME_NORMAL = 0xFF8B0000;
     private static final int FRAME_HIGHLIGHT = 0xFFFFF0A0;
-    private static final int CARD_BG = 0xCC1E1E1E;
+    // 半透明だと背面のぼかしが透けて文字が滲むため、カード背景は完全不透明にする。
+    private static final int CARD_BG = 0xFF1E1E1E;
     private static final int TEXT_WHITE = 0xFFFFFFFF;
-    private static final int TEXT_SUBTLE = 0xFFAAAAAA;
-    private static final int TEXT_EFFECT = 0xFFDDDDDD;
+    private static final int TEXT_SUBTLE = 0xFFFFFFFF;
+    private static final int TEXT_EFFECT = 0xFFFFFFFF;
     private static final int TEXT_MERIT = 0xFF55FFFF;
     private static final int TEXT_DEMERIT = 0xFFFF5555;
 
@@ -190,13 +191,10 @@ public final class SelectionScreen extends Screen {
             int ix = (int) (x + CARD_WIDTH / 2.0F) - 8;
             int iy = y + 30;
             context.fill(ix - 3, iy - 3, ix + 19, iy + 19, 0xFF000000);
-            context.drawItem(icon, ix, iy, 150);
+            context.drawItem(icon, ix, iy);
         }
 
-        // 2) テキスト: Z方向のみ整数で平行移動し、すべて整数座標・等倍で描画。
-        context.getMatrices().push();
-        context.getMatrices().translate(0, 0, 300);
-
+        // テキストは Z オフセットを付けず、描画順で手前に重ねる（等倍・整数座標）。
         context.drawTextWithShadow(this.textRenderer,
                 Text.literal("[" + (index + 1) + "]").formatted(Formatting.YELLOW),
                 (int) (x + 6), (int) (y + 6), 0xFFFFFF55);
@@ -222,7 +220,6 @@ public final class SelectionScreen extends Screen {
                 textY += 10;
             }
         }
-        context.getMatrices().pop();
     }
 
     private int frameColor() {

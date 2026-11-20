@@ -27,7 +27,7 @@ public final class StatusScreen extends Screen {
     private static final int PER_PAGE = COLUMNS * ROWS;
 
     private static final int FRAME = 0xFF8B0000;
-    private static final int CARD_BG = 0xCC1E1E1E;
+    private static final int CARD_BG = 0xFF1E1E1E;
     private static final int TEXT_WHITE = 0xFFFFFFFF;
     private static final int TEXT_SUBTLE = 0xFFAAAAAA;
 
@@ -115,7 +115,7 @@ public final class StatusScreen extends Screen {
         // アイコンは等倍でくっきり描画（拡大するとテクスチャがぼやける）。
         ItemStack icon = SelectionIcons.iconFor(id);
         if (!icon.isEmpty()) {
-            context.drawItem(icon, (int) (x + 12), (int) (y + 12), 150);
+            context.drawItem(icon, (int) (x + 12), (int) (y + 12));
         }
 
         // テキストは等倍・整数座標。長文は wrapLines で等倍のまま改行する。
