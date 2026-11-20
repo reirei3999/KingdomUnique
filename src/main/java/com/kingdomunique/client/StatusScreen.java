@@ -63,10 +63,15 @@ public final class StatusScreen extends Screen {
         return 52;
     }
 
+    /** 世界のぼかしをやめて単色背景にする（文字のフリンジ防止）。 */
+    @Override
+    public void renderBackground(DrawContext context, int mouseX, int mouseY, float delta) {
+        context.fill(0, 0, this.width, this.height, 0xFF0E0E12);
+    }
+
     @Override
     public void render(DrawContext context, int mouseX, int mouseY, float delta) {
         this.renderBackground(context, mouseX, mouseY, delta);
-        context.fill(0, 0, this.width, this.height, 0xAA000000);
 
         // テキストは必ず等倍・整数座標で描画する（拡大縮小でフォントがにじまないように）。
         context.getMatrices().push();
@@ -133,9 +138,9 @@ public final class StatusScreen extends Screen {
                 if (textY > limit) {
                     break;
                 }
-                context.drawTextWithShadow(this.textRenderer, wrapped, (int) (x + 6), (int) textY,
-                        0xFFDDDDDD);
-                textY += 10;
+                context.drawText(this.textRenderer, wrapped, (int) (x + 6), (int) textY,
+                        0xFFFFFFFF, false);
+                textY += 12;
             }
         }
         context.drawTextWithShadow(this.textRenderer,
