@@ -14,7 +14,8 @@ public final class ModBlueprintEntities {
             Identifier.of(KingdomUniqueMod.MOD_ID, "blueprint"),
             BlockEntityType.Builder.create(
                     BlueprintBlockEntity::new,
-                    ModBlocks.HOUSE, ModBlocks.BARRACKS, ModBlocks.BLACKSMITH, ModBlocks.TOWN_HALL)
+                    ModBlocks.HOUSE, ModBlocks.BARRACKS, ModBlocks.BLACKSMITH, ModBlocks.TOWN_HALL,
+                    ModBlocks.WATCHTOWER, ModBlocks.GATE, ModBlocks.WALL)
                     .build(null)
     );
 

@@ -9,6 +9,7 @@ import org.spongepowered.asm.mixin.Mixin;
 import org.spongepowered.asm.mixin.injection.At;
 import org.spongepowered.asm.mixin.injection.Inject;
 import org.spongepowered.asm.mixin.injection.callback.CallbackInfo;
+import org.spongepowered.asm.mixin.injection.callback.CallbackInfoReturnable;
 
 /** 国民のバニラ職業を役職に固定し、役職ブロックによる上書きと再 Stock を防ぐ。 */
 @Mixin(VillagerEntity.class)
@@ -61,6 +62,16 @@ public abstract class VillagerProfessionMixin {
             if (role != null && !role.isEmpty()) {
                 VillagerProfessionUtil.applyRole(self, role);
             }
+        }
+    }
+
+    /** 王国民の村人は subpopulation を増やさない（子供が生まれないようにする）。 */
+    @Inject(method = "isReadyToBreed", at = @At("HEAD"), cancellable = true)
+    private void kingdomUnique$noCitizenBreeding(CallbackInfoReturnable<Boolean> cir) {
+        VillagerEntity self = (VillagerEntity) (Object) this;
+        if (self instanceof CitizenVillager citizen
+                && !"".equals(citizen.ku$getOwnerUuid())) {
+            cir.setReturnValue(false);
         }
     }
 }
