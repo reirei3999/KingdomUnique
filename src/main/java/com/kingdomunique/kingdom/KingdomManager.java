@@ -224,6 +224,11 @@ public final class KingdomManager {
 
     /** 英雄召喚（1王国1回、軍旗で2回まで）。 */
     public static void summonHero(ServerPlayerEntity player) {
+        summonHero(player, null);
+    }
+
+    /** 祭壇の核を起点に英雄を召喚する（null ならプレイヤー位置）。 */
+    public static void summonHero(ServerPlayerEntity player, net.minecraft.util.math.BlockPos summonPos) {
         KingdomData data = KingdomData.getOrCreate(player.getServer().getWorld(World.OVERWORLD));
         KingdomData.KingdomInfo info = getOrCreate(player);
         int max = RelicEffects.has(player, com.kingdomunique.registry.RelicRegistry.BANNER) ? 2 : 1;
@@ -239,9 +244,12 @@ public final class KingdomManager {
         if (hero == null) {
             return;
         }
-        double x = player.getX() + player.getRotationVec(1.0F).x * 2.0D;
-        double z = player.getZ() + player.getRotationVec(1.0F).z * 2.0D;
-        hero.refreshPositionAndAngles(x, player.getY(), z, player.getYaw(), 0.0F);
+        double x = summonPos != null ? summonPos.getX() + 0.5D
+                : player.getX() + player.getRotationVec(1.0F).x * 2.0D;
+        double y = summonPos != null ? summonPos.getY() + 0.5D : player.getY();
+        double z = summonPos != null ? summonPos.getZ() + 1.5D
+                : player.getZ() + player.getRotationVec(1.0F).z * 2.0D;
+        hero.refreshPositionAndAngles(x, y, z, player.getYaw(), 0.0F);
         hero.setOwnerUuid(player.getUuid());
         hero.setHeroClass(chosen);
         world.spawnEntity(hero);

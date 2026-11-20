@@ -17,6 +17,7 @@
   "item.kingdomunique.blueprint_watchtower": "設計図：国境監視塔",
   "item.kingdomunique.blueprint_gate": "設計図：国の門",
   "item.kingdomunique.blueprint_wall": "設計図：防壁",
+  "item.kingdomunique.blueprint_hero_sanctuary": "設計図：英雄召喚の祭壇",
   "item.kingdomunique.excalibur": "聖剣 エクスカリバー",
   "item.kingdomunique.gae_bolg": "魔槍 ゲイボルグ",
   "item.kingdomunique.muramasa": "妖刀 ムラマサ",
@@ -30,5 +31,6 @@
   "block.kingdomunique.blueprint_watchtower": "設計図：国境監視塔",
   "block.kingdomunique.blueprint_gate": "設計図：国の門",
   "block.kingdomunique.blueprint_wall": "設計図：防壁",
+  "block.kingdomunique.blueprint_hero_sanctuary": "設計図：英雄召喚の祭壇",
   "entity.kingdomunique.hero": "王国の英雄"
 }

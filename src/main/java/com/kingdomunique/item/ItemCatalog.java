@@ -27,6 +27,8 @@ public final class ItemCatalog {
                 () -> new ItemStack(ModBlocks.WATCHTOWER)));
         ENTRIES.add(new Entry("blueprint_gate", "設計図：国の門", () -> new ItemStack(ModBlocks.GATE)));
         ENTRIES.add(new Entry("blueprint_wall", "設計図：防壁", () -> new ItemStack(ModBlocks.WALL)));
+        ENTRIES.add(new Entry("blueprint_hero_sanctuary", "設計図：英雄召喚の祭壇",
+                () -> new ItemStack(ModBlocks.HERO_SANCTUARY)));
         ENTRIES.add(new Entry("slaughter_blade", "殺戮の宝剣（遺物）", () -> new ItemStack(ModItems.SLAUGHTER_BLADE)));
         ENTRIES.add(new Entry("destruction_pickaxe", "破壊衝動のツルハシ（呪物）",
                 () -> new ItemStack(ModItems.DESTRUCTION_PICKAXE)));

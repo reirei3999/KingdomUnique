@@ -77,6 +77,16 @@ public enum BuildingType {
             map.put(Items.STONE_BRICKS, 32);
             return map;
         }
+    },
+    HERO_SANCTUARY("英雄召喚の祭壇", 0, 20 * 20) {
+        @Override
+        public Map<Item, Integer> materials() {
+            Map<Item, Integer> map = new LinkedHashMap<>();
+            map.put(Items.QUARTZ_BLOCK, 32);
+            map.put(Items.GOLD_INGOT, 8);
+            map.put(Items.DIAMOND, 2);
+            return map;
+        }
     };
 
     private final String displayName;
@@ -113,6 +123,7 @@ public enum BuildingType {
             case WATCHTOWER -> 5;
             case GATE -> 4;
             case WALL -> 5;
+            case HERO_SANCTUARY -> 6;
         };
     }
 }

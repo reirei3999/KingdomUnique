@@ -17,6 +17,7 @@
   "item.kingdomunique.blueprint_watchtower": "Blueprint: Watchtower",
   "item.kingdomunique.blueprint_gate": "Blueprint: Kingdom Gate",
   "item.kingdomunique.blueprint_wall": "Blueprint: Kingdom Wall",
+  "item.kingdomunique.blueprint_hero_sanctuary": "Blueprint: Hero Sanctuary",
   "item.kingdomunique.excalibur": "Excalibur",
   "item.kingdomunique.gae_bolg": "Gae Bolg",
   "item.kingdomunique.muramasa": "Muramasa",
@@ -30,5 +31,6 @@
   "block.kingdomunique.blueprint_watchtower": "Blueprint: Watchtower",
   "block.kingdomunique.blueprint_gate": "Blueprint: Kingdom Gate",
   "block.kingdomunique.blueprint_wall": "Blueprint: Kingdom Wall",
+  "block.kingdomunique.blueprint_hero_sanctuary": "Blueprint: Hero Sanctuary",
   "entity.kingdomunique.hero": "Kingdom Hero"
 }

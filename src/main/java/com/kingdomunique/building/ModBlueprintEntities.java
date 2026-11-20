@@ -15,7 +15,7 @@ public final class ModBlueprintEntities {
             BlockEntityType.Builder.create(
                     BlueprintBlockEntity::new,
                     ModBlocks.HOUSE, ModBlocks.BARRACKS, ModBlocks.BLACKSMITH, ModBlocks.TOWN_HALL,
-                    ModBlocks.WATCHTOWER, ModBlocks.GATE, ModBlocks.WALL)
+                    ModBlocks.WATCHTOWER, ModBlocks.GATE, ModBlocks.WALL, ModBlocks.HERO_SANCTUARY)
                     .build(null)
     );
 

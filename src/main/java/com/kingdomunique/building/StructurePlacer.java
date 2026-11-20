@@ -44,6 +44,7 @@ public final class StructurePlacer {
             case WATCHTOWER -> watchtower(world, center);
             case GATE -> gate(world, center);
             case WALL -> wall(world, center);
+            case HERO_SANCTUARY -> com.kingdomunique.world.HeroSanctuaryBuilder.build(world, center);
         }
     }
 
@@ -69,6 +70,7 @@ public final class StructurePlacer {
             case WATCHTOWER -> 5;
             case GATE -> 4;
             case WALL -> 5;
+            case HERO_SANCTUARY -> 6;
         };
     }
 
