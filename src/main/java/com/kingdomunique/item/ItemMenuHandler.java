@@ -54,7 +54,22 @@ public final class ItemMenuHandler {
                         // 建築開始後は資材が消費されて空になるため、
                         // 「0/N（資材待ち）」ではなく「建設中」として表示する。
                         lines.add("状態: 建設中");
-                        lines.add("完成までしばらくお待ちください");
+                        com.kingdomunique.building.BuildData buildData =
+                                com.kingdomunique.building.BuildData.getOrCreate(world);
+                        for (com.kingdomunique.building.BuildData.BuildSite site
+                                : buildData.sites()) {
+                            if (!site.pos().equals(payload.pos())) {
+                                continue;
+                            }
+                            int required = com.kingdomunique.building.BuildingManager
+                                    .requiredTicks(world, site);
+                            int remaining = Math.max(0, required - site.progress());
+                            int percent = required > 0
+                                    ? Math.min(100, (int) (site.progress() * 100L / required)) : 0;
+                            lines.add("残り時間: " + String.format("%.1f", remaining / 20.0F) + "秒");
+                            lines.add("進捗: " + percent + "%");
+                            break;
+                        }
                     } else {
                         for (java.util.Map.Entry<net.minecraft.item.Item, Integer> entry
                                 : type.materials().entrySet()) {
@@ -63,6 +78,9 @@ public final class ItemMenuHandler {
                             lines.add(entry.getKey().getName().getString() + " " + have + "/" + needed);
                         }
                         lines.add("状態: 資材待ち");
+                        int estimate = (int) Math.max(20L,
+                                type.getBaseBuildTicks() * multiplier);
+                        lines.add("予想建築時間: " + String.format("%.1f", estimate / 20.0F) + "秒");
                     }
                     ServerPlayNetworking.send(player, new com.kingdomunique.network.BlueprintInfoPayload(
                             payload.pos(), type.getDisplayName(), type.getBuildRadius(), lines));

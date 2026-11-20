@@ -165,6 +165,13 @@ public final class BuildingManager {
         }
     }
 
+    /** 建築サイトの完了までに必要なティック数（依頼者の倍率を反映）。 */
+    public static int requiredTicks(ServerWorld world, BuildData.BuildSite site) {
+        ServerPlayerEntity owner = world.getServer().getPlayerManager().getPlayer(site.owner());
+        double multiplier = owner != null ? timeMultiplier(owner) : 1.0D;
+        return (int) Math.max(20L, site.type().getBaseBuildTicks() * multiplier);
+    }
+
     private static boolean hasBuilderNearby(ServerWorld world, BlockPos pos, ServerPlayerEntity owner) {
         for (net.minecraft.entity.passive.VillagerEntity villager : world.getEntitiesByClass(
                 net.minecraft.entity.passive.VillagerEntity.class,
