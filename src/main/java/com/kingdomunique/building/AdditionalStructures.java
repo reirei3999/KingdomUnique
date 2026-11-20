@@ -24,7 +24,8 @@ public final class AdditionalStructures {
     public record BlockPlacement(BlockPos pos, BlockState state) {
     }
 
-    public static void build(ServerWorld world, BuildingType type, BlockPos origin) {
+    /** ローカル配置リストを生成（回転処理からも利用する）。 */
+    public static List<BlockPlacement> generatePlacements(BuildingType type, BlockPos origin) {
         List<BlockPlacement> list = new ArrayList<>();
         switch (type) {
             case GRANARY -> granary(origin, list);
@@ -37,7 +38,11 @@ public final class AdditionalStructures {
             }
         }
         list.sort(Comparator.comparingInt(p -> p.pos().getY()));
-        for (BlockPlacement p : list) {
+        return list;
+    }
+
+    public static void build(ServerWorld world, BuildingType type, BlockPos origin) {
+        for (BlockPlacement p : generatePlacements(type, origin)) {
             world.setBlockState(p.pos(), p.state(), net.minecraft.block.Block.NOTIFY_LISTENERS);
         }
     }

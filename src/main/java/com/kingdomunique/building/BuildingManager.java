@@ -233,7 +233,12 @@ public final class BuildingManager {
         if (!canPlaceSafely(world, site.pos())) {
             return false;
         }
-        StructurePlacer.place(world, site.pos(), site.type());
+        StructurePlacer.place(world, site.pos(), site.type(), site.facing());
+        net.minecraft.util.math.Direction facing = site.facing();
+        net.minecraft.util.math.BlockBox box = StructureRotationUtil.computeBoundingBox(site.pos(), site.type(), facing);
+        net.minecraft.util.math.BlockPos core = site.type() == BuildingType.HERO_SANCTUARY
+                ? StructureRotationUtil.transformPos(site.pos(), 4, 1, 4, 9, 9, facing) : null;
+        KingdomBuildingState.get(world).add(owner.getUuid(), site.type(), site.pos(), facing, box, core);
         BuildingEffectHandler.onCompleted(world, owner.getUuid(), site.type(), site.pos());
         CompletedBuildingsData.getOrCreate(world).add(site.pos(), site.type(), owner.getUuid());
         DefenseData.register(world, site.pos(), site.type(), owner.getUuid());
@@ -241,10 +246,10 @@ public final class BuildingManager {
             KingdomManager.markTownHall(owner, site.pos());
             com.kingdomunique.kingdom.PolicyManager.sendPolicyOffer(owner);
         } else if (site.type() == BuildingType.HERO_SANCTUARY) {
-            net.minecraft.util.math.BlockPos core = site.pos().add(
-                    com.kingdomunique.world.HeroSanctuaryBuilder.CORE_OFFSET);
+            net.minecraft.util.math.BlockPos sanctuaryCore = core != null ? core
+                    : site.pos().add(com.kingdomunique.world.HeroSanctuaryBuilder.CORE_OFFSET);
             com.kingdomunique.kingdom.SanctuaryData.getOrCreate(world)
-                    .register(core, owner.getUuid());
+                    .register(sanctuaryCore, owner.getUuid());
             owner.sendMessage(Text.literal("§6[英雄召喚の祭壇] 完成！中央のロードストーンを右クリックして英雄を召喚できます。"), false);
         } else if (site.type().getPopulationCapBonus() > 0) {
             KingdomManager.addCapBonus(owner, site.type().getPopulationCapBonus());

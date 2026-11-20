@@ -18,6 +18,7 @@ import net.minecraft.world.BlockView;
 import net.minecraft.world.World;
 
 import java.util.Map;
+import java.util.Optional;
 
 /** 設置して直接資材を投入すると自動建築が始まる設計図ブロック（素手で即時回収可能）。 */
 public final class BlueprintBlock extends Block implements BlockEntityProvider {
@@ -52,7 +53,8 @@ public final class BlueprintBlock extends Block implements BlockEntityProvider {
             return;
         }
         BuildData data = BuildData.getOrCreate((ServerWorld) world);
-        data.add(new BuildData.BuildSite(pos.toImmutable(), type, 0, false, player.getUuid()));
+        data.add(new BuildData.BuildSite(pos.toImmutable(), type, 0, false, player.getUuid(),
+                player.getHorizontalFacing().getOpposite()));
         player.sendMessage(Text.literal("§6[設計図] " + type.getDisplayName()
                 + " に直接建材を右クリックで投入し、空手で右クリックして確認してください。"), false);
     }
@@ -149,6 +151,13 @@ public final class BlueprintBlock extends Block implements BlockEntityProvider {
     /** 資材を消費して建築サイトを「建築中」へ遷移させる。 */
     private void startBuilding(World world, BlockPos pos, BlueprintBlockEntity be,
                                ServerPlayerEntity serverPlayer) {
+        // Gemini 修正: 上限・前提・重複・高度・破壊不能ブロックを事前検証する。
+        net.minecraft.util.math.Direction facing = serverPlayer.getHorizontalFacing().getOpposite();
+        Optional<Text> error = BuildingValidator.validate(serverPlayer, type, pos, facing);
+        if (error.isPresent()) {
+            serverPlayer.sendMessage(error.get(), false);
+            return;
+        }
         double multiplier = BuildingManager.costMultiplier(serverPlayer);
         be.consume(type, multiplier);
         be.setReady(true);

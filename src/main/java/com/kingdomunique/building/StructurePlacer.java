@@ -11,6 +11,12 @@ public final class StructurePlacer {
     }
 
     public static void place(ServerWorld world, BlockPos center, BuildingType type) {
+        place(world, center, type, net.minecraft.util.math.Direction.SOUTH);
+    }
+
+    /** 建物の正面を facing に向けて配置する。 */
+    public static void place(ServerWorld world, BlockPos center, BuildingType type,
+                             net.minecraft.util.math.Direction facing) {
         // 王城は専用の中世ファンタジー風ビルダーで生成する（origin = 北西の角）。
         if (type == BuildingType.TOWN_HALL) {
             for (int cx = (center.getX() - 16) >> 4; cx <= (center.getX() + 16) >> 4; cx++) {
@@ -44,9 +50,28 @@ public final class StructurePlacer {
             case WATCHTOWER -> watchtower(world, center);
             case GATE -> gate(world, center);
             case WALL -> wall(world, center);
-            case HERO_SANCTUARY -> com.kingdomunique.world.HeroSanctuaryBuilder.build(world, center);
-            case GRANARY, INFIRMARY, MARKET, ARSENAL, TRAINING_GROUND, ROYAL_PALACE ->
-                    AdditionalStructures.build(world, type, center);
+            case HERO_SANCTUARY -> {
+                int[] d = StructureRotationUtil.getBuildingDimensions(type);
+                for (var p : com.kingdomunique.world.HeroSanctuaryBuilder.generatePlacements(center)) {
+                    world.setBlockState(
+                            StructureRotationUtil.transformPos(center,
+                                    p.pos().getX() - center.getX(), p.pos().getY() - center.getY(),
+                                    p.pos().getZ() - center.getZ(), d[0], d[2], facing),
+                            StructureRotationUtil.transformState(p.state(), facing),
+                            net.minecraft.block.Block.NOTIFY_LISTENERS);
+                }
+            }
+            case GRANARY, INFIRMARY, MARKET, ARSENAL, TRAINING_GROUND, ROYAL_PALACE -> {
+                int[] d = StructureRotationUtil.getBuildingDimensions(type);
+                for (var p : AdditionalStructures.generatePlacements(type, center)) {
+                    world.setBlockState(
+                            StructureRotationUtil.transformPos(center,
+                                    p.pos().getX() - center.getX(), p.pos().getY() - center.getY(),
+                                    p.pos().getZ() - center.getZ(), d[0], d[2], facing),
+                            StructureRotationUtil.transformState(p.state(), facing),
+                            net.minecraft.block.Block.NOTIFY_LISTENERS);
+                }
+            }
         }
     }
 

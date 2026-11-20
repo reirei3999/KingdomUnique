@@ -7,6 +7,7 @@ import net.minecraft.nbt.NbtList;
 import net.minecraft.registry.RegistryWrapper;
 import net.minecraft.server.world.ServerWorld;
 import net.minecraft.util.math.BlockPos;
+import net.minecraft.util.math.Direction;
 import net.minecraft.world.PersistentState;
 
 import java.util.ArrayList;
@@ -39,7 +40,10 @@ public class BuildData extends PersistentState {
                         BuildingType.valueOf(c.getString("type")),
                         c.getInt("progress"),
                         c.getBoolean("ready"),
-                        UUID.fromString(c.getString("owner"))
+                        UUID.fromString(c.getString("owner")),
+                        net.minecraft.util.math.Direction.byName(c.getString("facing")) == null
+                                ? net.minecraft.util.math.Direction.SOUTH
+                                : net.minecraft.util.math.Direction.byName(c.getString("facing"))
                 ));
             } catch (IllegalArgumentException ignored) {
                 // 壊れたサイトは無視する。
@@ -63,6 +67,7 @@ public class BuildData extends PersistentState {
             c.putInt("progress", site.progress());
             c.putBoolean("ready", site.ready());
             c.putString("owner", site.owner().toString());
+            c.putString("facing", site.facing().getName());
             list.add(c);
         }
         nbt.put("sites", list);
@@ -88,13 +93,13 @@ public class BuildData extends PersistentState {
     }
 
     /** 建築サイト。progress は tick 数。 */
-    public record BuildSite(BlockPos pos, BuildingType type, int progress, boolean ready, UUID owner) {
+    public record BuildSite(BlockPos pos, BuildingType type, int progress, boolean ready, UUID owner, Direction facing) {
         public BuildSite withProgress(int value) {
-            return new BuildSite(pos, type, value, ready, owner);
+            return new BuildSite(pos, type, value, ready, owner, facing);
         }
 
         public BuildSite withReady(boolean value) {
-            return new BuildSite(pos, type, progress, value, owner);
+            return new BuildSite(pos, type, progress, value, owner, facing);
         }
     }
 }
