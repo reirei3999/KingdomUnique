@@ -156,32 +156,7 @@ public final class BuildingManager {
                             SoundCategory.BLOCKS, 0.6F, 1.0F);
                 }
                 if (progress >= required) {
-                    if (!canPlaceSafely(world, site.pos())) {
-                        continue;
-                    }
-                    StructurePlacer.place(world, site.pos(), site.type());
-                    BuildingEffectHandler.onCompleted(world, owner.getUuid(), site.type(), site.pos());
-                    CompletedBuildingsData.getOrCreate(world).add(site.pos(), site.type(), owner.getUuid());
-                    DefenseData.register(world, site.pos(), site.type(), owner.getUuid());
-                    if (site.type() == BuildingType.TOWN_HALL) {
-                        KingdomManager.markTownHall(owner, site.pos());
-                        com.kingdomunique.kingdom.PolicyManager.sendPolicyOffer(owner);
-                    } else if (site.type() == BuildingType.HERO_SANCTUARY) {
-                        net.minecraft.util.math.BlockPos core = site.pos().add(
-                                com.kingdomunique.world.HeroSanctuaryBuilder.CORE_OFFSET);
-                        com.kingdomunique.kingdom.SanctuaryData.getOrCreate(world)
-                                .register(core, owner.getUuid());
-                        owner.sendMessage(Text.literal("§6[英雄召喚の祭壇] 完成！中央のロードストーンを右クリックして英雄を召喚できます。"), false);
-                    } else if (site.type().getPopulationCapBonus() > 0) {
-                        KingdomManager.addCapBonus(owner, site.type().getPopulationCapBonus());
-                    }
-                    world.playSound(null, site.pos(), SoundEvents.UI_TOAST_CHALLENGE_COMPLETE,
-                            SoundCategory.BLOCKS, 1.0F, 1.0F);
-                    owner.sendMessage(Text.literal("§6[設計図] " + site.type().getDisplayName()
-                            + " が完成しました！"), false);
-                    data.sites().remove(site);
-                    data.markChanged();
-                    releaseBuilder(world, site);
+                    completeNow(world, site, owner);
                 } else {
                     data.sites().remove(site);
                     data.add(site.withProgress(progress));
@@ -251,6 +226,38 @@ public final class BuildingManager {
                 instanceof net.minecraft.entity.passive.VillagerEntity villager) {
             villager.getNavigation().stop();
         }
+    }
+    /** 建築を即座に完了させる（通常進行と OP クリエイティブの即時完了から共通利用）。 */
+    public static boolean completeNow(ServerWorld world, BuildData.BuildSite site,
+                                      ServerPlayerEntity owner) {
+        if (!canPlaceSafely(world, site.pos())) {
+            return false;
+        }
+        StructurePlacer.place(world, site.pos(), site.type());
+        BuildingEffectHandler.onCompleted(world, owner.getUuid(), site.type(), site.pos());
+        CompletedBuildingsData.getOrCreate(world).add(site.pos(), site.type(), owner.getUuid());
+        DefenseData.register(world, site.pos(), site.type(), owner.getUuid());
+        if (site.type() == BuildingType.TOWN_HALL) {
+            KingdomManager.markTownHall(owner, site.pos());
+            com.kingdomunique.kingdom.PolicyManager.sendPolicyOffer(owner);
+        } else if (site.type() == BuildingType.HERO_SANCTUARY) {
+            net.minecraft.util.math.BlockPos core = site.pos().add(
+                    com.kingdomunique.world.HeroSanctuaryBuilder.CORE_OFFSET);
+            com.kingdomunique.kingdom.SanctuaryData.getOrCreate(world)
+                    .register(core, owner.getUuid());
+            owner.sendMessage(Text.literal("§6[英雄召喚の祭壇] 完成！中央のロードストーンを右クリックして英雄を召喚できます。"), false);
+        } else if (site.type().getPopulationCapBonus() > 0) {
+            KingdomManager.addCapBonus(owner, site.type().getPopulationCapBonus());
+        }
+        world.playSound(null, site.pos(), SoundEvents.UI_TOAST_CHALLENGE_COMPLETE,
+                SoundCategory.BLOCKS, 1.0F, 1.0F);
+        owner.sendMessage(Text.literal("§6[設計図] " + site.type().getDisplayName()
+                + " が完成しました！"), false);
+        BuildData data = BuildData.getOrCreate(world);
+        data.sites().remove(site);
+        data.markDirty();
+        releaseBuilder(world, site);
+        return true;
     }
     /** チャンク未ロード・高度範囲外での配置を防ぐ（Gemini 提示のバグ③対策）。 */
     public static boolean canPlaceSafely(ServerWorld world, BlockPos pos) {
