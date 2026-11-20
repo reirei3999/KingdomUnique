@@ -4,6 +4,7 @@ import com.kingdomunique.effect.CurseEffects;
 import com.kingdomunique.war.DiplomacyData;
 import com.kingdomunique.effect.RelicEffects;
 import com.kingdomunique.entity.CitizenVillager;
+import com.kingdomunique.entity.VillagerProfessionUtil;
 import com.kingdomunique.entity.HeroClass;
 import com.kingdomunique.entity.HeroEntity;
 import com.kingdomunique.entity.ModEntities;
@@ -141,6 +142,7 @@ public final class KingdomManager {
         citizen.ku$setOwnerUuid(player.getUuid().toString());
         String role = preferredRole != null ? preferredRole : roleFromHand(player);
         citizen.ku$setRole(role);
+        VillagerProfessionUtil.applyRole(villager, role);
         villager.setCustomName(citizenName(player.getServerWorld(), player.getUuid(), player.getUuid(),
                     getKingdomName(player.getServerWorld(), player.getUuid()), role));
         villager.setCustomNameVisible(true);

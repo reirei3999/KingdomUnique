@@ -19,7 +19,8 @@
     "PlayerCurseMixin",
     "RangedDamageMixin",
     "StatusEffectMixin",
-    "UniqueWeaponMixin"
+    "UniqueWeaponMixin",
+    "VillagerProfessionMixin"
   ],
   "client": [],
   "injectors": {

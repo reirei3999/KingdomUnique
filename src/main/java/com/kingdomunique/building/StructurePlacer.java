@@ -11,6 +11,12 @@ public final class StructurePlacer {
     }
 
     public static void place(ServerWorld world, BlockPos center, BuildingType type) {
+        // 通常建築はバニラの村テンプレートを主体にする（敵対的な独自構造は使わない）。
+        if (type == BuildingType.HOUSE || type == BuildingType.BARRACKS
+                || type == BuildingType.BLACKSMITH || type == BuildingType.TOWN_HALL) {
+            placeVanillaVillageBuilding(world, center, type);
+            return;
+        }
         int r = radius(type) + 4;
         // 構造物がまたがる全チャンクを確実にロードする。
         for (int cx = (center.getX() - r) >> 4; cx <= (center.getX() + r) >> 4; cx++) {
@@ -31,6 +37,20 @@ public final class StructurePlacer {
         }
     }
 
+    /** 建築種別に対応するバニラ村の家テンプレートを配置する。 */
+    private static void placeVanillaVillageBuilding(ServerWorld world, BlockPos center,
+                                                    BuildingType type) {
+        String path = switch (type) {
+            case HOUSE -> "village/plains/houses/plains_small_house_1";
+            case BARRACKS -> "village/plains/houses/plains_medium_house_1";
+            case BLACKSMITH -> "village/plains/houses/plains_tool_smith_1";
+            case TOWN_HALL -> "village/plains/houses/plains_meeting_point_4";
+            default -> "village/plains/houses/plains_small_house_1";
+        };
+        com.kingdomunique.world.VillageBuilder.placeTemplate(world,
+                net.minecraft.util.Identifier.of("minecraft", path),
+                center.getX(), center.getZ());
+    }
     private static int radius(BuildingType type) {
         return switch (type) {
             case HOUSE -> 4;

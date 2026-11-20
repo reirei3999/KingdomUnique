@@ -102,7 +102,7 @@ public final class VillageBuilder {
      * 必要チャンクをすべてロードし、地表〜上空を空気でクリアし、
      * 建物下端から地面までの隙間を土／丸石で埋めてから配置する。
      */
-    private static boolean placeTemplate(StructureTemplateManager manager, ServerWorld world,
+    public static boolean placeTemplate(StructureTemplateManager manager, ServerWorld world,
                                          Identifier id, int centerX, int centerZ) {
         StructureTemplate template = manager.getTemplate(id).orElse(null);
         if (template == null) {
@@ -153,6 +153,10 @@ public final class VillageBuilder {
         return template.place(world, pos, BlockPos.ORIGIN, data, world.getRandom(), Block.NOTIFY_ALL);
     }
 
+    /** 他クラスからバニラテンプレートを配置する簡易API。 */
+    public static boolean placeTemplate(ServerWorld world, Identifier id, int centerX, int centerZ) {
+        return placeTemplate(world.getStructureTemplateManager(), world, id, centerX, centerZ);
+    }
     /** 旧方式の基礎整地（フォールバック用）。 */
     private static void prepareFoundation(ServerWorld world, int x, int y, int z) {
         for (int dx = -5; dx <= 5; dx++) {
@@ -341,6 +345,7 @@ public final class VillageBuilder {
             String role = VILLAGER_ROLES[index % VILLAGER_ROLES.length];
             citizen.ku$setOwnerUuid(owner.toString());
             citizen.ku$setRole(role);
+            com.kingdomunique.entity.VillagerProfessionUtil.applyRole(villager, role);
             villager.setCustomName(com.kingdomunique.kingdom.KingdomManager.citizenName(
                     world, owner, owner,
                     com.kingdomunique.kingdom.KingdomManager.getKingdomName(world, owner), role));
