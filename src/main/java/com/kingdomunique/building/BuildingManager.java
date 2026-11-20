@@ -111,6 +111,14 @@ public final class BuildingManager {
         return true;
     }
 
+    /** 建築現場に割り当てた建築士（dimension|pos -> villager UUID）。 */
+    private static final java.util.Map<String, java.util.UUID> ASSIGNED_BUILDERS =
+            new java.util.HashMap<>();
+
+    private static String siteKey(ServerWorld world, BlockPos pos) {
+        return world.getRegistryKey().getValue().toString() + "|" + pos.asLong();
+    }
+
     /** 毎Tickの建築進行。 */
     public static void onServerTick(MinecraftServer server) {
         for (ServerWorld world : server.getWorlds()) {
@@ -129,7 +137,11 @@ public final class BuildingManager {
                 if (owner == null) {
                     continue;
                 }
-                if (!hasBuilderNearby(world, site.pos(), owner)) {
+
+                // 建築士を現場へ向かわせ、到着するまで進行させない。
+                net.minecraft.entity.passive.VillagerEntity builder =
+                        guideBuilder(world, site, owner);
+                if (builder == null || !hasBuilderNearby(world, site.pos(), owner)) {
                     continue;
                 }
 
@@ -157,6 +169,7 @@ public final class BuildingManager {
                             + " が完成しました！"), false);
                     data.sites().remove(site);
                     data.markChanged();
+                    releaseBuilder(world, site);
                 } else {
                     data.sites().remove(site);
                     data.add(site.withProgress(progress));
@@ -165,6 +178,68 @@ public final class BuildingManager {
         }
     }
 
+    /** 建築士を選択し、現場へ誘導する。到着後はその場に留まらせる。 */
+    private static net.minecraft.entity.passive.VillagerEntity guideBuilder(
+            ServerWorld world, BuildData.BuildSite site, ServerPlayerEntity owner) {
+        String key = siteKey(world, site.pos());
+        net.minecraft.entity.passive.VillagerEntity builder = null;
+        java.util.UUID assigned = ASSIGNED_BUILDERS.get(key);
+        if (assigned != null && world.getEntity(assigned)
+                instanceof net.minecraft.entity.passive.VillagerEntity found && found.isAlive()) {
+            builder = found;
+        }
+        if (builder == null) {
+            builder = findNearestBuilder(world, site.pos(), owner);
+            if (builder == null) {
+                return null;
+            }
+            ASSIGNED_BUILDERS.put(key, builder.getUuid());
+            owner.sendMessage(Text.literal("§6[設計図] 建築士が現場へ向かいました。"), false);
+        }
+
+        double dx = builder.getX() - (site.pos().getX() + 0.5D);
+        double dz = builder.getZ() - (site.pos().getZ() + 0.5D);
+        double distanceSq = dx * dx + dz * dz;
+        if (distanceSq <= 4.0D) {
+            // 現場に到着：徘徊させずその場に留める。
+            builder.getNavigation().stop();
+            builder.setYaw((float) (Math.atan2(-dx, dz) * 180.0D / Math.PI));
+        } else {
+            builder.getNavigation().startMovingTo(
+                    site.pos().getX() + 0.5D, site.pos().getY(), site.pos().getZ() + 0.5D, 0.7D);
+        }
+        return builder;
+    }
+
+    private static net.minecraft.entity.passive.VillagerEntity findNearestBuilder(
+            ServerWorld world, BlockPos pos, ServerPlayerEntity owner) {
+        net.minecraft.entity.passive.VillagerEntity best = null;
+        double bestDist = Double.MAX_VALUE;
+        for (net.minecraft.entity.passive.VillagerEntity villager : world.getEntitiesByClass(
+                net.minecraft.entity.passive.VillagerEntity.class,
+                new net.minecraft.util.math.Box(pos).expand(128.0D),
+                v -> v.isAlive())) {
+            if (!(villager instanceof CitizenVillager citizen)
+                    || !owner.getUuid().toString().equals(citizen.ku$getOwnerUuid())
+                    || !CitizenVillager.ROLE_BUILDER.equals(citizen.ku$getRole())) {
+                continue;
+            }
+            double d = villager.squaredDistanceTo(pos.getX(), pos.getY(), pos.getZ());
+            if (d < bestDist) {
+                bestDist = d;
+                best = villager;
+            }
+        }
+        return best;
+    }
+
+    private static void releaseBuilder(ServerWorld world, BuildData.BuildSite site) {
+        java.util.UUID uuid = ASSIGNED_BUILDERS.remove(siteKey(world, site.pos()));
+        if (uuid != null && world.getEntity(uuid)
+                instanceof net.minecraft.entity.passive.VillagerEntity villager) {
+            villager.getNavigation().stop();
+        }
+    }
     /** 建築サイトの完了までに必要なティック数（依頼者の倍率を反映）。 */
     public static int requiredTicks(ServerWorld world, BuildData.BuildSite site) {
         ServerPlayerEntity owner = world.getServer().getPlayerManager().getPlayer(site.owner());
@@ -175,7 +250,7 @@ public final class BuildingManager {
     private static boolean hasBuilderNearby(ServerWorld world, BlockPos pos, ServerPlayerEntity owner) {
         for (net.minecraft.entity.passive.VillagerEntity villager : world.getEntitiesByClass(
                 net.minecraft.entity.passive.VillagerEntity.class,
-                new net.minecraft.util.math.Box(pos).expand(24.0D),
+                new net.minecraft.util.math.Box(pos).expand(5.0D),
                 v -> v.isAlive() && v instanceof CitizenVillager)) {
             CitizenVillager citizen = (CitizenVillager) villager;
             if (owner.getUuid().toString().equals(citizen.ku$getOwnerUuid())
