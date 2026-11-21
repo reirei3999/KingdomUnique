@@ -169,12 +169,22 @@ public final class BlueprintGameTest {
         ServerWorld world = context.getWorld();
         BlockPos pos = context.getAbsolutePos(new BlockPos(0, 216, 0));
         UUID owner = UUID.randomUUID();
-        UUID otherOwner = UUID.randomUUID();
-        var buildings = KingdomBuildingState.get(world);
         var kingdom = KingdomData.getOrCreate(world);
         kingdom.put(owner, new KingdomData.KingdomInfo(pos.getX(), pos.getZ(), 30, 40, 0, false, 0,
                 false, 100, false, ""));
 
+        try {
+            assertPreviewLimits(context, pos, owner);
+        } finally {
+            // The temporary center would otherwise protect nearby villagers in other GameTests.
+            kingdom.remove(owner);
+        }
+        context.complete();
+    }
+
+    private static void assertPreviewLimits(TestContext context, BlockPos pos, UUID owner) {
+        ServerWorld world = context.getWorld();
+        var buildings = KingdomBuildingState.get(world);
         context.assertTrue(BuildingValidator.restrictedTypes(world, owner).contains(BuildingType.ROYAL_PALACE),
                 "A palace needs a completed town hall even when the population requirement is met");
         buildings.add(owner, BuildingType.TOWN_HALL, pos, Direction.SOUTH,
@@ -200,9 +210,8 @@ public final class BlueprintGameTest {
         } finally {
             buffer.release();
         }
-        context.assertFalse(BuildingValidator.restrictedTypes(world, otherOwner).contains(BuildingType.TOWN_HALL),
+        context.assertFalse(BuildingValidator.restrictedTypes(world, UUID.randomUUID()).contains(BuildingType.TOWN_HALL),
                 "One kingdom's town hall must not block another kingdom's first town hall");
-        context.complete();
     }
 
     @GameTest(templateName = FabricGameTest.EMPTY_STRUCTURE)
