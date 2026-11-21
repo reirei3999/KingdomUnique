@@ -6,7 +6,10 @@ import com.mojang.authlib.GameProfile;
 import net.fabricmc.fabric.api.gametest.v1.FabricGameTest;
 import net.minecraft.entity.effect.StatusEffectInstance;
 import net.minecraft.entity.effect.StatusEffects;
-import net.minecraft.network.packet.c2s.common.SyncedClientOptions;
+import net.minecraft.network.ClientConnection;
+import net.minecraft.network.NetworkSide;
+import net.minecraft.server.network.ConnectedClientData;
+import net.minecraft.server.network.ServerPlayNetworkHandler;
 import net.minecraft.server.network.ServerPlayerEntity;
 import net.minecraft.test.GameTest;
 import net.minecraft.test.TestContext;
@@ -18,8 +21,10 @@ public final class ChaliceGameTest {
     @GameTest(templateName = FabricGameTest.EMPTY_STRUCTURE)
     public void chaliceRemovesOnlyHungerAndAllowsExhaustion(TestContext context) {
         var world = context.getWorld();
-        var player = new ServerPlayerEntity(world.getServer(), world,
-                new GameProfile(UUID.randomUUID(), "chalice_test"), SyncedClientOptions.createDefault());
+        var profile = new GameProfile(UUID.randomUUID(), "chalice_test");
+        var client = ConnectedClientData.createDefault(profile, false);
+        var player = new ServerPlayerEntity(world.getServer(), world, profile, client.syncedOptions());
+        new ServerPlayNetworkHandler(world.getServer(), new ClientConnection(NetworkSide.SERVERBOUND), player, client);
         var data = WorldUniqueData.getOrCreate(world.getServer().getWorld(World.OVERWORLD));
         context.assertTrue(data.claimId(player.getUuid(), RelicRegistry.CHALICE), "Chalice must be available");
         try {
