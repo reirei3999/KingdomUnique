@@ -500,7 +500,7 @@ public final class VillageBuilder {
         world.setBlockState(footPos.offset(facing), foot.with(BedBlock.PART, BedPart.HEAD));
     }
 
-    private static void buildFarm(ServerWorld world, int x, int y, int z) {
+    static void buildFarm(ServerWorld world, int x, int y, int z) {
         BlockPos irrigation = new BlockPos(x, y, z + 2);
         for (int dz = 0; dz <= 4; dz++) {
             for (int dx = -3; dx <= 3; dx++) {

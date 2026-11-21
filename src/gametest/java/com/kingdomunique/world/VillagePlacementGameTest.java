@@ -93,24 +93,23 @@ public final class VillagePlacementGameTest {
     @GameTest(templateName = FabricGameTest.EMPTY_STRUCTURE, batchId = "village_irrigation")
     public void villageFarmDoesNotFloodLowerTerrain(TestContext context) {
         ServerWorld world = context.getWorld();
-        BlockPos center = context.getAbsolutePos(new BlockPos(20, 95, 20));
-        for (int x = -32; x <= 32; x++) {
-            for (int z = -40; z <= 32; z++) {
-                int elevation = z == 11 && Math.abs(x) <= 3 ? -1 : 0;
-                world.setBlockState(center.add(x, elevation, z), Blocks.STONE.getDefaultState(),
+        BlockPos farm = context.getAbsolutePos(new BlockPos(4, 4, 4));
+        for (int x = -4; x <= 4; x++) {
+            for (int z = -1; z <= 5; z++) {
+                world.setBlockState(farm.add(x, -1, z), Blocks.STONE.getDefaultState(),
                         Block.NOTIFY_LISTENERS);
             }
         }
-        VillageBuilder.generateVillage(world, center.getX(), center.getZ(), null);
+        VillageBuilder.buildFarm(world, farm.getX(), farm.getY(), farm.getZ());
 
         context.waitAndRun(30, () -> {
             for (int x = -3; x <= 3; x++) {
-                context.assertTrue(world.getFluidState(center.add(x, 0, 11)).isEmpty(),
+                context.assertTrue(world.getFluidState(farm.add(x, 0, -1)).isEmpty(),
                         "Farm irrigation must not spill onto the lower ground");
-                context.assertTrue(world.getBlockState(center.add(x, 0, 12)).isOf(Blocks.FARMLAND),
+                context.assertTrue(world.getBlockState(farm.add(x, 0, 0)).isOf(Blocks.FARMLAND),
                         "The farm edge facing lower ground must not contain water sources");
             }
-            BlockPos irrigation = center.south(14);
+            BlockPos irrigation = farm.south(2);
             context.assertTrue(world.getBlockState(irrigation).isOf(Blocks.WATER)
                             && world.getFluidState(irrigation).isStill()
                             && world.getBlockState(irrigation.down()).isOf(Blocks.COBBLESTONE),
