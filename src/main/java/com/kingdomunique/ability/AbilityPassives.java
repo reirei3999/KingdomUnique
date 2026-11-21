@@ -32,7 +32,7 @@ public final class AbilityPassives {
     private static final Identifier SITE_ENTITY_REACH = id("site_entity_reach");
     private static final Identifier SITE_BREAK_SPEED = id("site_break_speed");
 
-    public static final long INDOMITABLE_DELAY_MS = 8000L;
+    public static final long INDOMITABLE_DELAY_MS = 10000L;
 
     private static long tickCounter = 0L;
 
@@ -62,7 +62,7 @@ public final class AbilityPassives {
         apply(player, EntityAttributes.PLAYER_ENTITY_INTERACTION_RANGE, SITE_ENTITY_REACH,
                 abilities.contains(UniqueContentRegistry.SITE_SUPERVISOR), 3.0D, EntityAttributeModifier.Operation.ADD_VALUE);
         apply(player, EntityAttributes.PLAYER_BLOCK_BREAK_SPEED, SITE_BREAK_SPEED,
-                abilities.contains(UniqueContentRegistry.SITE_SUPERVISOR), 0.5D, EntityAttributeModifier.Operation.ADD_MULTIPLIED_TOTAL);
+                abilities.contains(UniqueContentRegistry.SITE_SUPERVISOR), 2.0D, EntityAttributeModifier.Operation.ADD_MULTIPLIED_TOTAL);
     }
 
     private static void apply(ServerPlayerEntity player, RegistryEntry<net.minecraft.entity.attribute.EntityAttribute> attribute,
@@ -98,8 +98,12 @@ public final class AbilityPassives {
         }
     }
 
-    /** 不屈：8秒無傷なら再生IVを付与し続ける。 */
+    /** 不屈：常時耐性II、10秒無傷なら再生III。 */
     private static void tickIndomitable(ServerPlayerEntity player) {
+        StatusEffectInstance resistance = player.getStatusEffect(StatusEffects.RESISTANCE);
+        if (resistance == null || resistance.getAmplifier() < 1 || resistance.getDuration() < 40) {
+            player.setStatusEffect(new StatusEffectInstance(StatusEffects.RESISTANCE, 100, 1, true, true), player);
+        }
         PlayerAbilityState state = AbilityState.get(player.getUuid());
         long now = System.currentTimeMillis();
         if (now - state.getLastDamageTimeMillis() < INDOMITABLE_DELAY_MS) {
@@ -107,8 +111,8 @@ public final class AbilityPassives {
             return;
         }
         StatusEffectInstance current = player.getStatusEffect(StatusEffects.REGENERATION);
-        if (current == null || current.getAmplifier() < 3 || current.getDuration() < 40) {
-            player.setStatusEffect(new StatusEffectInstance(StatusEffects.REGENERATION, 100, 3, true, true), player);
+        if (current == null || current.getAmplifier() < 2 || current.getDuration() < 40) {
+            player.setStatusEffect(new StatusEffectInstance(StatusEffects.REGENERATION, 100, 2, true, true), player);
         }
     }
 

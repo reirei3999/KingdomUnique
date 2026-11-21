@@ -1,6 +1,7 @@
 package com.kingdomunique.selection;
 
 import com.kingdomunique.effect.CurseEffects;
+import com.kingdomunique.data.WorldUniqueData;
 import com.kingdomunique.effect.RelicEffects;
 import com.kingdomunique.network.SelectionChoicePayload;
 import com.kingdomunique.registry.ContentRegistry;
@@ -15,7 +16,6 @@ import net.minecraft.entity.LivingEntity;
 import net.minecraft.entity.damage.DamageSource;
 import net.minecraft.entity.effect.StatusEffectInstance;
 import net.minecraft.entity.effect.StatusEffects;
-import net.minecraft.entity.mob.HostileEntity;
 import net.minecraft.item.ItemStack;
 import net.minecraft.server.MinecraftServer;
 import net.minecraft.server.command.CommandManager;
@@ -34,7 +34,6 @@ public final class SelectionEventHandler {
 
     private static final long GLUTTONY_TICKS = 200L;
     private static final Map<UUID, Long> GLUTTONY_UNTIL = new ConcurrentHashMap<>();
-    private static final Map<UUID, Long> PHOENIX_LAST = new ConcurrentHashMap<>();
     private static final long DAY = 24000L;
 
     private SelectionEventHandler() {
@@ -91,7 +90,6 @@ public final class SelectionEventHandler {
         ServerTickEvents.END_SERVER_TICK.register(SelectionEventHandler::onTick);
         ServerPlayConnectionEvents.DISCONNECT.register((handler, server) -> {
             GLUTTONY_UNTIL.remove(handler.getPlayer().getUuid());
-            PHOENIX_LAST.remove(handler.getPlayer().getUuid());
         });
 
         ServerPlayNetworking.registerGlobalReceiver(SelectionChoicePayload.ID, (payload, context) -> {
@@ -116,7 +114,6 @@ public final class SelectionEventHandler {
             checkNether(player);
             checkCitizens(player);
             tickGluttony(player);
-            blockHostileSpawns(player);
         }
     }
 
@@ -138,13 +135,7 @@ public final class SelectionEventHandler {
     }
 
     private static void checkCitizens(ServerPlayerEntity player) {
-        int count = com.kingdomunique.kingdom.KingdomManager.getOrCreate(player).population();
-        if (count < 15) {
-            count = player.getServerWorld().getEntitiesByClass(
-                    net.minecraft.entity.passive.VillagerEntity.class,
-                    player.getBoundingBox().expand(256.0D),
-                    villager -> villager.isAlive()).size();
-        }
+        int count = RelicEffects.countCitizens(player);
         SelectionManager.onCitizenCountReached(player, count);
     }
 
@@ -166,18 +157,6 @@ public final class SelectionEventHandler {
         }
     }
 
-    /** 守護の結界石：王国範囲内の敵対Mobを除去する。 */
-    private static void blockHostileSpawns(ServerPlayerEntity player) {
-        if (!RelicEffects.isHostileSpawnBlocked(player)) {
-            return;
-        }
-        ServerWorld world = player.getServerWorld();
-        for (HostileEntity hostile : world.getEntitiesByClass(HostileEntity.class,
-                player.getBoundingBox().expand(128.0D), h -> h.isAlive())) {
-            hostile.discard();
-        }
-    }
-
     /** 撃破時の処理：宝剣の攻撃力上昇、暴食のバフ、背徳の呪いダメージ。 */
     private static void onDeath(LivingEntity entity, DamageSource source) {
         if (!(source.getAttacker() instanceof ServerPlayerEntity player)) {
@@ -193,6 +172,10 @@ public final class SelectionEventHandler {
 
         if (CurseEffects.has(player, CurseRegistry.CONTRACT)
                 && entity instanceof net.minecraft.entity.passive.VillagerEntity) {
+            if (entity instanceof com.kingdomunique.entity.CitizenVillager citizen
+                    && player.getUuidAsString().equals(citizen.ku$getOwnerUuid())) {
+                return;
+            }
             float curse = Math.max(player.getHealth(), player.getMaxHealth()) / 2.0F;
             player.damage(player.getDamageSources().magic(), curse);
             player.sendMessage(Text.literal("§5[背徳の契約書] 国民の死が呪いとなって襲いました。"), false);
@@ -207,12 +190,11 @@ public final class SelectionEventHandler {
         if (!RelicEffects.has(player, RelicRegistry.PHOENIX)) {
             return true;
         }
-        long day = player.getServerWorld().getTimeOfDay() / DAY;
-        Long last = PHOENIX_LAST.get(player.getUuid());
-        if (last != null && last == day) {
+        ServerWorld overworld = player.getServer().getOverworld();
+        long day = overworld.getTimeOfDay() / DAY;
+        if (!WorldUniqueData.getOrCreate(overworld).claimPhoenixRevival(player.getUuid(), day)) {
             return true;
         }
-        PHOENIX_LAST.put(player.getUuid(), day);
         player.setHealth(player.getMaxHealth());
         player.getHungerManager().setFoodLevel(20);
         player.sendMessage(Text.literal("§6[不死鳥の羽根] あなたは灰の中から蘇りました。"), false);

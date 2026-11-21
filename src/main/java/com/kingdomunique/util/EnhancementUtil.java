@@ -153,16 +153,17 @@ public final class EnhancementUtil {
         // 1.21.1 のツール採掘速度は AttributeModifiers ではなく TOOL コンポーネントで定義される。
         net.minecraft.component.type.ToolComponent tool = result.get(DataComponentTypes.TOOL);
         if (tool != null) {
+            float miningFactor = (float) factor * (currentLevel == 0 && targetLevel > 0 ? 2.0F : 1.0F);
             List<net.minecraft.component.type.ToolComponent.Rule> scaledRules = new ArrayList<>();
             for (net.minecraft.component.type.ToolComponent.Rule rule : tool.rules()) {
                 scaledRules.add(new net.minecraft.component.type.ToolComponent.Rule(
                         rule.blocks(),
-                        rule.speed().map(speed -> speed * (float) factor),
+                        rule.speed().map(speed -> speed * miningFactor),
                         rule.correctForDrops()));
             }
             result.set(DataComponentTypes.TOOL, new net.minecraft.component.type.ToolComponent(
                     scaledRules,
-                    tool.defaultMiningSpeed() * (float) factor,
+                    tool.defaultMiningSpeed() * miningFactor,
                     tool.damagePerBlock()));
         }
 
@@ -240,7 +241,7 @@ public final class EnhancementUtil {
             return false;
         }
         WorldUniqueData data = WorldUniqueData.getOrCreate(overworld);
-        return DIVINE_SMITH_ID.equals(data.getClaimedId(player.getUuid()));
+        return data.hasId(player.getUuid(), DIVINE_SMITH_ID);
     }
 
     /** 神匠のクラフトボーナス。アイテム種別ごとに渡された値のみを反映する。 */
@@ -295,11 +296,11 @@ public final class EnhancementUtil {
             for (net.minecraft.component.type.ToolComponent.Rule rule : tool.rules()) {
                 rules.add(new net.minecraft.component.type.ToolComponent.Rule(
                         rule.blocks(),
-                        rule.speed().map(value -> value * (1.0F + mining)),
+                        rule.speed().map(value -> value * 2.0F * (1.0F + mining)),
                         rule.correctForDrops()));
             }
             stack.set(DataComponentTypes.TOOL, new net.minecraft.component.type.ToolComponent(
-                    rules, tool.defaultMiningSpeed() * (1.0F + mining), tool.damagePerBlock()));
+                    rules, tool.defaultMiningSpeed() * 2.0F * (1.0F + mining), tool.damagePerBlock()));
         }
     }
 
@@ -369,5 +370,10 @@ public final class EnhancementUtil {
 
     /** 強化結果。 */
     public record EnhancementResult(ItemStack stack, int levelCost, boolean divineBonus, int newLevel) {
+    }
+
+    public interface AnvilTransfer {
+        void ku$prepareTransfer(PlayerEntity player, int slot);
+        void ku$clearTransfer();
     }
 }

@@ -37,7 +37,7 @@ public final class AbilityDescriptions {
             return "Rキー：発動（CT " + (ct / 20) + "秒）";
         }
         if (UniqueContentRegistry.DIVINE_SMITH.equals(id)) {
-            return "Vキー：採掘範囲切替（最大3x3）/ 金床で無限強化";
+            return "Vキー：採掘範囲切替（最大3x3）/ 確率で強化数値アップ";
         }
         return "常在効果（操作キーなし）";
     }
@@ -49,8 +49,9 @@ public final class AbilityDescriptions {
         }
         return switch (id) {
             case UniqueContentRegistry.DIVINE_SMITH -> new String[]{
-                    "・金床で同じアイテム同士を合成すると無限強化（+1、稀に+2/+3）",
-                    "・完成品は攻撃力・攻撃速度・採掘速度・耐久が 1.1^n 倍",
+                    "・確率で強化数値アップ：金床で同じアイテム・同じ段階を合成すると、60%で+1・25%で+2・15%で+3",
+                    "・強化品の基本性能・耐久は 1.1^n 倍、ツール採掘速度は 2×1.1^n 倍",
+                    "・製作時の採掘速度ボーナスが付いたツールは、従来のボーナス込み速度からさらに2倍",
                     "・Vキーで採掘範囲を 1x1 / 3x3（最大）に切り替え"
             };
             case UniqueContentRegistry.TRICKERY -> new String[]{
@@ -65,7 +66,7 @@ public final class AbilityDescriptions {
             };
             case UniqueContentRegistry.SITE_SUPERVISOR -> new String[]{
                     "・ブロック／エンティティのリーチが+3",
-                    "・建築コスト30%OFF・時間30%短縮・採掘速度向上"
+                    "・建築コスト30%OFF・時間30%短縮・採掘速度3倍"
             };
             case UniqueContentRegistry.CONQUEROR -> new String[]{
                     "・与ダメージが1.3倍（近接・遠距離ともに有効）",
@@ -76,7 +77,8 @@ public final class AbilityDescriptions {
                     "・落下ダメージ80%カット"
             };
             case UniqueContentRegistry.INDOMITABLE -> new String[]{
-                    "・8秒間ダメージを受けなければ再生IVが継続付与"
+                    "・10秒間ダメージを受けなければ再生IIIが継続付与",
+                    "・耐性IIが常時付与される"
             };
             case UniqueContentRegistry.SPATIAL_LEAP -> new String[]{
                     "・Rキー：視線方向最大8マスの安全な地点へ瞬間移動",
@@ -112,10 +114,11 @@ public final class AbilityDescriptions {
                     "・建築士NPCの作業効率が2倍"
             };
             case "golden_scale" -> new String[]{
-                    "・1日ごとに国民数に応じたエメラルドと鉄を生成"
+                    "・1日ごとに周囲256ブロック以内の自身の登録国民数に応じたエメラルドと鉄を生成"
             };
             case "ward_stone" -> new String[]{
-                    "・領土内の敵対Mobのスポーンを無効",
+                    "・自身の半径128ブロック以内の敵対Mobの自然スポーンを無効",
+                    "・既存のMob・ボス・召喚やスポナーには影響しない",
                     "・夜間の被ダメージ30%カット"
             };
             case "phoenix_feather" -> new String[]{
@@ -123,11 +126,11 @@ public final class AbilityDescriptions {
                     "・空腹も全回復する"
             };
             case "artisans_hammer" -> new String[]{
-                    "・一定間隔で装備やエンチャント本を自動生産"
+                    "・30秒ごとに12%の確率で、ランダムな有効レベルのエンチャント本を生成"
             };
             case "blade_of_slaughter" -> new String[]{
                     "・専用の殺戮の宝剣を付与",
-                    "・撃破ごとに攻撃力+0.05が永久に蓄積"
+                    "・中立・敵対Mobの撃破ごとに攻撃力+0.05が永久に蓄積（動物・村人などの友好Mobは対象外）"
             };
             case "cradle_of_prosperity" -> new String[]{
                     "・王国の人口増加速度が1.5倍"
@@ -142,15 +145,15 @@ public final class AbilityDescriptions {
                     "・空腹の減少3倍、空腹0で猛毒"
             };
             case "glass_cannon" -> new String[]{
-                    "・攻撃力・採掘速度2.5倍",
+                    "・攻撃力2.5倍・採掘速度5倍",
                     "・最大HPが10に固定される"
             };
             case "crown_of_solitude" -> new String[]{
-                    "・攻撃力・防御力・採掘速度1.5倍、移動速度1.2倍",
+                    "・攻撃力・防御力1.5倍、採掘速度3倍、移動速度1.2倍",
                     "・味方や随伴者を連れられない"
             };
             case "chaos_dice" -> new String[]{
-                    "・攻撃ごとにダメージ0.7〜2.7倍（期待値1.7倍）"
+                    "・攻撃ごとにダメージ0.2〜2.7倍（期待値1.45倍）"
             };
             case "gravity_shackles" -> new String[]{
                     "・被ダメージ60%カット",
@@ -158,14 +161,15 @@ public final class AbilityDescriptions {
             };
             case "immoral_contract" -> new String[]{
                     "・国民化のコストが0になる",
-                    "・国民が死ぬたびに呪いダメージを受ける"
+                    "・自身の国民が原因を問わず死亡すると呪いダメージ（ログイン中・別次元も対象）",
+                    "・国民以外の村人を自ら倒した場合も呪いダメージ"
             };
             case "void_lantern" -> new String[]{
                     "・暗所では透明化＋攻撃力2倍",
                     "・明所では防御力が半減する"
             };
             case "pickaxe_of_destruction" -> new String[]{
-                    "・専用ツルハシでどんなブロックも一瞬で破壊",
+                    "・採掘速度402倍、専用ツルハシでどんなブロックも一瞬で破壊",
                     "・破壊したブロックのドロップは消滅"
             };
             default -> new String[]{"世界で唯一の力。所持しているだけで効果が発動します。"};

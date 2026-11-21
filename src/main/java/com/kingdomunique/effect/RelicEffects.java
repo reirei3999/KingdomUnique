@@ -1,12 +1,16 @@
 package com.kingdomunique.effect;
 
 import com.kingdomunique.data.WorldUniqueData;
+import com.kingdomunique.entity.CitizenVillager;
 import com.kingdomunique.registry.RelicRegistry;
 import net.minecraft.entity.attribute.EntityAttributeInstance;
 import net.minecraft.entity.attribute.EntityAttributeModifier;
 import net.minecraft.entity.attribute.EntityAttributes;
 import net.minecraft.entity.effect.StatusEffects;
+import net.minecraft.enchantment.EnchantmentLevelEntry;
+import net.minecraft.item.EnchantedBookItem;
 import net.minecraft.item.ItemStack;
+import net.minecraft.registry.RegistryKeys;
 import net.minecraft.server.MinecraftServer;
 import net.minecraft.server.network.ServerPlayerEntity;
 import net.minecraft.server.world.ServerWorld;
@@ -128,14 +132,22 @@ public final class RelicEffects {
         if (player.getRandom().nextFloat() > 0.12F) {
             return;
         }
-        player.giveItemStack(new ItemStack(net.minecraft.item.Items.ENCHANTED_BOOK));
+        var enchantments = player.getRegistryManager().get(RegistryKeys.ENCHANTMENT);
+        var enchantment = enchantments.getRandom(player.getRandom());
+        if (enchantment.isEmpty()) {
+            return;
+        }
+        var entry = enchantment.get();
+        int minLevel = entry.value().getMinLevel();
+        int level = minLevel + player.getRandom().nextInt(entry.value().getMaxLevel() - minLevel + 1);
+        player.giveItemStack(EnchantedBookItem.forEnchantment(new EnchantmentLevelEntry(entry, level)));
     }
 
-    /** 暫定の国民数（近傍の村人）。本来の王国システムで置き換える。 */
-    private static int countCitizens(ServerPlayerEntity player) {
+    public static int countCitizens(ServerPlayerEntity player) {
         return player.getServerWorld().getEntitiesByClass(
                 net.minecraft.entity.passive.VillagerEntity.class,
                 player.getBoundingBox().expand(256.0D),
-                villager -> villager.isAlive()).size();
+                villager -> villager.isAlive() && villager instanceof CitizenVillager citizen
+                        && player.getUuidAsString().equals(citizen.ku$getOwnerUuid())).size();
     }
 }

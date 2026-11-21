@@ -4,6 +4,7 @@
   "compatibilityLevel": "JAVA_21",
   "mixins": [
     "AnvilScreenHandlerMixin",
+    "AnvilTransferMixin",
     "AreaMiningMixin",
     "BowShotMixin",
     "CitizenVillagerMixin",
@@ -18,8 +19,10 @@
     "LoseJobOnSiteLossTaskMixin",
     "MobEntityAccessor",
     "PlayerCurseMixin",
+    "PhantomSpawnerMixin",
     "RangedDamageMixin",
     "StatusEffectMixin",
+    "SpawnRestrictionMixin",
     "UniqueWeaponMixin",
     "VillagerBreedTaskMixin",
     "VillagerProfessionMixin"

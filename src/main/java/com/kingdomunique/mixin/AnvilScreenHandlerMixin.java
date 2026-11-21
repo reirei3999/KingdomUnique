@@ -8,6 +8,7 @@ import net.minecraft.screen.Property;
 import net.minecraft.server.network.ServerPlayerEntity;
 import org.spongepowered.asm.mixin.Mixin;
 import org.spongepowered.asm.mixin.Shadow;
+import org.spongepowered.asm.mixin.Unique;
 import org.spongepowered.asm.mixin.injection.At;
 import org.spongepowered.asm.mixin.injection.Inject;
 import org.spongepowered.asm.mixin.injection.callback.CallbackInfo;
@@ -21,7 +22,30 @@ import org.spongepowered.asm.mixin.injection.callback.CallbackInfo;
  * するリセマラを防ぐ。
  */
 @Mixin(AnvilScreenHandler.class)
-public abstract class AnvilScreenHandlerMixin {
+public abstract class AnvilScreenHandlerMixin implements EnhancementUtil.AnvilTransfer {
+
+    @Unique
+    private EnhancementUtil.EnhancementResult kingdomUnique$transferResult;
+
+    @Override
+    public void ku$prepareTransfer(PlayerEntity player, int slot) {
+        var handler = (AnvilScreenHandler) (Object) this;
+        if (slot != handler.getResultSlotIndex() || !handler.getSlot(slot).canTakeItems(player)
+                || player.getInventory().getEmptySlot() < 0) {
+            return;
+        }
+        var accessor = (ForgingScreenHandlerAccessor) this;
+        kingdomUnique$transferResult = EnhancementUtil.tryEnhance(
+                accessor.ku$input().getStack(0), accessor.ku$input().getStack(1), player, true);
+        if (kingdomUnique$transferResult != null) {
+            accessor.ku$output().setStack(0, kingdomUnique$transferResult.stack());
+        }
+    }
+
+    @Override
+    public void ku$clearTransfer() {
+        kingdomUnique$transferResult = null;
+    }
 
     @Shadow
     private Property levelCost;
@@ -58,15 +82,18 @@ public abstract class AnvilScreenHandlerMixin {
         ItemStack right = accessor.ku$input().getStack(1);
 
         EnhancementUtil.EnhancementResult enhancement =
-                EnhancementUtil.tryEnhance(left, right, serverPlayer, true);
+                kingdomUnique$transferResult != null ? kingdomUnique$transferResult
+                        : EnhancementUtil.tryEnhance(left, right, serverPlayer, true);
         if (enhancement == null) {
             return;
         }
         // 結果スロットと取り出し中のスタックを確定結果で上書きする。
-        ItemStack finalResult = enhancement.stack();
-        accessor.ku$output().setStack(0, finalResult.copy());
-        output.applyComponentsFrom(finalResult.getComponents());
-        output.setCount(finalResult.getCount());
+        if (kingdomUnique$transferResult == null) {
+            ItemStack finalResult = enhancement.stack();
+            accessor.ku$output().setStack(0, finalResult.copy());
+            output.applyComponentsFrom(finalResult.getComponents());
+            output.setCount(finalResult.getCount());
+        }
 
         com.kingdomunique.item.unique.UniqueWeaponTriggers.onEnhanced(serverPlayer, enhancement.newLevel());
     }

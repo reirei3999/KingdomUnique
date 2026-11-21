@@ -106,7 +106,9 @@ public final class KingdomEventHandler {
         }
         try {
             UUID uuid = UUID.fromString(owner);
-            if (((ServerWorld) entity.getWorld()).getEntity(uuid) instanceof ServerPlayerEntity player) {
+            ServerPlayerEntity player = ((ServerWorld) entity.getWorld()).getServer()
+                    .getPlayerManager().getPlayer(uuid);
+            if (player != null) {
                 KingdomManager.onCitizenDeath(player);
             }
         } catch (IllegalArgumentException ignored) {

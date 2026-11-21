@@ -56,15 +56,17 @@ public final class CurseEffects {
 
         multiply(player, EntityAttributes.GENERIC_ATTACK_DAMAGE, BERSERKER_DAMAGE, berserker, 0.6D);
         multiply(player, EntityAttributes.GENERIC_ATTACK_DAMAGE, GLASS_DAMAGE, glass, 1.5D);
-        multiply(player, EntityAttributes.PLAYER_MINING_EFFICIENCY, GLASS_MINING, glass, 1.5D);
+        multiply(player, EntityAttributes.PLAYER_MINING_EFFICIENCY, GLASS_MINING, false, 0.0D);
+        multiply(player, EntityAttributes.PLAYER_BLOCK_BREAK_SPEED, GLASS_MINING, glass, 4.0D);
         multiply(player, EntityAttributes.GENERIC_ATTACK_DAMAGE, SOLITUDE_DAMAGE, solitude, 0.5D);
         multiply(player, EntityAttributes.GENERIC_MOVEMENT_SPEED, SOLITUDE_SPEED, solitude, 0.2D);
         multiply(player, EntityAttributes.GENERIC_ARMOR, SOLITUDE_ARMOR, solitude, 0.5D);
-        multiply(player, EntityAttributes.PLAYER_MINING_EFFICIENCY, SOLITUDE_MINING, solitude, 0.5D);
+        multiply(player, EntityAttributes.PLAYER_MINING_EFFICIENCY, SOLITUDE_MINING, false, 0.0D);
+        multiply(player, EntityAttributes.PLAYER_BLOCK_BREAK_SPEED, SOLITUDE_MINING, solitude, 2.0D);
         multiply(player, EntityAttributes.GENERIC_MOVEMENT_SPEED, SHACKLES_SPEED, shackles, -0.2D);
-        multiply(player, EntityAttributes.GENERIC_FALL_DAMAGE_MULTIPLIER, SHACKLES_DAMAGE, shackles, -0.4D);
+        multiply(player, EntityAttributes.GENERIC_FALL_DAMAGE_MULTIPLIER, SHACKLES_DAMAGE, false, 0.0D);
         add(player, EntityAttributes.GENERIC_KNOCKBACK_RESISTANCE, SHACKLES_KNOCKBACK, shackles, 1.0D);
-        multiply(player, EntityAttributes.PLAYER_BLOCK_BREAK_SPEED, DESTRUCTION_MINING, destruction, 200.0D);
+        multiply(player, EntityAttributes.PLAYER_BLOCK_BREAK_SPEED, DESTRUCTION_MINING, destruction, 401.0D);
 
         EntityAttributeInstance health = player.getAttributeInstance(EntityAttributes.GENERIC_MAX_HEALTH);
         if (health != null && glass) {
@@ -123,12 +125,12 @@ public final class CurseEffects {
         return has(player, CurseRegistry.SHACKLES);
     }
 
-    /** 混乱サイコロ：攻撃ごとの倍率（0.7〜2.7、期待値1.7）。 */
+    /** 混乱サイコロ：攻撃ごとの倍率（0.2〜2.7、期待値1.45）。 */
     public static double rollChaosMultiplier(ServerPlayerEntity player) {
         if (!has(player, CurseRegistry.CHAOS)) {
             return 1.0D;
         }
-        return 0.7D + player.getRandom().nextDouble() * 2.0D;
+        return 0.2D + player.getRandom().nextDouble() * 2.5D;
     }
 
     /** 与ダメージの追加倍率（狂戦士は属性で既に反映済みのため1.0）。 */
@@ -143,6 +145,6 @@ public final class CurseEffects {
 
     /** 被ダメージ倍率（夜間襲撃は遺物側でも処理）。 */
     public static double incomingMultiplier(ServerPlayerEntity player) {
-        return 1.0D;
+        return has(player, CurseRegistry.SHACKLES) ? 0.4D : 1.0D;
     }
 }

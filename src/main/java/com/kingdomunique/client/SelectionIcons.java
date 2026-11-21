@@ -47,13 +47,13 @@ public final class SelectionIcons {
 
     public static String[] effectsFor(String id) {
         return switch (id) {
-            case "divine_smith" -> new String[]{"製作物にランダム強化", "Vキーで範囲採掘（最大3x3）"};
+            case "divine_smith" -> new String[]{"確率で強化数値アップ", "Vキーで範囲採掘（最大3x3）"};
             case "trickery" -> new String[]{"視線20マスの対象と入れ替わり", "盲目+鈍足付与＆分身でヘイト回避", "_CT 12秒"};
             case "fertility" -> new String[]{"作物成長を加速", "収穫ドロップ2倍"};
             case "site_supervisor" -> new String[]{"リーチ延長", "建築コスト/時間短縮"};
             case "conqueror" -> new String[]{"与ダメージ1.3倍", "ノックバック耐性"};
             case "gale" -> new String[]{"移動速度1.2倍", "落下ダメージ80%カット"};
-            case "indomitable" -> new String[]{"8秒無傷で再生IV"};
+            case "indomitable" -> new String[]{"10秒無傷で再生III", "常時耐性II"};
             case "spatial_leap" -> new String[]{"最大8マス瞬間移動", "クールタイム5秒"};
             case "phase_through" -> new String[]{"3マス壁の通過", "クールタイム8秒"};
             case "shadow_step" -> new String[]{"敵の背後にワープ", "次攻撃1.5倍"};
@@ -65,14 +65,14 @@ public final class SelectionIcons {
             case "golden_scale" -> new String[]{"1日ごとに資材生成"};
             case "ward_stone" -> new String[]{"敵スポーン無効", "夜間被ダメ30%カット"};
             case "phoenix_feather" -> new String[]{"1日1回死亡時に復活"};
-            case "artisans_hammer" -> new String[]{"装備・本を自動生産"};
-            case "blade_of_slaughter" -> new String[]{"専用剣を付与", "撃破で攻撃力上昇"};
+            case "artisans_hammer" -> new String[]{"30秒ごと12%でエンチャント本を生成"};
+            case "blade_of_slaughter" -> new String[]{"専用剣を付与", "中立・敵対Mob撃破で攻撃力上昇"};
             case "cradle_of_prosperity" -> new String[]{"人口増加1.5倍"};
             case "berserker_mask" -> new String[]{"与ダメージ1.6倍", "自然回復不可"};
             case "ring_of_gluttony" -> new String[]{"撃破で一時強化", "空腹3倍・0で猛毒"};
-            case "glass_cannon" -> new String[]{"攻撃/採掘2.5倍", "最大HP10固定"};
-            case "crown_of_solitude" -> new String[]{"移動1.2倍・他1.5倍", "随伴不可"};
-            case "chaos_dice" -> new String[]{"ダメージ0.7〜2.7倍"};
+            case "glass_cannon" -> new String[]{"攻撃2.5倍・採掘5倍", "最大HP10固定"};
+            case "crown_of_solitude" -> new String[]{"攻防1.5倍・採掘3倍・移動1.2倍", "随伴不可"};
+            case "chaos_dice" -> new String[]{"ダメージ0.2〜2.7倍"};
             case "gravity_shackles" -> new String[]{"被ダメ60%カット", "ジャンプ不可・速度0.8倍"};
             case "immoral_contract" -> new String[]{"国民コスト0", "国民死亡で呪いダメージ"};
             case "void_lantern" -> new String[]{"暗所で透明化・攻撃2倍", "明所で防御半減"};

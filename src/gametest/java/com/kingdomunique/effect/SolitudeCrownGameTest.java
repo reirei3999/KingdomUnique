@@ -28,8 +28,9 @@ public final class SolitudeCrownGameTest {
             CurseEffects.applyAttributes(player);
             assertRatio(context, player, EntityAttributes.GENERIC_MOVEMENT_SPEED, 1.2D, "movement speed");
             assertRatio(context, player, EntityAttributes.GENERIC_ATTACK_DAMAGE, 1.5D, "attack damage");
+            assertRatio(context, player, EntityAttributes.PLAYER_BLOCK_BREAK_SPEED, 3.0D, "block break speed");
             player.getAttributeInstance(EntityAttributes.PLAYER_MINING_EFFICIENCY).setBaseValue(4.0D);
-            assertRatio(context, player, EntityAttributes.PLAYER_MINING_EFFICIENCY, 1.5D, "mining efficiency");
+            assertRatio(context, player, EntityAttributes.PLAYER_MINING_EFFICIENCY, 1.0D, "unchanged enchantment efficiency");
             player.getAttributeInstance(EntityAttributes.GENERIC_ARMOR).setBaseValue(10.0D);
             assertRatio(context, player, EntityAttributes.GENERIC_ARMOR, 1.5D, "armor");
             context.complete();

@@ -8,7 +8,7 @@ import java.util.UUID;
 public final class PlayerAbilityState {
 
     private int miningRange = 1;
-    private long lastDamageTimeMillis = 0L;
+    private long lastDamageTimeMillis = System.currentTimeMillis();
     private long spatialLeapReadyAt = 0L;
     private long phaseThroughReadyAt = 0L;
     private long shadowStepReadyAt = 0L;

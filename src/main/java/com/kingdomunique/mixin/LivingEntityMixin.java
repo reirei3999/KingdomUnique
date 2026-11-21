@@ -57,9 +57,9 @@ public abstract class LivingEntityMixin {
         return amount;
     }
 
-    @Inject(method = "damage", at = @At("HEAD"))
+    @Inject(method = "damage", at = @At("RETURN"))
     private void kingdomUnique$recordDamage(DamageSource source, float amount, CallbackInfoReturnable<Boolean> cir) {
-        if ((Object) this instanceof ServerPlayerEntity player && amount > 0.0F) {
+        if ((Object) this instanceof ServerPlayerEntity player && amount > 0.0F && cir.getReturnValue()) {
             AbilityPassives.markDamaged(player);
         }
     }
