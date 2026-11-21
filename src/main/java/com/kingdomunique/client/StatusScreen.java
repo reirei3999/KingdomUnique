@@ -1,13 +1,13 @@
 package com.kingdomunique.client;
 
 import com.kingdomunique.client.ui.KuTheme;
+import com.kingdomunique.client.ui.KuButton;
 import com.kingdomunique.network.SyncPlayerStatusPayload;
 import com.kingdomunique.registry.ContentRegistry;
 import net.fabricmc.api.EnvType;
 import net.fabricmc.api.Environment;
 import net.minecraft.client.gui.DrawContext;
 import net.minecraft.client.gui.screen.Screen;
-import net.minecraft.client.gui.widget.ButtonWidget;
 import net.minecraft.text.OrderedText;
 import net.minecraft.text.Text;
 
@@ -26,6 +26,20 @@ public final class StatusScreen extends Screen {
     private final int cooldownTicks;
     private final int miningRange;
     private int selectedIndex = 0;
+    private int listOffset;
+
+    private int visibleEntries() {
+        return Math.min(displayIds.size(), Math.max(1, (Math.min(260, height - 24) - 154) / 36));
+    }
+
+    private static int categoryAccent(ContentRegistry.Kind kind) {
+        if (kind == null) return KuTheme.MUTED;
+        return switch (kind) {
+            case ABILITY -> KuTheme.GOLD;
+            case RELIC -> KuTheme.CYAN;
+            case CURSE -> KuTheme.PURPLE;
+        };
+    }
 
     /** キャッシュ済み同期データから開く（Kキー用）。 */
     public StatusScreen() {
@@ -65,18 +79,27 @@ public final class StatusScreen extends Screen {
         int top = (this.height - panelH) / 2;
 
         int listW = 132;
-        int maxButtons = Math.min(displayIds.size(), Math.max(1, (panelH - 56) / 22));
+        int maxButtons = visibleEntries();
+        listOffset = Math.clamp(listOffset, 0, displayIds.size() - maxButtons);
         for (int i = 0; i < maxButtons; i++) {
-            final int idx = i;
-            UniqueLoreRegistry.UniqueInfo info = UniqueLoreRegistry.getOrFallback(displayIds.get(i));
-            String prefix = displayIds.get(i).equals(activeAbilityId) ? "§6★ " : "・";
-            this.addDrawableChild(ButtonWidget.builder(
-                    Text.literal(prefix + info.name()),
+            final int idx = listOffset + i;
+            String id = displayIds.get(idx);
+            UniqueLoreRegistry.UniqueInfo info = UniqueLoreRegistry.getOrFallback(id);
+            Text label = Text.empty();
+            if (!id.isEmpty() && id.equals(activeAbilityId)) {
+                label = Text.literal("★ ").withColor(KuTheme.GOLD);
+            }
+            label = label.copy().append(info.name());
+            this.addDrawableChild(KuButton.themed(
+                    label,
                     btn -> this.selectedIndex = idx)
-                    .dimensions(left + 8, top + 30 + i * 22, listW, 20).build());
+                    .accent(categoryAccent(ContentRegistry.kindOf(id)))
+                    .card(id.isEmpty() ? info.icon() : SelectionIcons.iconFor(id),
+                            Text.literal("[" + info.category() + "]"), () -> selectedIndex == idx)
+                    .dimensions(left + 8, top + 30 + i * 36, listW, 32).build());
         }
 
-        this.addDrawableChild(ButtonWidget.builder(
+        this.addDrawableChild(KuButton.themed(
                 Text.literal("閉じる (K / ESC)"), btn -> this.close())
                 .dimensions(left + panelW - 112, top + panelH - 26, 104, 20).build());
     }
@@ -105,6 +128,8 @@ public final class StatusScreen extends Screen {
 
         int dividerX = left + 146;
         context.fill(dividerX, top + 28, dividerX + 1, top + panelH - 8, KuTheme.withAlpha(KuTheme.MUTED, 0x60));
+        drawSummary(context, left + 8, top + 30 + visibleEntries() * 36 + 6,
+                132, panelH - 46 - visibleEntries() * 36);
 
         String selectedId = displayIds.get(Math.min(selectedIndex, displayIds.size() - 1));
         UniqueLoreRegistry.UniqueInfo info = UniqueLoreRegistry.getOrFallback(selectedId);
@@ -146,6 +171,46 @@ public final class StatusScreen extends Screen {
             }
             detailY += 2;
         }
+    }
+
+    private void drawSummary(DrawContext context, int x, int y, int w, int h) {
+        KuTheme.drawSlot(context, x, y, w, h);
+        context.enableScissor(x + 4, y + 4, x + w - 4, y + h - 4);
+        context.drawTextWithShadow(textRenderer, Text.literal("所持ユニーク " + countOwned() + "種"),
+                x + 6, y + 8, KuTheme.PRIMARY);
+        int lineY = y + 26;
+        for (ContentRegistry.Kind kind : ContentRegistry.Kind.values()) {
+            long count = displayIds.stream().filter(id -> ContentRegistry.kindOf(id) == kind).count();
+            context.drawTextWithShadow(textRenderer, Text.literal(kind.getJapanese() + "  " + count),
+                    x + 6, lineY, categoryAccent(kind));
+            lineY += 14;
+        }
+        Text active = Text.literal("発動中: " + UniqueLoreRegistry.getOrFallback(activeAbilityId).name());
+        context.drawTextWithShadow(textRenderer, KuButton.fitLabel(textRenderer, active, w - 12),
+                x + 6, lineY + 4, KuTheme.SECONDARY);
+        int hintY = lineY + 22;
+        for (OrderedText line : textRenderer.wrapLines(Text.literal("カードをクリックで詳細 / ホイールで一覧"), w - 12)) {
+            context.drawTextWithShadow(textRenderer, line, x + 6, hintY, KuTheme.MUTED);
+            hintY += 11;
+        }
+        context.disableScissor();
+    }
+
+    @Override
+    public boolean mouseScrolled(double mouseX, double mouseY, double horizontalAmount, double verticalAmount) {
+        int left = (width - Math.min(420, width - 24)) / 2;
+        int top = (height - Math.min(260, height - 24)) / 2;
+        if (mouseX >= left + 8 && mouseX < left + 140 && mouseY >= top + 30
+                && mouseY < top + 30 + visibleEntries() * 36 && verticalAmount != 0) {
+            int offset = Math.clamp(listOffset + (verticalAmount > 0 ? -1 : 1),
+                    0, displayIds.size() - visibleEntries());
+            if (offset != listOffset) {
+                listOffset = offset;
+                clearAndInit();
+            }
+            return true;
+        }
+        return super.mouseScrolled(mouseX, mouseY, horizontalAmount, verticalAmount);
     }
 
     private int countOwned() {

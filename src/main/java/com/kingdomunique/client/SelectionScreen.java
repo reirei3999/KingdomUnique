@@ -1,6 +1,7 @@
 package com.kingdomunique.client;
 
 import com.kingdomunique.client.ui.KuTheme;
+import com.kingdomunique.client.ui.KuButton;
 import com.kingdomunique.network.SelectionChoicePayload;
 import com.kingdomunique.registry.ContentRegistry;
 import net.fabricmc.api.EnvType;
@@ -9,7 +10,6 @@ import net.fabricmc.fabric.api.client.networking.v1.ClientPlayNetworking;
 import net.minecraft.client.MinecraftClient;
 import net.minecraft.client.gui.DrawContext;
 import net.minecraft.client.gui.screen.Screen;
-import net.minecraft.client.gui.widget.ButtonWidget;
 import net.minecraft.sound.SoundEvents;
 import net.minecraft.text.OrderedText;
 import net.minecraft.text.Text;
@@ -23,7 +23,7 @@ public final class SelectionScreen extends Screen {
     private final ContentRegistry.Kind kind;
     private final List<String> optionIds;
     private int selectedIndex = -1;
-    private ButtonWidget decideButton;
+    private KuButton decideButton;
     private long openedAt;
     private long lastClickAt;
     private int lastClickIndex = -1;
@@ -54,10 +54,10 @@ public final class SelectionScreen extends Screen {
         detailScroll = 0;
         detailMaxScroll = 0;
         int buttonWidth = Math.min(150, (width - 30) / 2);
-        decideButton = addDrawableChild(ButtonWidget.builder(Text.literal("§a§lこのカードで確定"),
-                button -> decide()).dimensions(width / 2 + 5, height - 26, buttonWidth, 20).build());
+        decideButton = addDrawableChild(KuButton.themed(Text.literal("§lこのカードで確定"),
+                button -> decide()).accent(KuTheme.GOLD).textColor(KuTheme.MERIT).dimensions(width / 2 + 5, height - 26, buttonWidth, 20).build());
         decideButton.active = selectedIndex >= 0;
-        addDrawableChild(ButtonWidget.builder(Text.literal("§7保留して閉じる"), button -> close())
+        addDrawableChild(KuButton.themed(Text.literal("§7保留して閉じる"), button -> close())
                 .dimensions(width / 2 - buttonWidth - 5, height - 26, buttonWidth, 20).build());
     }
 

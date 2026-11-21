@@ -1,5 +1,6 @@
 package com.kingdomunique.client;
 
+import com.kingdomunique.client.ui.KuButton;
 import com.kingdomunique.client.ui.KuTheme;
 import com.kingdomunique.item.ItemCatalog;
 import com.kingdomunique.network.RequestItemPayload;
@@ -8,78 +9,89 @@ import net.fabricmc.api.Environment;
 import net.fabricmc.fabric.api.client.networking.v1.ClientPlayNetworking;
 import net.minecraft.client.gui.DrawContext;
 import net.minecraft.client.gui.screen.Screen;
-import net.minecraft.client.gui.widget.ButtonWidget;
 import net.minecraft.text.Text;
-import net.minecraft.util.Formatting;
 
 /** 専用アイテムを一覧から取得するメニュー。 */
 @Environment(EnvType.CLIENT)
 public final class ItemMenuScreen extends Screen {
-
     private static final int BUTTON_HEIGHT = 20;
     private static final int GAP = 4;
+    private int page;
 
     public ItemMenuScreen() {
         super(Text.literal("KingdomUnique 専用アイテム"));
     }
 
+    private record Layout(int columns, int rows, int buttonWidth, int top, int height) {
+        int pageSize() {
+            return columns * rows;
+        }
+    }
+
+    private Layout layout() {
+        int available = Math.max(1, width - 24);
+        int longest = ItemCatalog.entries().stream().mapToInt(entry -> textRenderer.getWidth(entry.label()))
+                .max().orElse(0);
+        int maxColumns = Math.max(1, Math.min(5, (available + GAP) / (56 + GAP)));
+        int preferred = Math.max(1, Math.min(maxColumns, (available + GAP) / (longest + 12 + GAP)));
+        int maxRows = Math.max(1, (height - 78) / (BUTTON_HEIGHT + GAP));
+        int required = (ItemCatalog.entries().size() + maxRows - 1) / maxRows;
+        int columns = Math.min(maxColumns, Math.max(preferred, required));
+        int rows = Math.max(1, Math.min(maxRows, (ItemCatalog.entries().size() + columns - 1) / columns));
+        int panelHeight = rows * (BUTTON_HEIGHT + GAP) + 66;
+        return new Layout(columns, rows, Math.max(1, (available - (columns - 1) * GAP) / columns),
+                Math.max(6, (height - panelHeight) / 2), panelHeight);
+    }
+
     @Override
     protected void init() {
+        Layout layout = layout();
         var entries = ItemCatalog.entries();
-        // GUIスケール4（幅約480px）でも全項目が見えるように列数とボタン幅を動的に決める。
-        int columns = Math.max(3, Math.min(5, this.width / 100));
-        int rows = (entries.size() + columns - 1) / columns;
-        int buttonWidth = Math.max(56, (this.width - 24 - (columns - 1) * GAP) / columns);
-        int totalWidth = columns * buttonWidth + (columns - 1) * GAP;
-        int startX = (this.width - totalWidth) / 2;
-
-        int totalHeight = rows * (BUTTON_HEIGHT + GAP);
-        int startY = panelTop() + 40;
-        int maxStartY = this.height - totalHeight - 28;
-        if (maxStartY < startY) {
-            startY = Math.max(2, maxStartY);
-        }
-
-        for (int i = 0; i < entries.size(); i++) {
-            ItemCatalog.Entry entry = entries.get(i);
-            int x = startX + (i % columns) * (buttonWidth + GAP);
-            int y = startY + (i / columns) * (BUTTON_HEIGHT + GAP);
-            this.addDrawableChild(ButtonWidget.builder(
-                    Text.literal(entry.label()).formatted(Formatting.WHITE),
+        int pages = Math.max(1, (entries.size() + layout.pageSize() - 1) / layout.pageSize());
+        page = Math.clamp(page, 0, pages - 1);
+        int totalWidth = layout.columns() * layout.buttonWidth() + (layout.columns() - 1) * GAP;
+        int startX = (width - totalWidth) / 2;
+        int startY = layout.top() + 40;
+        for (int i = 0; i < layout.pageSize() && page * layout.pageSize() + i < entries.size(); i++) {
+            ItemCatalog.Entry entry = entries.get(page * layout.pageSize() + i);
+            int x = startX + (i % layout.columns()) * (layout.buttonWidth() + GAP);
+            int y = startY + (i / layout.columns()) * (BUTTON_HEIGHT + GAP);
+            addDrawableChild(KuButton.themed(Text.literal(entry.label()),
                     button -> ClientPlayNetworking.send(new RequestItemPayload(entry.id())))
-                    .dimensions(x, y, buttonWidth, BUTTON_HEIGHT).build());
+                    .dimensions(x, y, layout.buttonWidth(), BUTTON_HEIGHT).build());
         }
-
-        this.addDrawableChild(ButtonWidget.builder(Text.literal("閉じる"), button -> this.close())
-                .dimensions(this.width / 2 - 45,
-                        Math.min(this.height - 22, startY + totalHeight + 4), 90, 18)
-                .build());
+        int footerY = startY + layout.rows() * (BUTTON_HEIGHT + GAP) + 2;
+        addDrawableChild(KuButton.themed(Text.literal("閉じる"), button -> close())
+                .dimensions(width / 2 - 45, footerY, 90, 18).build());
+        if (pages > 1) {
+            var previous = addDrawableChild(KuButton.themed(Text.literal("‹ " + (page + 1) + "/" + pages), button -> {
+                page--;
+                clearAndInit();
+            }).dimensions(startX, footerY, 60, 18).build());
+            previous.active = page > 0;
+            var next = addDrawableChild(KuButton.themed(Text.literal("次へ ›"), button -> {
+                page++;
+                clearAndInit();
+            }).dimensions(startX + totalWidth - 60, footerY, 60, 18).build());
+            next.active = page + 1 < pages;
+        }
     }
 
     @Override
     public void render(DrawContext context, int mouseX, int mouseY, float delta) {
         super.render(context, mouseX, mouseY, delta);
-        // テキストは等倍・整数座標で描画する。
-        context.getMatrices().push();
-        context.getMatrices().scale(1.0F, 1.0F, 1.0F);
-        KuTheme.drawTitle(context, textRenderer, title, width / 2, panelTop() + 8);
-        context.drawCenteredTextWithShadow(this.textRenderer,
-                Text.literal("クリックでアイテムを入手（ユニーク武器は世界で一つだけ）"),
-                (int) (this.width / 2), panelTop() + 26, KuTheme.MUTED);
-        context.getMatrices().pop();
-    }
-
-    private int panelTop() {
-        int columns = Math.max(3, Math.min(5, width / 100));
-        int rows = (ItemCatalog.entries().size() + columns - 1) / columns;
-        return Math.max(8, (height - rows * (BUTTON_HEIGHT + GAP) - 74) / 2);
+        Layout layout = layout();
+        KuTheme.drawTitle(context, textRenderer, title, width / 2, layout.top() + 8);
+        Text hint = Text.literal("クリックでアイテムを入手（ユニーク武器は世界で一つだけ）");
+        context.drawCenteredTextWithShadow(textRenderer, KuButton.fitLabel(textRenderer, hint, width - 32),
+                width / 2, layout.top() + 26, KuTheme.MUTED);
     }
 
     @Override
     public void renderBackground(DrawContext context, int mouseX, int mouseY, float delta) {
         context.fill(0, 0, width, height, KuTheme.BACKDROP);
-        int top = panelTop();
-        KuTheme.drawPanel(context, 6, top, width - 12, height - top * 2, KuTheme.GOLD);
+        Layout layout = layout();
+        KuTheme.drawPanel(context, 6, layout.top(), width - 12, layout.height(), KuTheme.GOLD);
     }
 
     @Override
