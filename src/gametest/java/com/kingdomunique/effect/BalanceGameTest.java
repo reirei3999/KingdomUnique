@@ -33,6 +33,64 @@ import net.minecraft.test.TestContext;
 import java.util.UUID;
 
 public final class BalanceGameTest {
+    @GameTest(templateName = FabricGameTest.EMPTY_STRUCTURE, batchId = "phantom_ward")
+    public void phantomSpawnerSkipsWardProtectedPlayers(TestContext context) {
+        var world = context.getWorld().getServer().getWorld(net.minecraft.world.World.NETHER);
+        int[] insomniaChecks = {0};
+        var target = new ServerPlayerEntity(world.getServer(), world,
+                new GameProfile(UUID.randomUUID(), "phantom_target"), SyncedClientOptions.createDefault()) {
+            @Override
+            public net.minecraft.stat.ServerStatHandler getStatHandler() {
+                insomniaChecks[0]++;
+                return super.getStatHandler();
+            }
+        };
+        var holder = new ServerPlayerEntity(world.getServer(), world,
+                new GameProfile(UUID.randomUUID(), "phantom_ward"), SyncedClientOptions.createDefault()) {
+            @Override
+            public boolean isSpectator() {
+                return true;
+            }
+        };
+        var data = WorldUniqueData.getOrCreate(world.getServer().getOverworld());
+        var previousOwner = data.getOwner(com.kingdomunique.registry.RelicRegistry.WARD_STONE);
+        if (previousOwner != null) {
+            data.releaseId(previousOwner, com.kingdomunique.registry.RelicRegistry.WARD_STONE);
+        }
+        context.assertTrue(data.claimId(holder.getUuid(), com.kingdomunique.registry.RelicRegistry.WARD_STONE),
+                "Ward must be available");
+        boolean insomnia = world.getGameRules().getBoolean(net.minecraft.world.GameRules.DO_INSOMNIA);
+        world.getGameRules().get(net.minecraft.world.GameRules.DO_INSOMNIA).set(true, world.getServer());
+        world.getPlayers().add(target);
+        try {
+            for (int i = 0; i < 100; i++) {
+                new net.minecraft.world.spawner.PhantomSpawner().spawn(world, true, true);
+            }
+            context.assertTrue(insomniaChecks[0] > 0, "Unprotected players reach the phantom insomnia check");
+            holder.setPosition(target.getPos().add(128.0D, 0, 0));
+            world.getPlayers().add(holder);
+            insomniaChecks[0] = 0;
+            for (int i = 0; i < 100; i++) {
+                new net.minecraft.world.spawner.PhantomSpawner().spawn(world, true, true);
+            }
+            context.assertTrue(insomniaChecks[0] == 0, "A nearby holder suppresses phantom attempts at 128 blocks");
+            holder.setPosition(target.getPos().add(128.1D, 0, 0));
+            for (int i = 0; i < 100; i++) {
+                new net.minecraft.world.spawner.PhantomSpawner().spawn(world, true, true);
+            }
+            context.assertTrue(insomniaChecks[0] > 0, "Players outside 128 blocks retain vanilla phantom attempts");
+        } finally {
+            world.getPlayers().remove(target);
+            world.getPlayers().remove(holder);
+            world.getGameRules().get(net.minecraft.world.GameRules.DO_INSOMNIA).set(insomnia, world.getServer());
+            data.releaseId(holder.getUuid(), com.kingdomunique.registry.RelicRegistry.WARD_STONE);
+            if (previousOwner != null) {
+                data.claimId(previousOwner, com.kingdomunique.registry.RelicRegistry.WARD_STONE);
+            }
+        }
+        context.complete();
+    }
+
     private static ServerPlayerEntity player(TestContext context) {
         var world = context.getWorld();
         var profile = new GameProfile(UUID.randomUUID(), "balance_player");
