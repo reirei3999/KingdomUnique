@@ -53,6 +53,9 @@ public final class BlueprintBlock extends Block implements BlockEntityProvider {
             Optional<Text> error = BuildingValidator.buildingLimit(world, player.getUuid(), type, false);
             if (error.isPresent()) {
                 player.sendMessage(error.get(), false);
+                if (!player.isCreative()) {
+                    player.currentScreenHandler.syncState();
+                }
                 return null;
             }
         }

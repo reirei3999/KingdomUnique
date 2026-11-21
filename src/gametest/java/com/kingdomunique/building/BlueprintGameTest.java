@@ -12,6 +12,8 @@ import net.minecraft.item.ItemUsageContext;
 import net.minecraft.item.Items;
 import net.minecraft.network.RegistryByteBuf;
 import net.minecraft.network.packet.c2s.common.SyncedClientOptions;
+import net.minecraft.screen.ScreenHandler;
+import net.minecraft.screen.ScreenHandlerSyncHandler;
 import net.minecraft.server.network.ServerPlayerEntity;
 import net.minecraft.server.world.ServerWorld;
 import net.minecraft.test.GameTest;
@@ -20,12 +22,14 @@ import net.minecraft.text.Text;
 import net.minecraft.util.ActionResult;
 import net.minecraft.util.Hand;
 import net.minecraft.util.ItemActionResult;
+import net.minecraft.util.collection.DefaultedList;
 import net.minecraft.util.hit.BlockHitResult;
 import net.minecraft.util.math.BlockPos;
 import net.minecraft.util.math.Direction;
 import net.minecraft.util.math.Vec3d;
 
 import java.util.UUID;
+import java.util.concurrent.atomic.AtomicReference;
 
 public final class BlueprintGameTest {
     @GameTest(templateName = FabricGameTest.EMPTY_STRUCTURE)
@@ -207,6 +211,26 @@ public final class BlueprintGameTest {
         BlockPos existing = context.getAbsolutePos(new BlockPos(0, 240, 0));
         ServerPlayerEntity survival = player(world);
         ServerPlayerEntity creative = player(world, true, survival.getUuid());
+        AtomicReference<ItemStack> syncedHotbarStack = new AtomicReference<>();
+        survival.currentScreenHandler.updateSyncHandler(new ScreenHandlerSyncHandler() {
+            @Override
+            public void updateState(ScreenHandler handler, DefaultedList<ItemStack> stacks, ItemStack cursor, int[] properties) {
+                int slot = handler.getSlotIndex(survival.getInventory(), survival.getInventory().selectedSlot).orElseThrow();
+                syncedHotbarStack.set(stacks.get(slot));
+            }
+
+            @Override
+            public void updateSlot(ScreenHandler handler, int slot, ItemStack stack) {
+            }
+
+            @Override
+            public void updateCursorStack(ScreenHandler handler, ItemStack stack) {
+            }
+
+            @Override
+            public void updateProperty(ScreenHandler handler, int property, int value) {
+            }
+        });
         var buildings = KingdomBuildingState.get(world);
         buildings.add(survival.getUuid(), BuildingType.TOWN_HALL, existing, Direction.SOUTH,
                 StructureRotationUtil.computeBoundingBox(existing, BuildingType.TOWN_HALL, Direction.SOUTH), null);
@@ -220,12 +244,21 @@ public final class BlueprintGameTest {
             for (ServerPlayerEntity placer : new ServerPlayerEntity[]{survival, creative}) {
                 ItemStack stack = new ItemStack(block, 2);
                 placer.setStackInHand(Hand.MAIN_HAND, stack);
+                if (placer == survival) {
+                    survival.currentScreenHandler.syncState();
+                    syncedHotbarStack.set(null);
+                }
                 var use = new ItemUsageContext(placer, Hand.MAIN_HAND, hit(pos.down()));
                 context.assertEquals(stack.useOnBlock(use), ActionResult.FAIL, "An over-limit blueprint must fail to place");
                 context.assertTrue(world.isAir(pos), "A refused placement must leave the destination empty");
                 context.assertTrue(data.sites().stream().noneMatch(site -> site.pos().equals(pos)),
                         "A refused placement must not register a building site");
                 context.assertEquals(stack.getCount(), 2, "A refused placement must not consume the blueprint item");
+                if (placer == survival) {
+                    ItemStack synced = syncedHotbarStack.get();
+                    context.assertTrue(synced != null && ItemStack.areEqual(synced, stack),
+                            "A refused placement must resend the unchanged survival hotbar stack");
+                }
             }
         }
 
