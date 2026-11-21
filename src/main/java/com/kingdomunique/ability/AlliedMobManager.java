@@ -69,6 +69,7 @@ public final class AlliedMobManager {
         com.kingdomunique.mixin.MobEntityAccessor accessor = (com.kingdomunique.mixin.MobEntityAccessor) mob;
         accessor.kingdomUnique$targetSelector().clear(goal -> true);
         accessor.kingdomUnique$goalSelector().clear(goal -> goal instanceof AlliedFollowGoal);
+        accessor.kingdomUnique$targetSelector().add(1, new AlliedTargetGoal(mob));
         accessor.kingdomUnique$goalSelector().add(1, new AlliedFollowGoal(mob, ownerUuid));
         mob.setTarget(null);
     }

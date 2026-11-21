@@ -62,13 +62,49 @@ public final class AlliedFollowGoal extends Goal {
             mob.getNavigation().stop();
         }
 
+    }
+}
+
+final class AlliedTargetGoal extends Goal {
+    private final MobEntity mob;
+    private int counter;
+
+    AlliedTargetGoal(MobEntity mob) {
+        this.mob = mob;
+        setControls(EnumSet.of(Control.TARGET));
+    }
+
+    @Override
+    public boolean canStart() {
+        return true;
+    }
+
+    private boolean reachable(LivingEntity target) {
+        if (!target.isAlive() || mob.squaredDistanceTo(target) > 144.0D) {
+            return false;
+        }
+        var path = mob.getNavigation().findPathTo(target, 0);
+        return path != null && path.reachesTarget();
+    }
+
+    @Override
+    public void tick() {
+        if (++counter < 10) {
+            return;
+        }
+        counter = 0;
+        LivingEntity current = mob.getTarget();
+        if (current != null && reachable(current)) {
+            return;
+        }
+        mob.setTarget(null);
         LivingEntity nearest = null;
         double best = 144.0D;
         for (HostileEntity hostile : mob.getWorld().getEntitiesByClass(
                 HostileEntity.class,
                 mob.getBoundingBox().expand(12.0D),
                 h -> h.isAlive() && !AlliedMobManager.isAlly(h)
-                        && !h.getUuid().equals(ownerUuid))) {
+                        && reachable(h))) {
             double distance = mob.squaredDistanceTo(hostile);
             if (distance < best) {
                 best = distance;
