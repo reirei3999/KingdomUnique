@@ -4,11 +4,16 @@ import net.minecraft.block.*;
 import net.minecraft.block.enums.BlockHalf;
 import net.minecraft.block.enums.SlabType;
 import net.minecraft.server.world.ServerWorld;
+import net.minecraft.util.math.BlockBox;
 import net.minecraft.util.math.BlockPos;
 import net.minecraft.util.math.Direction;
 
+import java.util.List;
+
 /** 幅11 x 奥行13 の中世ファンタジー風タウンホールを建築する。 */
 public final class TownHallBuilder {
+    private static final int WIDTH = 11;
+    private static final int DEPTH = 13;
 
     private TownHallBuilder() {
     }
@@ -18,12 +23,31 @@ public final class TownHallBuilder {
      * origin は建物の北西の角（地表Y）。
      */
     public static void buildTownHall(ServerWorld world, BlockPos origin) {
-        int width = 11;  // X: 0..10
-        int depth = 13;  // Z: 0..12
+        buildTownHall(world, origin, true);
+    }
+
+    static BlockPos findVillageOrigin(ServerWorld world, int centerX, int centerZ) {
+        BlockPos plot = VillageTerrain.findPlot(world, centerX - 5, centerZ - 19,
+                WIDTH, DEPTH + 3, 24, List.of(new BlockBox(centerX - 4, 0, centerZ - 4,
+                        centerX + 4, 0, centerZ + 4)));
+        return plot == null ? null : plot.south();
+    }
+
+    static BlockBox villageFootprint(BlockPos origin) {
+        return VillageTerrain.footprint(origin.north(), WIDTH, DEPTH + 3);
+    }
+
+    static void buildVillageTownHall(ServerWorld world, BlockPos origin) {
+        buildTownHall(world, origin, false);
+    }
+
+    private static void buildTownHall(ServerWorld world, BlockPos origin, boolean prepareTerrain) {
+        int width = WIDTH;
+        int depth = DEPTH;
         int wallHeight = 5;
 
         // 1. 基礎と床（石レンガの外枠 ＋ オーク板材の床）
-        for (int dx = -1; dx <= width; dx++) {
+        for (int dx = -1; prepareTerrain && dx <= width; dx++) {
             for (int dz = -1; dz <= depth; dz++) {
                 // 下部の空洞埋め（崖や段差対策）
                 for (int dy = -1; dy >= -8; dy--) {

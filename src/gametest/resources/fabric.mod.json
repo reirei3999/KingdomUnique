@@ -4,7 +4,10 @@
   "version": "1.0.0",
   "name": "KingdomUnique GameTest",
   "entrypoints": {
-    "fabric-gametest": ["com.kingdomunique.building.BlueprintGameTest"]
+    "fabric-gametest": [
+      "com.kingdomunique.building.BlueprintGameTest",
+      "com.kingdomunique.world.VillagePlacementGameTest"
+    ]
   },
   "depends": {
     "kingdomunique": "*",

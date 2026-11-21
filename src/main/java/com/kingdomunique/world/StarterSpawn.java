@@ -93,6 +93,15 @@ public final class StarterSpawn {
         BlockPos center = (info.centerSet())
                 ? new BlockPos(info.centerX(), player.getBlockPos().getY(), info.centerZ())
                 : player.getBlockPos();
+        if (TownHallBuilder.findVillageOrigin(world, center.getX(), center.getZ()) == null) {
+            BlockPos alternate = findNearbyStarterSite(world, center);
+            if (alternate == null && !info.centerSet()) {
+                alternate = findSafeSpawn(world);
+            }
+            if (alternate != null) {
+                center = alternate;
+            }
+        }
 
         world.getChunk(center.getX() >> 4, center.getZ() >> 4);
         VillageBuilder.generateStarterVillage(world, center.getX(), center.getZ(), player.getUuid());
@@ -171,21 +180,37 @@ public final class StarterSpawn {
 
     /** 村の井戸周囲から、足元・頭上が空で地面が固体の安全な立ち位置を探す。 */
     private static BlockPos findVillageSpawn(ServerWorld world, BlockPos center) {
-        int groundY = center.getY() + 1;
         for (int radius = 2; radius <= 8; radius++) {
             for (int i = 0; i < 16; i++) {
                 double angle = i * Math.PI * 2.0D / 16.0D;
                 int x = center.getX() + (int) Math.round(Math.cos(angle) * radius);
                 int z = center.getZ() + (int) Math.round(Math.sin(angle) * radius);
-                for (int y = groundY + 8; y >= groundY - 4; y--) {
-                    BlockPos feet = new BlockPos(x, y, z);
-                    net.minecraft.block.BlockState below = world.getBlockState(feet.down());
-                    if (world.getBlockState(feet).isAir()
-                            && world.getBlockState(feet.up()).isAir()
-                            && !below.isAir()
-                            && !below.isOf(Blocks.WATER)
-                            && !below.isOf(Blocks.LAVA)) {
-                        return feet;
+                int y = world.getTopY(Heightmap.Type.MOTION_BLOCKING_NO_LEAVES, x, z);
+                BlockPos feet = new BlockPos(x, y, z);
+                net.minecraft.block.BlockState below = world.getBlockState(feet.down());
+                if (world.getBlockState(feet).isAir()
+                        && world.getBlockState(feet.up()).isAir()
+                        && !below.isAir()
+                        && below.getFluidState().isEmpty()) {
+                    return feet;
+                }
+            }
+        }
+        return null;
+    }
+
+    private static BlockPos findNearbyStarterSite(ServerWorld world, BlockPos center) {
+        for (int radius = 24; radius <= 72; radius += 24) {
+            for (int dx = -radius; dx <= radius; dx += 24) {
+                for (int dz = -radius; dz <= radius; dz += 24) {
+                    if (Math.max(Math.abs(dx), Math.abs(dz)) != radius) {
+                        continue;
+                    }
+                    BlockPos candidate = VillageTerrain.plot(world, center.getX() + dx,
+                            center.getZ() + dz, 1, 1);
+                    if (candidate != null && candidate.getY() >= world.getSeaLevel()
+                            && TownHallBuilder.findVillageOrigin(world, candidate.getX(), candidate.getZ()) != null) {
+                        return candidate;
                     }
                 }
             }
@@ -224,6 +249,9 @@ public final class StarterSpawn {
             world.getChunk(x >> 4, z >> 4);
             BlockPos top = world.getTopPosition(Heightmap.Type.MOTION_BLOCKING_NO_LEAVES, raw);
             if (top.getY() < world.getSeaLevel()) {
+                continue;
+            }
+            if (TownHallBuilder.findVillageOrigin(world, x, z) == null) {
                 continue;
             }
             return top;
