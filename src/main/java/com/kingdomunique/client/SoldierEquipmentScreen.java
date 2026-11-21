@@ -12,7 +12,6 @@ import net.minecraft.component.type.AttributeModifiersComponent;
 import net.minecraft.entity.attribute.EntityAttributes;
 import net.minecraft.entity.passive.VillagerEntity;
 import net.minecraft.entity.player.PlayerInventory;
-import net.minecraft.item.ArmorItem;
 import net.minecraft.item.ItemStack;
 import net.minecraft.screen.slot.Slot;
 import net.minecraft.text.Text;
@@ -64,13 +63,20 @@ public final class SoldierEquipmentScreen extends HandledScreen<SoldierEquipment
         context.fill(left + 1, y + 64, left + 1 + filled, y + 69, 0xFF579F45);
         context.drawText(textRenderer, "攻撃力  " + String.format(Locale.ROOT, "%.1f", attackDamage()),
                 left, y + 79, 0xFF303030, false);
-        int armor = 0;
+        double armor = 0.0;
         for (int i = 1; i < 5; i++) {
-            if (handler.getSlot(i).getStack().getItem() instanceof ArmorItem item) {
-                armor += item.getProtection();
+            AttributeModifiersComponent modifiers = handler.getSlot(i).getStack()
+                    .get(DataComponentTypes.ATTRIBUTE_MODIFIERS);
+            if (modifiers != null) {
+                for (AttributeModifiersComponent.Entry entry : modifiers.modifiers()) {
+                    if (entry.attribute().equals(EntityAttributes.GENERIC_ARMOR)) {
+                        armor += entry.modifier().value();
+                    }
+                }
             }
         }
-        context.drawText(textRenderer, "防御力  " + armor, left, y + 95, 0xFF303030, false);
+        context.drawText(textRenderer, "防御力  " + String.format(Locale.ROOT, "%.1f", armor),
+                left, y + 95, 0xFF303030, false);
     }
 
     private double attackDamage() {
