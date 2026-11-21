@@ -1,5 +1,7 @@
 package com.kingdomunique.client;
 
+import com.kingdomunique.client.ui.KuTheme;
+import com.kingdomunique.client.ui.KuButton;
 import com.kingdomunique.network.SelectionChoicePayload;
 import com.kingdomunique.registry.ContentRegistry;
 import net.fabricmc.api.EnvType;
@@ -8,7 +10,6 @@ import net.fabricmc.fabric.api.client.networking.v1.ClientPlayNetworking;
 import net.minecraft.client.MinecraftClient;
 import net.minecraft.client.gui.DrawContext;
 import net.minecraft.client.gui.screen.Screen;
-import net.minecraft.client.gui.widget.ButtonWidget;
 import net.minecraft.sound.SoundEvents;
 import net.minecraft.text.OrderedText;
 import net.minecraft.text.Text;
@@ -22,7 +23,7 @@ public final class SelectionScreen extends Screen {
     private final ContentRegistry.Kind kind;
     private final List<String> optionIds;
     private int selectedIndex = -1;
-    private ButtonWidget decideButton;
+    private KuButton decideButton;
     private long openedAt;
     private long lastClickAt;
     private int lastClickIndex = -1;
@@ -53,10 +54,10 @@ public final class SelectionScreen extends Screen {
         detailScroll = 0;
         detailMaxScroll = 0;
         int buttonWidth = Math.min(150, (width - 30) / 2);
-        decideButton = addDrawableChild(ButtonWidget.builder(Text.literal("§a§lこのカードで確定"),
-                button -> decide()).dimensions(width / 2 + 5, height - 26, buttonWidth, 20).build());
+        decideButton = addDrawableChild(KuButton.themed(Text.literal("§lこのカードで確定"),
+                button -> decide()).accent(KuTheme.GOLD).textColor(KuTheme.MERIT).dimensions(width / 2 + 5, height - 26, buttonWidth, 20).build());
         decideButton.active = selectedIndex >= 0;
-        addDrawableChild(ButtonWidget.builder(Text.literal("§7保留して閉じる"), button -> close())
+        addDrawableChild(KuButton.themed(Text.literal("§7保留して閉じる"), button -> close())
                 .dimensions(width / 2 - buttonWidth - 5, height - 26, buttonWidth, 20).build());
     }
 
@@ -143,9 +144,9 @@ public final class SelectionScreen extends Screen {
 
     private int themeColor() {
         return switch (kind) {
-            case ABILITY -> 0xFFE5B84B;
-            case RELIC -> 0xFF38BDF8;
-            case CURSE -> 0xFFA855F7;
+            case ABILITY -> KuTheme.GOLD;
+            case RELIC -> KuTheme.CYAN;
+            case CURSE -> KuTheme.PURPLE;
         };
     }
 
@@ -155,15 +156,15 @@ public final class SelectionScreen extends Screen {
 
     @Override
     public void renderBackground(DrawContext context, int mouseX, int mouseY, float delta) {
-        context.fill(0, 0, width, height, 0xFF0B0B10);
+        context.fill(0, 0, width, height, KuTheme.BACKDROP);
     }
 
     @Override
     public void render(DrawContext context, int mouseX, int mouseY, float delta) {
         super.render(context, mouseX, mouseY, delta);
-        context.drawCenteredTextWithShadow(textRenderer, title, width / 2, 10, 0xFFFFFFFF);
+        context.drawCenteredTextWithShadow(textRenderer, title, width / 2, 10, KuTheme.PRIMARY);
         context.drawCenteredTextWithShadow(textRenderer, Text.literal("1枚だけ選べます・世界で唯一・やり直し不可"),
-                width / 2, 26, 0xFF94A3B8);
+                width / 2, 26, KuTheme.MUTED);
         Layout layout = layout();
         int hovered = hoveredCard(layout, mouseX, mouseY);
         for (int i = 0; i < optionIds.size(); i++) {
@@ -180,19 +181,19 @@ public final class SelectionScreen extends Screen {
         int w = layout.cardWidth();
         int h = layout.cardHeight();
         boolean selected = index == selectedIndex;
-        int border = faded(hovered ? 0xFFFFF2CE : themeColor(), opacity);
-        context.fill(x + 3, y + 4, x + w + 3, y + h + 4, faded(0x90000000, opacity));
-        context.fill(x, y, x + w, y + h, faded(0xFF161B2A, opacity));
-        drawBorder(context, x, y, w, h, border);
-        if (selected || hovered) drawBorder(context, x + 1, y + 1, w - 2, h - 2, border);
+        int border = faded(hovered ? KuTheme.HOVER : themeColor(), opacity);
+        context.fill(x + 3, y + 4, x + w + 3, y + h + 4, faded(KuTheme.SHADOW, opacity));
+        context.fill(x, y, x + w, y + h, faded(KuTheme.CARD, opacity));
+        KuTheme.drawBorder(context, x, y, w, h, border);
+        if (selected || hovered) KuTheme.drawBorder(context, x + 1, y + 1, w - 2, h - 2, border);
         if (selected) {
-            drawBorder(context, x - 2, y - 2, w + 4, h + 4, faded(themeColor(), opacity * 0.5F));
+            KuTheme.drawBorder(context, x - 2, y - 2, w + 4, h + 4, faded(themeColor(), opacity * 0.5F));
         }
         UniqueLoreRegistry.UniqueInfo info = UniqueLoreRegistry.getOrFallback(optionIds.get(index));
         context.enableScissor(x + 3, y + 3, x + w - 3, y + h - 3);
         context.fill(x + 4, y + 4, x + 17, y + 16, faded(themeColor(), opacity));
         context.drawCenteredTextWithShadow(textRenderer, Text.literal(String.valueOf(index + 1)),
-                x + 10, y + 6, faded(0xFF0B1120, opacity));
+                x + 10, y + 6, faded(KuTheme.INSET, opacity));
         boolean compact = h < 130 || w < 96;
         int iconScale = compact ? 1 : 2;
         context.getMatrices().push();
@@ -203,13 +204,13 @@ public final class SelectionScreen extends Screen {
         context.getMatrices().pop();
         List<CardLine> lines = new ArrayList<>();
         for (OrderedText line : textRenderer.wrapLines(Text.literal(info.name()), Math.max(1, w - 12))) {
-            lines.add(new CardLine(line, 0xFFFFFFFF));
+            lines.add(new CardLine(line, KuTheme.PRIMARY));
         }
         lines.add(new CardLine(Text.literal("[" + info.category() + "]").asOrderedText(), themeColor()));
         String[] effects = SelectionIcons.effectsFor(info.id());
         for (int i = 0; i < effects.length; i++) {
             int color = kind == ContentRegistry.Kind.CURSE
-                    ? (i < SelectionIcons.meritLineCount(info.id()) ? 0xFF86EFAC : 0xFFF87171) : 0xFFCBD5E1;
+                    ? (i < SelectionIcons.meritLineCount(info.id()) ? KuTheme.MERIT : KuTheme.DRAWBACK) : KuTheme.SECONDARY;
             String effect = effects[i].replaceFirst("^_+", "");
             for (OrderedText line : textRenderer.wrapLines(Text.literal(effect), Math.max(1, w - 12))) {
                 lines.add(new CardLine(line, color));
@@ -231,7 +232,7 @@ public final class SelectionScreen extends Screen {
         if (selected) {
             context.fill(x + w / 2 - 7, y - 6, x + w / 2 + 7, y + 6, faded(themeColor(), opacity));
             context.drawCenteredTextWithShadow(textRenderer, Text.literal("✔"),
-                    x + w / 2, y - 4, faded(0xFF0B1120, opacity));
+                    x + w / 2, y - 4, faded(KuTheme.INSET, opacity));
         }
     }
 
@@ -244,19 +245,19 @@ public final class SelectionScreen extends Screen {
             detailIndex = index;
             detailScroll = 0;
         }
-        context.fill(12, top, width - 12, bottom, 0xFF111827);
-        drawBorder(context, 12, top, width - 24, bottom - top, 0xFF334155);
+        context.fill(12, top, width - 12, bottom, KuTheme.PANEL);
+        KuTheme.drawBorder(context, 12, top, width - 24, bottom - top, KuTheme.BORDER);
         int contentBottom = bottom - 15;
         context.enableScissor(18, top + 4, width - 18, contentBottom);
         int y = top + 6 - detailScroll;
         if (index < 0) {
-            y = drawWrapped(context, "カードにカーソルを合わせると詳細が見えます", y, 0xFF94A3B8);
+            y = drawWrapped(context, "カードにカーソルを合わせると詳細が見えます", y, KuTheme.MUTED);
         } else {
             UniqueLoreRegistry.UniqueInfo info = UniqueLoreRegistry.getOrFallback(optionIds.get(index));
             y = drawWrapped(context, info.name() + "  [" + info.category() + "]", y, themeColor());
-            y = drawWrapped(context, "条件: " + info.triggerInfo(), y + 2, 0xFFCBD5E1);
+            y = drawWrapped(context, "条件: " + info.triggerInfo(), y + 2, KuTheme.SECONDARY);
             for (String line : info.descriptionLines()) {
-                y = drawWrapped(context, line, y + 2, line.contains("【代償】") ? 0xFFF87171 : 0xFFE2E8F0);
+                y = drawWrapped(context, line, y + 2, line.contains("【代償】") ? KuTheme.DRAWBACK : KuTheme.BODY);
             }
         }
         detailMaxScroll = Math.max(0, y + detailScroll - contentBottom);
@@ -264,7 +265,7 @@ public final class SelectionScreen extends Screen {
         context.disableScissor();
         if (detailMaxScroll > 0) {
             context.drawCenteredTextWithShadow(textRenderer, Text.literal("詳細はホイールでスクロール"),
-                    width / 2, bottom - 12, 0xFF94A3B8);
+                    width / 2, bottom - 12, KuTheme.MUTED);
         }
     }
 
@@ -303,14 +304,6 @@ public final class SelectionScreen extends Screen {
         lastClickIndex = -1;
         return super.mouseClicked(mouseX, mouseY, button);
     }
-
-    private static void drawBorder(DrawContext context, int x, int y, int w, int h, int color) {
-        context.fill(x, y, x + w, y + 1, color);
-        context.fill(x, y + h - 1, x + w, y + h, color);
-        context.fill(x, y, x + 1, y + h, color);
-        context.fill(x + w - 1, y, x + w, y + h, color);
-    }
-
     @Override
     public boolean shouldPause() {
         return false;

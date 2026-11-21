@@ -1,5 +1,6 @@
 package com.kingdomunique.client;
 
+import com.kingdomunique.client.ui.KuTheme;
 import com.kingdomunique.soldier.SoldierCombatHandler;
 import com.kingdomunique.soldier.SoldierEquipmentScreenHandler;
 import net.fabricmc.api.EnvType;
@@ -34,12 +35,11 @@ public final class SoldierEquipmentScreen extends HandledScreen<SoldierEquipment
 
     @Override
     protected void drawBackground(DrawContext context, float delta, int mouseX, int mouseY) {
-        panel(context, x, y, backgroundWidth, backgroundHeight, 0xFFC6C6C6, false);
-        context.fill(x + 10, y + 22, x + 246, y + 23, 0xFF999999);
-        panel(context, x + 40, y + 30, 58, 82, 0xFF42484A, true);
-        panel(context, x + 132, y + 30, 112, 82, 0xFFB5B5B5, true);
+        KuTheme.drawPanel(context, x, y, backgroundWidth, backgroundHeight, KuTheme.GOLD);
+        KuTheme.drawSlot(context, x + 40, y + 30, 58, 82);
+        KuTheme.drawSlot(context, x + 132, y + 30, 112, 82);
         for (Slot slot : handler.slots) {
-            panel(context, x + slot.x - 1, y + slot.y - 1, 18, 18, 0xFF8B8B8B, true);
+            KuTheme.drawSlot(context, x + slot.x - 1, y + slot.y - 1, 18, 18);
         }
         VillagerEntity soldier = handler.getSoldier();
         if (soldier != null && !soldier.isRemoved()) {
@@ -51,16 +51,16 @@ public final class SoldierEquipmentScreen extends HandledScreen<SoldierEquipment
 
     private void drawInfo(DrawContext context, VillagerEntity soldier) {
         int left = x + 140;
-        context.drawText(textRenderer, "役職：兵士", left, y + 37, 0xFF303030, false);
+        context.drawText(textRenderer, "役職：兵士", left, y + 37, KuTheme.SECONDARY, false);
         float health = soldier.getHealth();
         float maxHealth = soldier.getMaxHealth();
         context.drawText(textRenderer, "HP " + (int) Math.ceil(health) + " / " + (int) Math.ceil(maxHealth),
-                left, y + 51, 0xFF303030, false);
-        context.fill(left, y + 63, left + 96, y + 70, 0xFF454545);
+                left, y + 51, KuTheme.SECONDARY, false);
+        context.fill(left, y + 63, left + 96, y + 70, KuTheme.BORDER);
         int filled = MathHelper.clamp((int) (94 * health / Math.max(1, maxHealth)), 0, 94);
-        context.fill(left + 1, y + 64, left + 1 + filled, y + 69, 0xFF579F45);
+        context.fill(left + 1, y + 64, left + 1 + filled, y + 69, KuTheme.MERIT);
         context.drawText(textRenderer, "攻撃力  " + String.format(Locale.ROOT, "%.1f", attackDamage()),
-                left, y + 79, 0xFF303030, false);
+                left, y + 79, KuTheme.SECONDARY, false);
         double[] armor = {0.0};
         EquipmentSlot[] armorSlots = {EquipmentSlot.HEAD, EquipmentSlot.CHEST, EquipmentSlot.LEGS, EquipmentSlot.FEET};
         for (int i = 0; i < armorSlots.length; i++) {
@@ -71,30 +71,19 @@ public final class SoldierEquipmentScreen extends HandledScreen<SoldierEquipment
             });
         }
         context.drawText(textRenderer, "防御力  " + String.format(Locale.ROOT, "%.1f", armor[0]),
-                left, y + 95, 0xFF303030, false);
+                left, y + 95, KuTheme.SECONDARY, false);
     }
 
     private double attackDamage() {
         return SoldierCombatHandler.calculateWeaponDamage(handler.getSlot(0).getStack());
     }
-
-    private static void panel(DrawContext context, int x, int y, int width, int height, int color, boolean inset) {
-        int light = inset ? 0xFF555555 : 0xFFFFFFFF;
-        int dark = inset ? 0xFFFFFFFF : 0xFF555555;
-        context.fill(x, y, x + width, y + height, color);
-        context.fill(x, y, x + width - 1, y + 1, light);
-        context.fill(x, y, x + 1, y + height - 1, light);
-        context.fill(x + 1, y + height - 1, x + width, y + height, dark);
-        context.fill(x + width - 1, y + 1, x + width, y + height, dark);
-    }
-
     @Override
     protected void drawForeground(DrawContext context, int mouseX, int mouseY) {
-        context.drawText(textRenderer, title, titleX, titleY, 0xFF404040, false);
+        context.drawText(textRenderer, title, titleX, titleY, KuTheme.PRIMARY, false);
         context.drawText(textRenderer, "インベントリ", playerInventoryTitleX, playerInventoryTitleY,
-                0xFF404040, false);
-        context.drawText(textRenderer, "装備", 16, 115, 0xFF404040, false);
-        context.drawText(textRenderer, "武器", 101, 77, 0xFF404040, false);
+                KuTheme.PRIMARY, false);
+        context.drawText(textRenderer, "装備", 16, 115, KuTheme.PRIMARY, false);
+        context.drawText(textRenderer, "武器", 101, 77, KuTheme.PRIMARY, false);
     }
 
     @Override

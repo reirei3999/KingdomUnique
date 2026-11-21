@@ -1,12 +1,13 @@
 package com.kingdomunique.client;
 
+import com.kingdomunique.client.ui.KuTheme;
+import com.kingdomunique.client.ui.KuButton;
 import com.kingdomunique.network.SyncPlayerStatusPayload;
 import com.kingdomunique.registry.ContentRegistry;
 import net.fabricmc.api.EnvType;
 import net.fabricmc.api.Environment;
 import net.minecraft.client.gui.DrawContext;
 import net.minecraft.client.gui.screen.Screen;
-import net.minecraft.client.gui.widget.ButtonWidget;
 import net.minecraft.text.OrderedText;
 import net.minecraft.text.Text;
 
@@ -25,6 +26,20 @@ public final class StatusScreen extends Screen {
     private final int cooldownTicks;
     private final int miningRange;
     private int selectedIndex = 0;
+    private int listOffset;
+
+    private int visibleEntries() {
+        return Math.min(displayIds.size(), Math.max(1, (Math.min(260, height - 24) - 102) / 36));
+    }
+
+    private static int categoryAccent(ContentRegistry.Kind kind) {
+        if (kind == null) return KuTheme.MUTED;
+        return switch (kind) {
+            case ABILITY -> KuTheme.GOLD;
+            case RELIC -> KuTheme.CYAN;
+            case CURSE -> KuTheme.PURPLE;
+        };
+    }
 
     /** キャッシュ済み同期データから開く（Kキー用）。 */
     public StatusScreen() {
@@ -64,47 +79,57 @@ public final class StatusScreen extends Screen {
         int top = (this.height - panelH) / 2;
 
         int listW = 132;
-        int maxButtons = Math.min(displayIds.size(), Math.max(1, (panelH - 56) / 22));
+        int maxButtons = visibleEntries();
+        listOffset = Math.clamp(listOffset, 0, displayIds.size() - maxButtons);
         for (int i = 0; i < maxButtons; i++) {
-            final int idx = i;
-            UniqueLoreRegistry.UniqueInfo info = UniqueLoreRegistry.getOrFallback(displayIds.get(i));
-            String prefix = displayIds.get(i).equals(activeAbilityId) ? "§6★ " : "・";
-            this.addDrawableChild(ButtonWidget.builder(
-                    Text.literal(prefix + info.name()),
+            final int idx = listOffset + i;
+            String id = displayIds.get(idx);
+            UniqueLoreRegistry.UniqueInfo info = UniqueLoreRegistry.getOrFallback(id);
+            Text label = Text.empty();
+            if (!id.isEmpty() && id.equals(activeAbilityId)) {
+                label = Text.literal("★ ").withColor(KuTheme.GOLD);
+            }
+            label = label.copy().append(info.name());
+            this.addDrawableChild(KuButton.themed(
+                    label,
                     btn -> this.selectedIndex = idx)
-                    .dimensions(left + 8, top + 30 + i * 22, listW, 20).build());
+                    .accent(categoryAccent(ContentRegistry.kindOf(id)))
+                    .card(id.isEmpty() ? info.icon() : SelectionIcons.iconFor(id),
+                            Text.literal("[" + info.category() + "]"), () -> selectedIndex == idx)
+                    .dimensions(left + 8, top + 30 + i * 36, listW, 32).build());
         }
 
-        this.addDrawableChild(ButtonWidget.builder(
+        this.addDrawableChild(KuButton.themed(
                 Text.literal("閉じる (K / ESC)"), btn -> this.close())
                 .dimensions(left + panelW - 112, top + panelH - 26, 104, 20).build());
     }
 
     @Override
     public void renderBackground(DrawContext context, int mouseX, int mouseY, float delta) {
-        context.fill(0, 0, this.width, this.height, 0xFF0B0B10);
+        context.fill(0, 0, this.width, this.height, KuTheme.BACKDROP);
+        int w = Math.min(420, width - 24);
+        int h = Math.min(260, height - 24);
+        KuTheme.drawPanel(context, (width - w) / 2, (height - h) / 2, w, h, KuTheme.GOLD);
     }
 
     @Override
     public void render(DrawContext context, int mouseX, int mouseY, float delta) {
-        this.renderBackground(context, mouseX, mouseY, delta);
+        super.render(context, mouseX, mouseY, delta);
 
         int panelW = Math.min(420, this.width - 24);
         int panelH = Math.min(260, this.height - 24);
         int left = (this.width - panelW) / 2;
         int top = (this.height - panelH) / 2;
 
-        context.fill(left, top, left + panelW, top + panelH, 0xE60F172A);
-        drawBorder(context, left, top, panelW, panelH, 0xFFE5B84B);
-
-        context.fill(left + 1, top + 1, left + panelW - 1, top + 24, 0xFF1E293B);
         context.drawTextWithShadow(this.textRenderer,
                 Text.literal("§6§l✦ KingdomUnique 能力詳細 §r§7(保有: "
                         + ContentRegistry.ALL_IDS.size() + "種 / 所持: " + countOwned() + ")"),
-                left + 10, top + 8, 0xFFFFFF);
+                left + 10, top + 8, KuTheme.PRIMARY);
 
         int dividerX = left + 146;
-        context.fill(dividerX, top + 28, dividerX + 1, top + panelH - 8, 0x6094A3B8);
+        context.fill(dividerX, top + 28, dividerX + 1, top + panelH - 8, KuTheme.withAlpha(KuTheme.MUTED, 0x60));
+        drawSummary(context, left + 8, top + 30 + visibleEntries() * 36 + 6,
+                132, panelH - 46 - visibleEntries() * 36);
 
         String selectedId = displayIds.get(Math.min(selectedIndex, displayIds.size() - 1));
         UniqueLoreRegistry.UniqueInfo info = UniqueLoreRegistry.getOrFallback(selectedId);
@@ -115,13 +140,13 @@ public final class StatusScreen extends Screen {
 
         context.drawItem(info.icon(), detailX, detailY);
         context.drawTextWithShadow(this.textRenderer, Text.literal("§e§l" + info.name()),
-                detailX + 22, detailY + 1, 0xFFFFFF);
-        context.drawTextWithShadow(this.textRenderer, Text.literal("§b[" + info.category() + "]"),
-                detailX + 22, detailY + 11, 0xFFFFFF);
+                detailX + 22, detailY + 1, KuTheme.PRIMARY);
+        context.drawTextWithShadow(this.textRenderer, Text.literal("[" + info.category() + "]"),
+                detailX + 22, detailY + 11, categoryAccent(ContentRegistry.kindOf(selectedId)));
 
         detailY += 26;
         context.drawTextWithShadow(this.textRenderer,
-                Text.literal("§7発動・条件: §f" + info.triggerInfo()), detailX, detailY, 0xFFFFFF);
+                Text.literal("§7発動・条件: §f" + info.triggerInfo()), detailX, detailY, KuTheme.PRIMARY);
         detailY += 12;
 
         if (selectedId.equals(activeAbilityId) && !selectedId.isEmpty()) {
@@ -129,11 +154,11 @@ public final class StatusScreen extends Screen {
                     : String.format("§cクールタイム中 (残り %.1f秒)", cooldownTicks / 20.0D);
             String range = miningRange > 1 ? " §7/ §b採掘範囲: " + miningRange + "x" + miningRange : "";
             context.drawTextWithShadow(this.textRenderer, Text.literal("§7状態: " + ct + range),
-                    detailX, detailY, 0xFFFFFF);
+                    detailX, detailY, KuTheme.PRIMARY);
             detailY += 14;
         }
 
-        context.fill(detailX, detailY, detailX + detailW, detailY + 1, 0x40FFFFFF);
+        context.fill(detailX, detailY, detailX + detailW, detailY + 1, KuTheme.withAlpha(KuTheme.PRIMARY, 0x40));
         detailY += 6;
 
         for (String line : info.descriptionLines()) {
@@ -141,13 +166,64 @@ public final class StatusScreen extends Screen {
                 if (detailY > top + panelH - 32) {
                     break;
                 }
-                context.drawTextWithShadow(this.textRenderer, wrapped, detailX, detailY, 0xE2E8F0);
+                context.drawTextWithShadow(this.textRenderer, wrapped, detailX, detailY, KuTheme.BODY);
                 detailY += 11;
             }
             detailY += 2;
         }
+    }
 
-        super.render(context, mouseX, mouseY, delta);
+    private void drawSummary(DrawContext context, int x, int y, int w, int h) {
+        KuTheme.drawSlot(context, x, y, w, h);
+        context.enableScissor(x + 4, y + 4, x + w - 4, y + h - 4);
+        context.drawTextWithShadow(textRenderer, Text.literal("所持ユニーク " + countOwned() + "種"),
+                x + 6, y + 8, KuTheme.PRIMARY);
+        boolean compact = h < 90;
+        int lineY = y + 26;
+        var counts = Text.empty();
+        for (ContentRegistry.Kind kind : ContentRegistry.Kind.values()) {
+            long count = displayIds.stream().filter(id -> ContentRegistry.kindOf(id) == kind).count();
+            Text label = Text.literal(kind.getJapanese() + " " + count).withColor(categoryAccent(kind));
+            if (compact) {
+                counts.append(label).append("  ");
+            } else {
+                context.drawTextWithShadow(textRenderer, label, x + 6, lineY, KuTheme.PRIMARY);
+                lineY += 14;
+            }
+        }
+        if (compact) {
+            context.drawTextWithShadow(textRenderer, counts, x + 6, y + 24, KuTheme.PRIMARY);
+            lineY = y + 36;
+        }
+        Text active = Text.literal("発動中: " + UniqueLoreRegistry.getOrFallback(activeAbilityId).name());
+        context.drawTextWithShadow(textRenderer, KuButton.fitLabel(textRenderer, active, w - 12),
+                x + 6, lineY + 4, KuTheme.SECONDARY);
+        int hintY = lineY + 22;
+        var hints = textRenderer.wrapLines(Text.literal("カードをクリックで詳細 / ホイールで一覧"), w - 12);
+        if (hintY + hints.size() * 11 <= y + h - 6) {
+            for (OrderedText line : hints) {
+                context.drawTextWithShadow(textRenderer, line, x + 6, hintY, KuTheme.MUTED);
+                hintY += 11;
+            }
+        }
+        context.disableScissor();
+    }
+
+    @Override
+    public boolean mouseScrolled(double mouseX, double mouseY, double horizontalAmount, double verticalAmount) {
+        int left = (width - Math.min(420, width - 24)) / 2;
+        int top = (height - Math.min(260, height - 24)) / 2;
+        if (mouseX >= left + 8 && mouseX < left + 140 && mouseY >= top + 30
+                && mouseY < top + 30 + visibleEntries() * 36 && verticalAmount != 0) {
+            int offset = Math.clamp(listOffset + (verticalAmount > 0 ? -1 : 1),
+                    0, displayIds.size() - visibleEntries());
+            if (offset != listOffset) {
+                listOffset = offset;
+                clearAndInit();
+            }
+            return true;
+        }
+        return super.mouseScrolled(mouseX, mouseY, horizontalAmount, verticalAmount);
     }
 
     private int countOwned() {
@@ -173,12 +249,5 @@ public final class StatusScreen extends Screen {
     @Override
     public boolean shouldPause() {
         return false;
-    }
-
-    private static void drawBorder(DrawContext context, int x, int y, int w, int h, int color) {
-        context.fill(x, y, x + w, y + 1, color);
-        context.fill(x, y + h - 1, x + w, y + h, color);
-        context.fill(x, y, x + 1, y + h, color);
-        context.fill(x + w - 1, y, x + w, y + h, color);
     }
 }
