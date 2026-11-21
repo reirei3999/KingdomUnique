@@ -13,12 +13,7 @@ import net.minecraft.text.Text;
 import net.minecraft.world.World;
 
 import java.util.ArrayList;
-import java.util.HashMap;
-import java.util.HashSet;
 import java.util.List;
-import java.util.Map;
-import java.util.Set;
-import java.util.UUID;
 
 /** 抽選・排他ロック・選択GUIのサーバー側管理。 */
 public final class SelectionManager {
@@ -27,23 +22,12 @@ public final class SelectionManager {
     public static final int RELIC_OPTIONS = 3;
     public static final int CURSE_OPTIONS = 5;
 
-    private record Pending(ContentRegistry.Kind kind, List<String> optionIds) {
-    }
-
-    private static final Map<UUID, Pending> PENDING = new HashMap<>();
-    private static final Set<UUID> DIAMOND_DONE = new HashSet<>();
-    private static final Set<UUID> CITIZEN_DONE = new HashSet<>();
-    private static final Set<UUID> NETHER_DONE = new HashSet<>();
-
     private SelectionManager() {
     }
 
     /** トリガーA: ダイヤモンド初取得。 */
     public static void onDiamondObtained(ServerPlayerEntity player) {
-        if (!DIAMOND_DONE.add(player.getUuid())) {
-            return;
-        }
-        openRandom(player, ContentRegistry.Kind.ABILITY, DIAMOND_OPTIONS);
+        openFromTrigger(player, ContentRegistry.Kind.ABILITY, DIAMOND_OPTIONS);
     }
 
     /** トリガーB: 国民15人達成（外部システムから呼ばれる判定用メソッド）。 */
@@ -51,18 +35,18 @@ public final class SelectionManager {
         if (count < 15) {
             return;
         }
-        if (!CITIZEN_DONE.add(player.getUuid())) {
-            return;
-        }
-        openRandom(player, ContentRegistry.Kind.RELIC, RELIC_OPTIONS);
+        openFromTrigger(player, ContentRegistry.Kind.RELIC, RELIC_OPTIONS);
     }
 
     /** トリガーC: ネザー初到達。 */
     public static void onNetherEntered(ServerPlayerEntity player) {
-        if (!NETHER_DONE.add(player.getUuid())) {
-            return;
+        openFromTrigger(player, ContentRegistry.Kind.CURSE, CURSE_OPTIONS);
+    }
+
+    private static void openFromTrigger(ServerPlayerEntity player, ContentRegistry.Kind kind, int count) {
+        if (pendingState(player).recordTrigger(player.getUuid(), kind)) {
+            openRandom(player, kind, count);
         }
-        openRandom(player, ContentRegistry.Kind.CURSE, CURSE_OPTIONS);
     }
 
     /** 未取得プールからランダムに選択肢を抽選し、GUIを開かせる。 */
@@ -74,21 +58,17 @@ public final class SelectionManager {
             return;
         }
         List<String> options = ContentRegistry.randomDistinct(available, count);
-        Pending pending = new Pending(kind, options);
-        PENDING.put(player.getUuid(), pending);
-        // Gemini 修正: 未確定選択を永続化し、再ログイン時に再表示できるようにする。
-        PendingSelectionState.get(player.getServerWorld())
-                .setPending(player.getUuid(), kind, options);
-        sendScreen(player, pending);
+        pendingState(player).setPending(player.getUuid(), kind, options);
+        sendScreen(player, kind, options);
     }
 
     /** 専用コマンド等から未選択分を再表示する。 */
     public static boolean reopen(ServerPlayerEntity player) {
-        Pending pending = PENDING.get(player.getUuid());
+        PendingSelectionState.Pending pending = pendingState(player).getPending(player.getUuid());
         if (pending == null) {
             return false;
         }
-        sendScreen(player, pending);
+        sendScreen(player, pending.kind(), pending.optionIds());
         return true;
     }
 
@@ -109,10 +89,10 @@ public final class SelectionManager {
         return true;
     }
 
-    private static void sendScreen(ServerPlayerEntity player, Pending pending) {
+    private static void sendScreen(ServerPlayerEntity player, ContentRegistry.Kind kind, List<String> options) {
         if (ServerPlayNetworking.canSend(player, OpenSelectionPayload.ID)) {
             ServerPlayNetworking.send(player,
-                    new OpenSelectionPayload(pending.kind(), new ArrayList<>(pending.optionIds())));
+                    new OpenSelectionPayload(kind, new ArrayList<>(options)));
         } else {
             player.sendMessage(Text.literal("§c[KingdomUnique] クライアントが選択GUIに対応していません。"), false);
         }
@@ -120,19 +100,18 @@ public final class SelectionManager {
 
     /** プレイヤーが選択した瞬間にサーバー側で排他ロックする。 */
     public static void handleChoice(ServerPlayerEntity player, ContentRegistry.Kind kind, String chosenId) {
-        Pending pending = PENDING.get(player.getUuid());
+        PendingSelectionState state = pendingState(player);
+        PendingSelectionState.Pending pending = state.getPending(player.getUuid());
         if (pending == null || pending.kind() != kind || !pending.optionIds().contains(chosenId)) {
             return;
         }
         WorldUniqueData data = uniqueData(player);
         if (!data.claimId(player.getUuid(), chosenId)) {
             player.sendMessage(Text.literal("§c[KingdomUnique] このアイテムは他のプレイヤーに取得されました。"), false);
-            PENDING.remove(player.getUuid());
-            PendingSelectionState.get(player.getServerWorld()).clearPending(player.getUuid());
+            state.clearPending(player.getUuid());
             return;
         }
-        PENDING.remove(player.getUuid());
-        PendingSelectionState.get(player.getServerWorld()).clearPending(player.getUuid());
+        state.clearPending(player.getUuid());
 
         // 実体アイテムがある場合のみ安全に付与する（空気は渡さない）。
         com.kingdomunique.util.RewardUtil.grantPhysical(player, chosenId);
@@ -163,8 +142,8 @@ public final class SelectionManager {
         return false;
     }
 
-    public static void remove(ServerPlayerEntity player) {
-        PENDING.remove(player.getUuid());
+    private static PendingSelectionState pendingState(ServerPlayerEntity player) {
+        return PendingSelectionState.get(player.getServerWorld());
     }
 
     private static WorldUniqueData uniqueData(ServerPlayerEntity player) {

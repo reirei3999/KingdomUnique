@@ -11,15 +11,14 @@ import net.minecraft.server.world.ServerWorld;
 import net.minecraft.world.PersistentState;
 
 import java.util.ArrayList;
-import java.util.Collections;
+import java.util.EnumSet;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.UUID;
 
 /**
- * 未確定の選択画面（能力2択/遺物3択/呪物5択）を永続化する（Gemini 提示）。
- * ログアウト中に選択を確定しなくても、再ログイン時に再表示できるようにする。
+ * 未確定の選択と、一度だけの自動抽選をワールドに保存する。
  */
 public final class PendingSelectionState extends PersistentState {
 
@@ -31,6 +30,7 @@ public final class PendingSelectionState extends PersistentState {
 
     /** プレイヤーUUID -> 未確定選択（kind + 選択肢）。 */
     private final Map<UUID, Pending> pendingMap = new HashMap<>();
+    private final Map<UUID, EnumSet<ContentRegistry.Kind>> triggered = new HashMap<>();
 
     public record Pending(ContentRegistry.Kind kind, List<String> optionIds) {
     }
@@ -66,7 +66,15 @@ public final class PendingSelectionState extends PersistentState {
         return pendingMap.get(playerUuid);
     }
 
-    private static PendingSelectionState fromNbt(NbtCompound nbt, RegistryWrapper.WrapperLookup lookup) {
+    public boolean recordTrigger(UUID playerUuid, ContentRegistry.Kind kind) {
+        if (!triggered.computeIfAbsent(playerUuid, ignored -> EnumSet.noneOf(ContentRegistry.Kind.class)).add(kind)) {
+            return false;
+        }
+        markDirty();
+        return true;
+    }
+
+    static PendingSelectionState fromNbt(NbtCompound nbt, RegistryWrapper.WrapperLookup lookup) {
         PendingSelectionState state = new PendingSelectionState();
         NbtCompound players = nbt.getCompound("players");
         for (String key : players.getKeys()) {
@@ -83,6 +91,24 @@ public final class PendingSelectionState extends PersistentState {
                 }
                 if (!options.isEmpty()) {
                     state.pendingMap.put(uuid, new Pending(kind, options));
+                }
+            } catch (IllegalArgumentException ignored) {
+                // 壊れたUUIDは無視。
+            }
+        }
+        NbtCompound triggers = nbt.getCompound("triggered");
+        for (String key : triggers.getKeys()) {
+            try {
+                UUID uuid = UUID.fromString(key);
+                NbtCompound entry = triggers.getCompound(key);
+                EnumSet<ContentRegistry.Kind> kinds = EnumSet.noneOf(ContentRegistry.Kind.class);
+                for (ContentRegistry.Kind kind : ContentRegistry.Kind.values()) {
+                    if (entry.getBoolean(kind.name())) {
+                        kinds.add(kind);
+                    }
+                }
+                if (!kinds.isEmpty()) {
+                    state.triggered.put(uuid, kinds);
                 }
             } catch (IllegalArgumentException ignored) {
                 // 壊れたUUIDは無視。
@@ -105,6 +131,13 @@ public final class PendingSelectionState extends PersistentState {
             players.put(entry.getKey().toString(), e);
         }
         nbt.put("players", players);
+        NbtCompound triggers = new NbtCompound();
+        triggered.forEach((uuid, kinds) -> {
+            NbtCompound entry = new NbtCompound();
+            kinds.forEach(kind -> entry.putBoolean(kind.name(), true));
+            triggers.put(uuid.toString(), entry);
+        });
+        nbt.put("triggered", triggers);
         return nbt;
     }
 }
