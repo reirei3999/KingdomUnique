@@ -6,7 +6,9 @@ import com.kingdomunique.building.BuildData;
 import com.kingdomunique.building.KingdomBuildingState;
 import com.kingdomunique.building.StructureRotationUtil;
 import com.kingdomunique.data.WorldUniqueData;
+import com.kingdomunique.kingdom.PopulationManager;
 import com.kingdomunique.network.BuildingBoxesSyncPayload;
+import com.kingdomunique.network.KingdomPopulationSyncPayload;
 import com.kingdomunique.network.RequestStatusPayload;
 import com.kingdomunique.network.SyncPlayerStatusPayload;
 import com.kingdomunique.registry.UniqueContentRegistry;
@@ -64,7 +66,7 @@ public final class StatusManager {
         for (ServerPlayerEntity player : server.getPlayerManager().getPlayerList()) {
             sendStatus(player, false);
         }
-        // 建築物の占有範囲は1秒ごとに同期（設計図プレビューの赤枠判定用）。
+        // 建築物の占有範囲・王国人口は1秒ごとに同期（プレビュー判定とHUD表示用）。
         if (tick % 20L == 0L) {
             ServerWorld overworld = server.getWorld(World.OVERWORLD);
             if (overworld != null) {
@@ -73,9 +75,28 @@ public final class StatusManager {
                     if (ServerPlayNetworking.canSend(player, BuildingBoxesSyncPayload.ID)) {
                         ServerPlayNetworking.send(player, payload);
                     }
+                    syncPopulationToPlayer(player, overworld);
                 }
             }
         }
+    }
+
+    /** 王国の現在人口・上限をクライアントへ同期する。 */
+    public static void syncPopulationToPlayer(ServerPlayerEntity player, ServerWorld world) {
+        if (!ServerPlayNetworking.canSend(player, KingdomPopulationSyncPayload.ID)) {
+            return;
+        }
+        java.util.UUID kingId = player.getUuid();
+        net.minecraft.util.math.BlockPos center = player.getBlockPos();
+        for (KingdomBuildingState.CompletedBuilding b : KingdomBuildingState.get(world).entries()) {
+            if (b.ownerUuid.equals(kingId) && b.type == com.kingdomunique.building.BuildingType.TOWN_HALL) {
+                center = b.origin;
+                break;
+            }
+        }
+        int current = PopulationManager.countLivingCitizens(world, kingId, center);
+        int max = PopulationManager.calculateMaxPopulation(world, kingId);
+        ServerPlayNetworking.send(player, new KingdomPopulationSyncPayload(current, max));
     }
 
     /** 建築開始・完了時に即座に占有範囲を同期する（10tick待ちを不要にする）。 */

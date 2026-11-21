@@ -27,6 +27,7 @@ public class KingdomUniqueClientMod implements ClientModInitializer {
         // ステータス確認画面（/ku info・Kキー）と統合HUD。
         com.kingdomunique.client.StatusClient.initialize();
         com.kingdomunique.client.KingdomUnifiedHud.register();
+        com.kingdomunique.client.KingdomUnifiedHud.registerPopulationReceiver();
 
         // 英雄NPCのレンダラーを登録する（Bipedモデル＋防具/手持ち描画）。
         EntityRendererRegistry.register(ModEntities.HERO, HeroEntityRenderer::new);

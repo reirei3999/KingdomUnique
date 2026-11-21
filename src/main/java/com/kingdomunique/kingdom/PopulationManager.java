@@ -147,6 +147,9 @@ public final class PopulationManager {
         // 15人到達時の遺物選択は setPopulation 側の onTick でも発火するが、
         // 実際の国民数と同期するためここでも最新値を設定する。
         KingdomManager.setPopulation(king, newPop);
+        // 誕生した瞬間にHUDへ即時反映（Gemini 提示）。
+        net.fabricmc.fabric.api.networking.v1.ServerPlayNetworking.send(king,
+                new com.kingdomunique.network.KingdomPopulationSyncPayload(newPop, maxPop));
     }
 
     /** 国民・兵士が死亡したときの人口減少と訃報を通知する。 */
@@ -177,6 +180,9 @@ public final class PopulationManager {
             String role = CitizenVillager.ROLE_SOLDIER.equals(citizen.ku$getRole()) ? "王国兵士" : "国民";
             king.sendMessage(Text.literal("§c[訃報] " + role + "が死亡しました…（残り人口: "
                     + remaining + "/" + maxPop + "）"), false);
+            // 死亡した瞬間にHUDへ即時反映（Gemini 提示）。
+            net.fabricmc.fabric.api.networking.v1.ServerPlayNetworking.send(king,
+                    new com.kingdomunique.network.KingdomPopulationSyncPayload(remaining, maxPop));
         }
     }
 

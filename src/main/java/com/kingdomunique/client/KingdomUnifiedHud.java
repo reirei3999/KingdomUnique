@@ -7,6 +7,7 @@ import com.kingdomunique.registry.AbilityDescriptions;
 import com.kingdomunique.registry.ContentRegistry;
 import net.fabricmc.api.EnvType;
 import net.fabricmc.api.Environment;
+import net.fabricmc.fabric.api.client.networking.v1.ClientPlayNetworking;
 import net.fabricmc.fabric.api.client.rendering.v1.HudRenderCallback;
 import net.minecraft.client.MinecraftClient;
 import net.minecraft.client.font.TextRenderer;
@@ -30,11 +31,24 @@ import java.util.List;
 @Environment(EnvType.CLIENT)
 public final class KingdomUnifiedHud {
 
+    private static int cachedCurrentPop = 0;
+    private static int cachedMaxPop = 10;
+
     private KingdomUnifiedHud() {
     }
 
     public static void register() {
         HudRenderCallback.EVENT.register(KingdomUnifiedHud::render);
+    }
+
+    /** 王国人口の同期を受信してHUD表示用キャッシュを更新する。 */
+    public static void registerPopulationReceiver() {
+        ClientPlayNetworking.registerGlobalReceiver(
+                com.kingdomunique.network.KingdomPopulationSyncPayload.ID,
+                (payload, context) -> context.client().execute(() -> {
+                    cachedCurrentPop = payload.currentPopulation();
+                    cachedMaxPop = payload.maxPopulation();
+                }));
     }
 
     private static void render(DrawContext context, RenderTickCounter tickCounter) {
@@ -61,7 +75,14 @@ public final class KingdomUnifiedHud {
                 ? "未覚醒" : ContentRegistry.nameOf(abilityId);
         int range = status.miningRange();
         String rangeLabel = range > 1 ? " §b[" + range + "x" + range + "]" : "";
-        String text = "§6✦ §f" + name + rangeLabel + " §7| 保有:" + status.ownedIds().size();
+
+        // 人口の色分け（Gemini 提示）：満員=赤 / 80%以上=黄 / 余裕あり=緑。
+        String popColor = cachedCurrentPop >= cachedMaxPop ? "§c"
+                : (cachedMaxPop > 0 && cachedCurrentPop >= cachedMaxPop * 0.8) ? "§e" : "§a";
+        String popLabel = " §7| 国民: " + popColor + cachedCurrentPop + "§7/" + cachedMaxPop;
+
+        String text = "§6✦ §f" + name + rangeLabel + " §7| 保有:"
+                + status.ownedIds().size() + popLabel;
 
         int width = tr.getWidth(text) + 12;
         context.fill(x, y, x + width, y + 16, 0x9010141E);
