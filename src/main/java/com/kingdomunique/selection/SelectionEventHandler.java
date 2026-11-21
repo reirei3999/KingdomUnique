@@ -178,6 +178,10 @@ public final class SelectionEventHandler {
 
         if (CurseEffects.has(player, CurseRegistry.CONTRACT)
                 && entity instanceof net.minecraft.entity.passive.VillagerEntity) {
+            if (entity instanceof com.kingdomunique.entity.CitizenVillager citizen
+                    && player.getUuidAsString().equals(citizen.ku$getOwnerUuid())) {
+                return;
+            }
             float curse = Math.max(player.getHealth(), player.getMaxHealth()) / 2.0F;
             player.damage(player.getDamageSources().magic(), curse);
             player.sendMessage(Text.literal("§5[背徳の契約書] 国民の死が呪いとなって襲いました。"), false);

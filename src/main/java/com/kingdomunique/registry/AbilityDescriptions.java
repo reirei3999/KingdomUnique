@@ -159,7 +159,8 @@ public final class AbilityDescriptions {
             };
             case "immoral_contract" -> new String[]{
                     "・国民化のコストが0になる",
-                    "・国民が死ぬたびに呪いダメージを受ける"
+                    "・自身の国民が原因を問わず死亡すると呪いダメージ（ログイン中・別次元も対象）",
+                    "・国民以外の村人を自ら倒した場合も呪いダメージ"
             };
             case "void_lantern" -> new String[]{
                     "・暗所では透明化＋攻撃力2倍",
