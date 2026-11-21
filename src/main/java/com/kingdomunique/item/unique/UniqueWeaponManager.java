@@ -145,7 +145,7 @@ public final class UniqueWeaponManager {
             if (!world.isChunkLoaded((site.x() + 2) >> 4, (site.z() + 2) >> 4)) {
                 continue;
             }
-            removeFromVillageChests(world, id);
+            removeFromChestColumn(world, site, id);
             data.releaseId(WORLD_OWNER, id);
         }
     }
@@ -154,17 +154,21 @@ public final class UniqueWeaponManager {
     public static void removeFromVillageChests(ServerWorld world, String id) {
         WorldUniqueData data = WorldUniqueData.getOrCreate(world);
         for (WorldUniqueData.VillageSite site : data.getVillageSites()) {
-            BlockPos.Mutable pos = new BlockPos.Mutable(site.x() + 2, 0, site.z() + 2);
-            for (int y = world.getBottomY(); y < world.getTopY(); y++) {
-                pos.setY(y);
-                if (!(world.getBlockEntity(pos) instanceof net.minecraft.inventory.Inventory inventory)) {
-                    continue;
-                }
-                for (int slot = 0; slot < inventory.size(); slot++) {
-                    if (id.equals(inventory.getStack(slot).get(ModDataComponents.UNIQUE_WEAPON_ID))) {
-                        inventory.setStack(slot, ItemStack.EMPTY);
-                        inventory.markDirty();
-                    }
+            removeFromChestColumn(world, site, id);
+        }
+    }
+
+    private static void removeFromChestColumn(ServerWorld world, WorldUniqueData.VillageSite site, String id) {
+        BlockPos.Mutable pos = new BlockPos.Mutable(site.x() + 2, 0, site.z() + 2);
+        for (int y = world.getBottomY(); y < world.getTopY(); y++) {
+            pos.setY(y);
+            if (!(world.getBlockEntity(pos) instanceof net.minecraft.inventory.Inventory inventory)) {
+                continue;
+            }
+            for (int slot = 0; slot < inventory.size(); slot++) {
+                if (id.equals(inventory.getStack(slot).get(ModDataComponents.UNIQUE_WEAPON_ID))) {
+                    inventory.setStack(slot, ItemStack.EMPTY);
+                    inventory.markDirty();
                 }
             }
         }
