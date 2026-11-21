@@ -1,6 +1,7 @@
 package com.kingdomunique.war;
 
 import com.kingdomunique.entity.CitizenVillager;
+import com.kingdomunique.ability.AlliedMobManager;
 import com.kingdomunique.entity.HeroEntity;
 import net.minecraft.entity.Entity;
 import net.minecraft.entity.LivingEntity;
@@ -46,7 +47,7 @@ public final class Warfare {
         if (entity instanceof TameableEntity tameable && tameable.getOwnerUuid() != null) {
             return tameable.getOwnerUuid();
         }
-        return null;
+        return AlliedMobManager.getOwnerUuid(entity);
     }
 
     /** 同じ王国または同盟なら友好（攻撃対象にしない）。 */
