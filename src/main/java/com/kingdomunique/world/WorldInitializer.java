@@ -2,6 +2,7 @@ package com.kingdomunique.world;
 
 import com.kingdomunique.KingdomUniqueMod;
 import com.kingdomunique.data.WorldUniqueData;
+import com.kingdomunique.item.unique.UniqueWeaponManager;
 import net.fabricmc.fabric.api.event.lifecycle.v1.ServerTickEvents;
 import net.minecraft.server.world.ServerWorld;
 import net.minecraft.util.math.BlockPos;
@@ -87,6 +88,9 @@ public final class WorldInitializer {
             tryBuildVillage(world, entry, 256);
             break;
         }
+        if (world.getTime() % 20L == 0L) {
+            UniqueWeaponManager.distributeToVillages(world);
+        }
     }
 
     /** 周辺9x9チャンクが読み込まれているか（村の端が途切れないように）。 */
@@ -135,6 +139,7 @@ public final class WorldInitializer {
         unique.setVillageSites(unique.getVillageSites().stream()
                 .map(site -> site.x() == plannedX && site.z() == plannedZ
                         ? new WorldUniqueData.VillageSite(entry.x, entry.z) : site).toList());
+        UniqueWeaponManager.distributeToVillages(world);
         KingdomUniqueMod.LOGGER.info(
                 "[KingdomUnique] Generated deferred village: planned ({}, {}) [{}], actual ({}, {}) [{}], {} buildings.",
                 plannedX, plannedZ, plannedBiome, entry.x, entry.z,
