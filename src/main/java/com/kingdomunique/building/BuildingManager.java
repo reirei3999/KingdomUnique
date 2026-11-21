@@ -142,12 +142,20 @@ public final class BuildingManager {
                 // 建築士を現場へ向かわせ、到着するまで進行させない。
                 net.minecraft.entity.passive.VillagerEntity builder =
                         guideBuilder(world, site, owner);
-                if (builder == null || !hasBuilderNearby(world, site.pos(), owner)) {
+                int workers = countBuildersNearby(world, site.pos(), owner);
+                if (builder == null || workers == 0) {
                     continue;
                 }
 
+                // Gemini 修正: 現場の建築士人数に応じて建築速度を加速（1人につき+1 tick/時）。
+                int progressPerTick = 1 + (workers - 1);
+                // 到着済み建築士に作業モーションを periodic に見せる。
+                if (world.getTime() % 20L == 0L) {
+                    playBuilderWorkAnimation(world, site, owner);
+                }
+
                 int required = (int) Math.max(20L, site.type().getBaseBuildTicks() * timeMultiplier(owner));
-                int progress = site.progress() + 1;
+                int progress = site.progress() + progressPerTick;
                 if (progress % 20 == 0) {
                     world.spawnParticles(ParticleTypes.HAPPY_VILLAGER,
                             site.pos().getX() + 0.5, site.pos().getY() + 1.0, site.pos().getZ() + 0.5,
@@ -276,7 +284,9 @@ public final class BuildingManager {
         return (int) Math.max(20L, site.type().getBaseBuildTicks() * multiplier);
     }
 
-    private static boolean hasBuilderNearby(ServerWorld world, BlockPos pos, ServerPlayerEntity owner) {
+    /** 現場周辺（半径5マス）にいる自国の建築士数を数える（Gemini 提示の速度ボーナス用）。 */
+    private static int countBuildersNearby(ServerWorld world, BlockPos pos, ServerPlayerEntity owner) {
+        int count = 0;
         for (net.minecraft.entity.passive.VillagerEntity villager : world.getEntitiesByClass(
                 net.minecraft.entity.passive.VillagerEntity.class,
                 new net.minecraft.util.math.Box(pos).expand(5.0D),
@@ -284,9 +294,28 @@ public final class BuildingManager {
             CitizenVillager citizen = (CitizenVillager) villager;
             if (owner.getUuid().toString().equals(citizen.ku$getOwnerUuid())
                     && CitizenVillager.ROLE_BUILDER.equals(citizen.ku$getRole())) {
-                return true;
+                count++;
             }
         }
-        return false;
+        return count;
+    }
+
+    /** 到着済み建築士に作業モーションとパーティクルを Periodic に再生する（Gemini 提示）。 */
+    private static void playBuilderWorkAnimation(ServerWorld world, BuildData.BuildSite site,
+                                                 ServerPlayerEntity owner) {
+        for (net.minecraft.entity.passive.VillagerEntity villager : world.getEntitiesByClass(
+                net.minecraft.entity.passive.VillagerEntity.class,
+                new net.minecraft.util.math.Box(site.pos()).expand(5.0D),
+                v -> v.isAlive() && v instanceof CitizenVillager)) {
+            CitizenVillager citizen = (CitizenVillager) villager;
+            if (!owner.getUuid().toString().equals(citizen.ku$getOwnerUuid())
+                    || !CitizenVillager.ROLE_BUILDER.equals(citizen.ku$getRole())) {
+                continue;
+            }
+            villager.swingHand(net.minecraft.util.Hand.MAIN_HAND);
+            world.spawnParticles(net.minecraft.particle.ParticleTypes.HAPPY_VILLAGER,
+                    villager.getX(), villager.getBodyY(0.8D), villager.getZ(),
+                    2, 0.3D, 0.3D, 0.3D, 0.0D);
+        }
     }
 }
