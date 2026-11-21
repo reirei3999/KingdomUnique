@@ -14,6 +14,7 @@ import net.minecraft.text.OrderedText;
 import net.minecraft.text.Text;
 import org.lwjgl.glfw.GLFW;
 
+import java.util.ArrayList;
 import java.util.List;
 
 @Environment(EnvType.CLIENT)
@@ -63,11 +64,11 @@ public final class SelectionScreen extends Screen {
 
     private Layout layout() {
         int available = Math.max(1, width - 24);
-        int columns = Math.max(1, available / 100);
+        int columns = Math.max(1, (available + 8) / 88);
         int rows = optionIds.size() > columns ? 2 : 1;
         columns = Math.min(optionIds.size(), Math.max(columns, (optionIds.size() + rows - 1) / rows));
         int cardWidth = Math.max(1, Math.min(120, (available - (columns - 1) * 8) / columns));
-        int cardHeight = Math.max(32, Math.min(145, (height - 144) / rows - 8));
+        int cardHeight = Math.max(32, Math.min(145, (height - 118) / rows - 8));
         return new Layout(columns, cardWidth, cardHeight, 44 + rows * (cardHeight + 8));
     }
 
@@ -192,42 +193,49 @@ public final class SelectionScreen extends Screen {
         context.fill(x + 4, y + 4, x + 17, y + 16, faded(themeColor(), opacity));
         context.drawCenteredTextWithShadow(textRenderer, Text.literal(String.valueOf(index + 1)),
                 x + 10, y + 6, faded(0xFF0B1120, opacity));
-        if (h >= 64) {
-            context.getMatrices().push();
-            context.getMatrices().translate(x + (w - 32) / 2.0F, y + (h >= 100 ? 18 : 6), 0);
-            context.getMatrices().scale(2, 2, 1);
-            context.drawItem(info.icon(), 0, 0);
-            context.getMatrices().pop();
-        }
-        int lineY = y + (h >= 100 ? 55 : h >= 64 ? 41 : 19);
+        boolean compact = h < 130 || w < 96;
+        int iconScale = compact ? 1 : 2;
+        context.getMatrices().push();
+        context.getMatrices().translate(compact ? x + w - 23 : x + (w - 32) / 2.0F,
+                y + (compact ? 5 : 18), 0);
+        context.getMatrices().scale(iconScale, iconScale, 1);
+        context.drawItem(info.icon(), 0, 0);
+        context.getMatrices().pop();
+        List<CardLine> lines = new ArrayList<>();
         for (OrderedText line : textRenderer.wrapLines(Text.literal(info.name()), Math.max(1, w - 12))) {
-            if (lineY > y + h - 13) break;
-            context.drawTextWithShadow(textRenderer, line, x + (w - textRenderer.getWidth(line)) / 2,
-                    lineY, faded(0xFFFFFFFF, opacity));
-            lineY += 10;
+            lines.add(new CardLine(line, 0xFFFFFFFF));
         }
-        context.drawCenteredTextWithShadow(textRenderer, Text.literal("[" + info.category() + "]"),
-                x + w / 2, lineY + 2, faded(themeColor(), opacity));
-        lineY += 17;
+        lines.add(new CardLine(Text.literal("[" + info.category() + "]").asOrderedText(), themeColor()));
         String[] effects = SelectionIcons.effectsFor(info.id());
         for (int i = 0; i < effects.length; i++) {
             int color = kind == ContentRegistry.Kind.CURSE
                     ? (i < SelectionIcons.meritLineCount(info.id()) ? 0xFF86EFAC : 0xFFF87171) : 0xFFCBD5E1;
             String effect = effects[i].replaceFirst("^_+", "");
             for (OrderedText line : textRenderer.wrapLines(Text.literal(effect), Math.max(1, w - 12))) {
-                if (lineY > y + h - (selected ? 23 : 13)) break;
-                context.drawTextWithShadow(textRenderer, line, x + (w - textRenderer.getWidth(line)) / 2,
-                        lineY, faded(color, opacity));
-                lineY += 10;
+                lines.add(new CardLine(line, color));
             }
         }
-        if (selected) {
-            context.fill(x + 3, y + h - 16, x + w - 3, y + h - 3, faded(themeColor(), opacity));
-            context.drawCenteredTextWithShadow(textRenderer, Text.literal("選択中"),
-                    x + w / 2, y + h - 13, faded(0xFF0B1120, opacity));
+        int textTop = compact ? 25 : 55;
+        float textScale = Math.min(1, Math.max(1, h - textTop - 5) / (lines.size() * 10.0F));
+        context.getMatrices().push();
+        context.getMatrices().translate(x + w / 2.0F, y + textTop, 0);
+        context.getMatrices().scale(textScale, textScale, 1);
+        int lineY = 0;
+        for (CardLine line : lines) {
+            context.drawTextWithShadow(textRenderer, line.text(), -textRenderer.getWidth(line.text()) / 2,
+                    lineY, faded(line.color(), opacity));
+            lineY += 10;
         }
+        context.getMatrices().pop();
         context.disableScissor();
+        if (selected) {
+            context.fill(x + w / 2 - 7, y - 6, x + w / 2 + 7, y + 6, faded(themeColor(), opacity));
+            context.drawCenteredTextWithShadow(textRenderer, Text.literal("✔"),
+                    x + w / 2, y - 4, faded(0xFF0B1120, opacity));
+        }
     }
+
+    private record CardLine(OrderedText text, int color) {}
 
     private void drawDetails(DrawContext context, int top, int index) {
         int bottom = height - 34;
