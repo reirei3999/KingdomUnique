@@ -36,7 +36,7 @@ public final class BlueprintBlock extends Block implements BlockEntityProvider {
 
     @Override
     public BlockEntity createBlockEntity(BlockPos pos, BlockState state) {
-        return new BlueprintBlockEntity(pos, state, type);
+        return new BlueprintBlockEntity(pos, state);
     }
 
     /** どんな状態でも一瞬で壊せる。 */
@@ -78,12 +78,13 @@ public final class BlueprintBlock extends Block implements BlockEntityProvider {
         ItemStack held = stack.copy();
         if (be.insert(held, multiplier)) {
             int inserted = stack.getCount() - held.getCount();
+            Text name = stack.getName();
             stack.setCount(held.getCount());
-            serverPlayer.sendMessage(Text.literal("§6[設計図] " + stack.getName().getString()
+            serverPlayer.sendMessage(Text.literal("§6[設計図] " + name.getString()
                     + " を " + inserted + " 個投入しました。"), true);
             // 必要資材が全て揃った瞬間に自動で建築を開始する。
             if (be.hasAllMaterials(type, multiplier)) {
-                startBuilding(world, pos, be, serverPlayer);
+                startBuilding((ServerWorld) world, pos, be, serverPlayer, multiplier);
             }
         } else {
             serverPlayer.sendMessage(Text.literal("§c[設計図] この資材は不要、または必要数を超えています。"), false);
@@ -130,11 +131,11 @@ public final class BlueprintBlock extends Block implements BlockEntityProvider {
                 ItemStack fill = new ItemStack(entry.getKey(), needed - have);
                 be.insert(fill, multiplier);
                 serverPlayer.sendMessage(Text.literal("§6[設計図] [Creator] "
-                        + entry.getKey().getName().getString() + " を " + needed + " 個投入しました。"), false);
+                        + entry.getKey().getName().getString() + " を " + (needed - have) + " 個投入しました。"), false);
                 break;
             }
             if (be.hasAllMaterials(type, multiplier)) {
-                startBuilding(world, pos, be, serverPlayer);
+                startBuilding((ServerWorld) world, pos, be, serverPlayer, multiplier);
             }
             return ActionResult.SUCCESS;
         }
@@ -144,32 +145,30 @@ public final class BlueprintBlock extends Block implements BlockEntityProvider {
             serverPlayer.sendMessage(Text.literal("§c[設計図] 資材が不足しています。"), false);
             return ActionResult.SUCCESS;
         }
-        startBuilding(world, pos, be, serverPlayer);
+        startBuilding((ServerWorld) world, pos, be, serverPlayer, multiplier);
         return ActionResult.SUCCESS;
     }
 
     /** 資材を消費して建築サイトを「建築中」へ遷移させる。 */
-    private void startBuilding(World world, BlockPos pos, BlueprintBlockEntity be,
-                               ServerPlayerEntity serverPlayer) {
-        // Gemini 修正: 上限・前提・重複・高度・破壊不能ブロックを事前検証する。
-        net.minecraft.util.math.Direction facing = serverPlayer.getHorizontalFacing().getOpposite();
-        Optional<Text> error = BuildingValidator.validate(serverPlayer, type, pos, facing);
+    private void startBuilding(ServerWorld world, BlockPos pos, BlueprintBlockEntity be,
+                               ServerPlayerEntity serverPlayer, double multiplier) {
+        BuildData data = BuildData.getOrCreate(world);
+        BuildData.BuildSite site = data.sites().stream()
+                .filter(candidate -> candidate.pos().equals(pos))
+                .findFirst().orElse(null);
+        if (site == null || site.ready()) {
+            return;
+        }
+        Optional<Text> error = BuildingValidator.validate(world, site);
         if (error.isPresent()) {
             serverPlayer.sendMessage(error.get(), false);
             return;
         }
-        double multiplier = BuildingManager.costMultiplier(serverPlayer);
         be.consume(type, multiplier);
         be.setReady(true);
 
-        BuildData data = BuildData.getOrCreate((ServerWorld) world);
-        for (BuildData.BuildSite candidate : new java.util.ArrayList<>(data.sites())) {
-            if (candidate.pos().equals(pos)) {
-                data.sites().remove(candidate);
-                data.add(candidate.withReady(true));
-                break;
-            }
-        }
+        data.remove(site);
+        data.add(site.withReady(true));
         serverPlayer.sendMessage(Text.literal("§6[設計図] 資材が揃いました。建築士が作業を開始します。"), false);
     }
 
@@ -188,7 +187,7 @@ public final class BlueprintBlock extends Block implements BlockEntityProvider {
             BuildData data = BuildData.getOrCreate((ServerWorld) world);
             for (BuildData.BuildSite site : new java.util.ArrayList<>(data.sites())) {
                 if (site.pos().equals(pos)) {
-                    data.sites().remove(site);
+                    data.remove(site);
                     break;
                 }
             }

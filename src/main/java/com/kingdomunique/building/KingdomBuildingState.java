@@ -61,7 +61,7 @@ public final class KingdomBuildingState extends PersistentState {
         int count = (int) completedBuildings.stream()
                 .filter(b -> b.ownerUuid.equals(owner) && b.type == type).count();
         for (BuildData.BuildSite site : BuildData.getOrCreate(world).sites()) {
-            if (site.owner().equals(owner) && site.type() == type) {
+            if (site.ready() && site.owner().equals(owner) && site.type() == type) {
                 count++;
             }
         }
