@@ -104,7 +104,8 @@ public final class StarterSpawn {
         }
 
         world.getChunk(center.getX() >> 4, center.getZ() >> 4);
-        VillageBuilder.generateStarterVillage(world, center.getX(), center.getZ(), player.getUuid());
+        var starterBuildings = VillageBuilder.generateStarterVillage(world, center.getX(), center.getZ(),
+                player.getUuid());
         com.kingdomunique.kingdom.KingdomManager.setPopulation(player, 6);
 
         BlockPos spawn = findVillageSpawn(world, center);
@@ -121,6 +122,7 @@ public final class StarterSpawn {
                 info.population(), info.populationCap(), info.houses(),
                 info.heroSummoned(), info.heroSummonCount(), true, info.territoryRadius(),
                 true, info.kingdomName()));
+        VillageBuilder.registerStarterBuildings(world, player, starterBuildings, spawn);
         player.sendMessage(Text.literal("§6[KingdomUnique] 王国の村が完成した。村の中心に到着した。"), false);
         if (info.kingdomName() == null || info.kingdomName().isEmpty()) {
             askKingdomName(player);
@@ -150,7 +152,8 @@ public final class StarterSpawn {
         world.getChunk(villageCenter.getX() >> 4, villageCenter.getZ() >> 4);
 
         // まず村を生成し、その中（井戸の周囲）で安全な立ち位置を探す。
-        VillageBuilder.generateStarterVillage(world, villageCenter.getX(), villageCenter.getZ(), player.getUuid());
+        var starterBuildings = VillageBuilder.generateStarterVillage(world, villageCenter.getX(),
+                villageCenter.getZ(), player.getUuid());
         com.kingdomunique.kingdom.KingdomManager.setPopulation(player, 6);
         BlockPos spawn = findVillageSpawn(world, villageCenter);
         if (spawn == null) {
@@ -169,6 +172,7 @@ public final class StarterSpawn {
         KingdomData.getOrCreate(world).put(player.getUuid(),
                 new KingdomData.KingdomInfo(spawn.getX(), spawn.getZ(), 0, 10, 0, false, 0,
                         true, 100, true, ""));
+        VillageBuilder.registerStarterBuildings(world, player, starterBuildings, spawn);
 
         player.sendMessage(Text.literal("§6[KingdomUnique] この地があなたの王国となった。"
                 + "村の中心に到着した。村人6人が出迎える。"), false);
