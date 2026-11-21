@@ -75,6 +75,25 @@ public final class AbilityCleanupGameTest {
     }
 
     @GameTest(templateName = FabricGameTest.EMPTY_STRUCTURE)
+    public void revivedHeldMobHasGravity(TestContext context) throws Exception {
+        var owner = player(context);
+        var dead = hold(context, owner);
+        dead.kill();
+        context.assertTrue(dead.hasNoGravity(), "Dead held mob must still carry NoGravity before cleanup");
+        context.assertTrue(AlliedMobManager.tryRevive(dead, owner, context.getWorld()), "Held mob must revive");
+        var allies = context.getWorld().getEntitiesByClass(ZombieEntity.class, dead.getBoundingBox().expand(1),
+                AlliedMobManager::isAlly);
+        context.assertTrue(allies.size() == 1, "One allied copy must exist");
+        var revived = allies.getFirst();
+        context.assertFalse(revived.hasNoGravity(), "Revived copy must spawn with gravity on");
+        tick(owner);
+        context.assertFalse(revived.hasNoGravity(), "Original target cleanup must not suspend the copy");
+        AlliedMobManager.forgetOwner(owner.getUuid());
+        AbilityState.remove(owner.getUuid());
+        context.complete();
+    }
+
+    @GameTest(templateName = FabricGameTest.EMPTY_STRUCTURE)
     public void disconnectRestoresGravity(TestContext context) throws Exception {
         var player = player(context);
         var target = hold(context, player);

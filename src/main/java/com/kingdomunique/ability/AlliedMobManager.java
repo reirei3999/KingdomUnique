@@ -73,6 +73,7 @@ public final class AlliedMobManager {
         }
 
         mob.setHealth(Math.max(1.0F, mob.getMaxHealth() * 0.5F));
+        mob.setNoGravity(false);
         if (world.spawnEntity(mob)) {
             ally(mob, owner);
             return true;
