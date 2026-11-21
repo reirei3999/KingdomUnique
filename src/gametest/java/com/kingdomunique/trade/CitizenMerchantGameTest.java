@@ -14,6 +14,36 @@ import java.util.Optional;
 
 public final class CitizenMerchantGameTest {
     @GameTest(templateName = FabricGameTest.EMPTY_STRUCTURE)
+    public void staticTradeOffersRespectBuildingRequirements(TestContext context) {
+        var base = KingdomTradeRegistry.buildOffers("builder", type -> false);
+        var unlocked = KingdomTradeRegistry.buildOffers("builder",
+                type -> type == com.kingdomunique.building.BuildingType.TOWN_HALL);
+        context.assertEquals(base.size(), 8, "Builder base offers must not require a world");
+        context.assertEquals(unlocked.size(), 14, "Town hall should unlock six builder offers");
+        var smith = KingdomTradeRegistry.buildOffers("smith", type -> true);
+        context.assertEquals(smith.size(), 10, "Smith should include materials and market exchanges");
+        context.complete();
+    }
+
+    @GameTest(templateName = FabricGameTest.EMPTY_STRUCTURE)
+    public void unknownCitizenRoleUsesBasicOffers(TestContext context) {
+        var offers = KingdomTradeRegistry.buildOffers("unknown", type -> false);
+        context.assertEquals(offers.size(), 1, "Unknown roles should receive basic offers");
+        context.assertTrue(offers.getFirst().getSellItem().isOf(Items.TORCH), "Basic offer should sell torches");
+        context.complete();
+    }
+
+    @GameTest(templateName = FabricGameTest.EMPTY_STRUCTURE)
+    public void registeredModItemsHaveNoAnvilEnhancementExamples(TestContext context) {
+        net.minecraft.registry.Registries.ITEM.getIds().stream()
+                .filter(id -> id.getNamespace().equals("kingdomunique"))
+                .forEach(id -> context.assertFalse(com.kingdomunique.util.EnhancementUtil.isEnhanceable(
+                        new ItemStack(net.minecraft.registry.Registries.ITEM.get(id))),
+                        "Mod item unexpectedly supports enhancement: " + id));
+        context.complete();
+    }
+
+    @GameTest(templateName = FabricGameTest.EMPTY_STRUCTURE)
     public void selectingAnOfferFillsBothInputsAndTakingResultConsumesStock(TestContext context) {
         var player = context.createMockPlayer(GameMode.SURVIVAL);
         player.getInventory().setStack(0, new ItemStack(Items.WHEAT, 4));
