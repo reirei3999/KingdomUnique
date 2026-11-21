@@ -88,10 +88,12 @@ public abstract class AnvilScreenHandlerMixin implements EnhancementUtil.AnvilTr
             return;
         }
         // 結果スロットと取り出し中のスタックを確定結果で上書きする。
-        ItemStack finalResult = enhancement.stack();
-        accessor.ku$output().setStack(0, finalResult.copy());
-        output.applyComponentsFrom(finalResult.getComponents());
-        output.setCount(finalResult.getCount());
+        if (kingdomUnique$transferResult == null) {
+            ItemStack finalResult = enhancement.stack();
+            accessor.ku$output().setStack(0, finalResult.copy());
+            output.applyComponentsFrom(finalResult.getComponents());
+            output.setCount(finalResult.getCount());
+        }
 
         com.kingdomunique.item.unique.UniqueWeaponTriggers.onEnhanced(serverPlayer, enhancement.newLevel());
     }
