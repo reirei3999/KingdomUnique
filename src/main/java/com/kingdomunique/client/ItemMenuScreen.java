@@ -1,5 +1,6 @@
 package com.kingdomunique.client;
 
+import com.kingdomunique.client.ui.KuTheme;
 import com.kingdomunique.item.ItemCatalog;
 import com.kingdomunique.network.RequestItemPayload;
 import net.fabricmc.api.EnvType;
@@ -33,7 +34,7 @@ public final class ItemMenuScreen extends Screen {
         int startX = (this.width - totalWidth) / 2;
 
         int totalHeight = rows * (BUTTON_HEIGHT + GAP);
-        int startY = 34;
+        int startY = panelTop() + 40;
         int maxStartY = this.height - totalHeight - 28;
         if (maxStartY < startY) {
             startY = Math.max(2, maxStartY);
@@ -57,18 +58,28 @@ public final class ItemMenuScreen extends Screen {
 
     @Override
     public void render(DrawContext context, int mouseX, int mouseY, float delta) {
-        this.renderBackground(context, mouseX, mouseY, delta);
-        context.fill(0, 0, this.width, this.height, 0x99000000);
+        super.render(context, mouseX, mouseY, delta);
         // テキストは等倍・整数座標で描画する。
         context.getMatrices().push();
         context.getMatrices().scale(1.0F, 1.0F, 1.0F);
-        context.drawCenteredTextWithShadow(this.textRenderer, this.title,
-                (int) (this.width / 2), (int) 14, 0xFFFFD700);
+        KuTheme.drawTitle(context, textRenderer, title, width / 2, panelTop() + 8);
         context.drawCenteredTextWithShadow(this.textRenderer,
                 Text.literal("クリックでアイテムを入手（ユニーク武器は世界で一つだけ）"),
-                (int) (this.width / 2), (int) 27, 0xFFAAAAAA);
+                (int) (this.width / 2), panelTop() + 26, KuTheme.MUTED);
         context.getMatrices().pop();
-        super.render(context, mouseX, mouseY, delta);
+    }
+
+    private int panelTop() {
+        int columns = Math.max(3, Math.min(5, width / 100));
+        int rows = (ItemCatalog.entries().size() + columns - 1) / columns;
+        return Math.max(8, (height - rows * (BUTTON_HEIGHT + GAP) - 74) / 2);
+    }
+
+    @Override
+    public void renderBackground(DrawContext context, int mouseX, int mouseY, float delta) {
+        context.fill(0, 0, width, height, KuTheme.BACKDROP);
+        int top = panelTop();
+        KuTheme.drawPanel(context, 6, top, width - 12, height - top * 2, KuTheme.GOLD);
     }
 
     @Override

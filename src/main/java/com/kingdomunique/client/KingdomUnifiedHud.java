@@ -1,5 +1,6 @@
 package com.kingdomunique.client;
 
+import com.kingdomunique.client.ui.KuTheme;
 import com.kingdomunique.building.BlueprintBlock;
 import com.kingdomunique.building.BuildingType;
 import com.kingdomunique.network.SyncPlayerStatusPayload;
@@ -89,22 +90,22 @@ public final class KingdomUnifiedHud {
                 + status.ownedIds().size() + popLabel;
 
         int width = tr.getWidth(text) + 12;
-        context.fill(x, y, x + width, y + 16, 0x9010141E);
-        context.fill(x, y, x + 2, y + 16, 0xFFE5B84B);
-        context.drawTextWithShadow(tr, Text.literal(text), x + 6, y + 3, 0xFFFFFF);
+        context.fill(x, y, x + width, y + 16, KuTheme.withAlpha(KuTheme.CARD, 0x90));
+        context.fill(x, y, x + 2, y + 16, KuTheme.GOLD);
+        context.drawTextWithShadow(tr, Text.literal(text), x + 6, y + 3, KuTheme.PRIMARY);
 
         // Gemini 修正: 2段目に国庫在庫（エメラルド／パン）をアイコン付きで表示。
         int subY = y + 18;
         int subWidth = 96;
-        context.fill(x, subY, x + subWidth, subY + 16, 0x9010141E);
-        context.fill(x, subY, x + 2, subY + 16, 0xFF38BDF8);
-        context.drawTextWithShadow(tr, Text.literal("§7国庫:"), x + 6, subY + 4, 0xFFFFFF);
+        context.fill(x, subY, x + subWidth, subY + 16, KuTheme.withAlpha(KuTheme.CARD, 0x90));
+        context.fill(x, subY, x + 2, subY + 16, KuTheme.CYAN);
+        context.drawTextWithShadow(tr, Text.literal("§7国庫:"), x + 6, subY + 4, KuTheme.PRIMARY);
         context.drawItem(new ItemStack(net.minecraft.item.Items.EMERALD), x + 34, subY);
-        context.drawTextWithShadow(tr, Text.literal("§a" + cachedTreasuryEmeralds), x + 51, subY + 4, 0xFFFFFF);
+        context.drawTextWithShadow(tr, Text.literal("§a" + cachedTreasuryEmeralds), x + 51, subY + 4, KuTheme.PRIMARY);
         int breadX = x + 51 + tr.getWidth(String.valueOf(cachedTreasuryEmeralds)) + 6;
         context.drawItem(new ItemStack(net.minecraft.item.Items.BREAD), breadX, subY);
         context.drawTextWithShadow(tr, Text.literal("§e" + cachedTreasuryBread),
-                breadX + 17, subY + 4, 0xFFFFFF);
+                breadX + 17, subY + 4, KuTheme.PRIMARY);
     }
 
     /** ② ホットバー右隣: 能力アイコン＋CTゲージ（使用可能時は金色枠）。 */
@@ -121,10 +122,10 @@ public final class KingdomUnifiedHud {
         int slotX = sw / 2 + 98;
         int slotY = sh - 22;
         int size = 22;
-        int border = ready ? 0xFFE5B84B : 0xFF4A5568;
+        int border = ready ? KuTheme.GOLD : KuTheme.BORDER;
 
-        context.fill(slotX, slotY, slotX + size, slotY + size, 0xB00D1117);
-        drawBorder(context, slotX, slotY, size, size, border);
+        context.fill(slotX, slotY, slotX + size, slotY + size, KuTheme.withAlpha(KuTheme.INSET, 0xB0));
+        KuTheme.drawBorder(context, slotX, slotY, size, size, border);
 
         ItemStack icon = SelectionIcons.iconFor(abilityId);
         if (!icon.isEmpty()) {
@@ -134,13 +135,13 @@ public final class KingdomUnifiedHud {
         if (maxCt > 0 && ct > 0) {
             float ratio = Math.min(1.0f, (float) ct / maxCt);
             int maskHeight = (int) ((size - 2) * ratio);
-            context.fill(slotX + 1, slotY + 1, slotX + size - 1, slotY + 1 + maskHeight, 0xA0000000);
+            context.fill(slotX + 1, slotY + 1, slotX + size - 1, slotY + 1 + maskHeight, KuTheme.withAlpha(KuTheme.BACKDROP, 0xA0));
             int barWidth = (int) ((size - 2) * (1.0f - ratio));
-            context.fill(slotX + 1, slotY + size - 3, slotX + 1 + barWidth, slotY + size - 1, 0xFF38BDF8);
+            context.fill(slotX + 1, slotY + size - 3, slotX + 1 + barWidth, slotY + size - 1, KuTheme.CYAN);
             String seconds = AbilityDescriptions.formatSeconds(ct);
             int textWidth = tr.getWidth(seconds);
             context.drawTextWithShadow(tr, Text.literal(seconds),
-                    slotX + (size - textWidth) / 2, slotY + 7, 0xFFFFFF);
+                    slotX + (size - textWidth) / 2, slotY + 7, KuTheme.PRIMARY);
         }
 
         // [R] キーバッジを小さく表示。
@@ -148,14 +149,14 @@ public final class KingdomUnifiedHud {
         context.getMatrices().scale(0.75f, 0.75f, 1.0f);
         int badgeX = (int) ((slotX + size - 8) / 0.75f);
         int badgeY = (int) ((slotY - 3) / 0.75f);
-        context.drawTextWithShadow(tr, Text.literal("§e[R]"), badgeX, badgeY, 0xFFFFFF);
+        context.drawTextWithShadow(tr, Text.literal("§e[R]"), badgeX, badgeY, KuTheme.PRIMARY);
         context.getMatrices().pop();
 
         if (maxCt <= 0) {
-            // パッシブ能力は操作ヒントをスロット下に小さく出す。
+            // パッシブ能力は操作ヒントをスロット上に小さく出す。
             String hint = AbilityDescriptions.controlHint(abilityId);
             context.drawTextWithShadow(tr, Text.literal("§7" + hint),
-                    slotX - Math.max(0, tr.getWidth(hint) - size) / 2, slotY + size + 2, 0xAAAAAA);
+                    slotX - Math.max(0, tr.getWidth(hint) - size) / 2, slotY - 12, KuTheme.MUTED);
         }
     }
 
@@ -195,13 +196,13 @@ public final class KingdomUnifiedHud {
         int topY = screenHeight - 8 - panelHeight;
         int x = 8;
 
-        context.fill(x, topY, x + panelWidth, topY + panelHeight, 0xA8111827);
-        drawBorder(context, x, topY, panelWidth, panelHeight, 0xFF3B82F6);
-        context.drawTextWithShadow(tr, Text.literal(title), x + 6, topY + 4, 0xFFFFFF);
+        context.fill(x, topY, x + panelWidth, topY + panelHeight, KuTheme.withAlpha(KuTheme.PANEL, 0xA8));
+        KuTheme.drawBorder(context, x, topY, panelWidth, panelHeight, KuTheme.CYAN);
+        context.drawTextWithShadow(tr, Text.literal(title), x + 6, topY + 4, KuTheme.PRIMARY);
 
         int y = topY + headerHeight;
         for (String line : lines) {
-            int color = 0xFFFFFFFF;
+            int color = KuTheme.PRIMARY;
             if (line.matches(".*\\s\\d+/\\d+.*")) {
                 String[] parts = line.split("\\s+");
                 String last = parts[parts.length - 1];
@@ -210,7 +211,7 @@ public final class KingdomUnifiedHud {
                     try {
                         int have = Integer.parseInt(nums[0].replaceAll("[^0-9]", ""));
                         int need = Integer.parseInt(nums[1].replaceAll("[^0-9]", ""));
-                        color = have >= need ? 0xFF55FF55 : 0xFFFF6666;
+                        color = have >= need ? KuTheme.MERIT : KuTheme.DRAWBACK;
                     } catch (NumberFormatException ignored) {
                         // 数値解析できない行は既定色。
                     }
@@ -220,14 +221,6 @@ public final class KingdomUnifiedHud {
             y += rowHeight;
         }
     }
-
-    private static void drawBorder(DrawContext context, int x, int y, int w, int h, int color) {
-        context.fill(x, y, x + w, y + 1, color);
-        context.fill(x, y + h - 1, x + w, y + h, color);
-        context.fill(x, y, x + 1, y + h, color);
-        context.fill(x + w - 1, y, x + w, y + h, color);
-    }
-
     private static int countItem(ClientPlayerEntity player, Item target) {
         int total = 0;
         for (int i = 0; i < player.getInventory().size(); i++) {

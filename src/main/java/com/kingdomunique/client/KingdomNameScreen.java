@@ -1,5 +1,6 @@
 package com.kingdomunique.client;
 
+import com.kingdomunique.client.ui.KuTheme;
 import com.kingdomunique.network.SetKingdomNamePayload;
 import net.fabricmc.api.EnvType;
 import net.fabricmc.api.Environment;
@@ -56,15 +57,20 @@ public final class KingdomNameScreen extends Screen {
 
     @Override
     public void render(DrawContext context, int mouseX, int mouseY, float delta) {
-        this.renderBackground(context, mouseX, mouseY, delta);
+        super.render(context, mouseX, mouseY, delta);
         int cx = this.width / 2;
         int cy = this.height / 2;
-        context.drawCenteredTextWithShadow(this.textRenderer, this.title,
-                cx, cy - 60, 0xFFFFD700);
+        KuTheme.drawTitle(context, textRenderer, title, cx, cy - 60);
         context.drawCenteredTextWithShadow(this.textRenderer,
                 Text.literal("この王国の名前を入力してください（名札に表示されます）"),
-                cx, cy - 44, 0xFFFFFFFF);
-        super.render(context, mouseX, mouseY, delta);
+                cx, cy - 44, KuTheme.PRIMARY);
+    }
+
+    @Override
+    public void renderBackground(DrawContext context, int mouseX, int mouseY, float delta) {
+        context.fill(0, 0, width, height, KuTheme.BACKDROP);
+        int w = Math.min(400, width - 24);
+        KuTheme.drawPanel(context, (width - w) / 2, height / 2 - 70, w, 120, KuTheme.GOLD);
     }
 
     @Override
