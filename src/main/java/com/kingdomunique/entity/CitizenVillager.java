@@ -1,5 +1,7 @@
 package com.kingdomunique.entity;
 
+import net.minecraft.item.ItemStack;
+
 /** 村人に国民情報を付与するためのインターフェース（VillagerEntity に Mixin で実装）。 */
 public interface CitizenVillager {
 
@@ -16,4 +18,9 @@ public interface CitizenVillager {
     String ku$getOwnerUuid();
 
     void ku$setOwnerUuid(String uuid);
+
+    /** 兵士の武器をバニラAIから守るためのロック保存（Gemini 提示）。 */
+    void ku$setLockedWeapon(ItemStack stack);
+
+    ItemStack ku$getLockedWeapon();
 }

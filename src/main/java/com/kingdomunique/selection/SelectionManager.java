@@ -28,6 +28,7 @@ public final class SelectionManager {
     private static final String TRIGGER_DIAMOND = "diamond";
     private static final String TRIGGER_CITIZEN = "citizen";
     private static final String TRIGGER_NETHER = "nether";
+    static final int MANUAL_SELECTION_PERMISSION_LEVEL = 2;
 
     private SelectionManager() {
     }
@@ -53,7 +54,9 @@ public final class SelectionManager {
 
     private static void trigger(ServerPlayerEntity player, String trigger, ContentRegistry.Kind kind,
                                 boolean alreadyGranted) {
-        if (!uniqueData(player).markSelectionTrigger(player.getUuid(), trigger) || alreadyGranted) {
+        boolean fresh = uniqueData(player).markSelectionTrigger(player.getUuid(), trigger);
+        boolean recorded = pendingState(player).recordTrigger(player.getUuid(), kind);
+        if (!fresh || !recorded || alreadyGranted) {
             return;
         }
         PendingSelectionState state = pendingState(player);
@@ -113,12 +116,11 @@ public final class SelectionManager {
      * ユニークを独占できないようにするため。
      */
     public static boolean reopenOrOpen(ServerPlayerEntity player, ContentRegistry.Kind kind) {
+        if (!player.hasPermissionLevel(MANUAL_SELECTION_PERMISSION_LEVEL)) {
+            return false;
+        }
         if (reopen(player)) {
             return true;
-        }
-        if (!player.hasPermissionLevel(2)) {
-            player.sendMessage(Text.literal("§7[KingdomUnique] 未確定の選択はありません。"), false);
-            return false;
         }
         openRandom(player, kind, optionCount(kind));
         return true;

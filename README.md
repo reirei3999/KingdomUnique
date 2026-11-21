@@ -105,7 +105,7 @@ gradlew build
 ## ステップ4の内容
 
 - **排他データの拡張**: `WorldUniqueData` を「UUID -> 取得ID集合」に変更し、1プレイヤーが能力＋遺物＋呪物を保持できるように。選択確定時に即 `claimId()` で世界ロック。
-- **選択GUI**: `OpenSelectionPayload`(S2C) で選択肢を渡し、`SelectionScreen`（`Screen` + ボタン）を表示。クリック時に `SelectionChoicePayload`(C2S) を送り、サーバーが排他取得。`/ku select` で未選択分を再表示。
+- **選択GUI**: `OpenSelectionPayload`(S2C) で選択肢を渡し、`SelectionScreen`（`Screen` + ボタン）を表示。クリック時に `SelectionChoicePayload`(C2S) を送り、サーバーが排他取得。未選択分は再ログイン時に再表示。`/ku select` と各カテゴリの手動選択コマンドはOP権限レベル2以上のみ使用可能。
 - **トリガー**: ダイヤモンド初取得（能力2択）、`onCitizenCountReached(player, 15)`（遺物3択）、ネザー初到達（呪物5択）。
 - **遺物9種 / 呪物9種**: 属性補正・Tick処理・死亡イベント・専用アイテム（殺戮の宝剣／破壊衝動のツルハシ）として実装。
 - **倍率メソッド**: `RelicEffects.getBuildTimeMultiplier()` / `getPopulationGrowthMultiplier()` などを用意し、将来の建国システムから利用可能。

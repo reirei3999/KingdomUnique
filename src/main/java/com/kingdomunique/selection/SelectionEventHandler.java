@@ -7,6 +7,7 @@ import com.kingdomunique.network.SelectionChoicePayload;
 import com.kingdomunique.registry.ContentRegistry;
 import com.kingdomunique.registry.CurseRegistry;
 import com.kingdomunique.registry.RelicRegistry;
+import com.mojang.brigadier.builder.LiteralArgumentBuilder;
 import net.fabricmc.fabric.api.entity.event.v1.ServerLivingEntityEvents;
 import net.fabricmc.fabric.api.event.lifecycle.v1.ServerTickEvents;
 import net.fabricmc.fabric.api.networking.v1.ServerPlayConnectionEvents;
@@ -19,6 +20,7 @@ import net.minecraft.entity.mob.HostileEntity;
 import net.minecraft.item.ItemStack;
 import net.minecraft.server.MinecraftServer;
 import net.minecraft.server.command.CommandManager;
+import net.minecraft.server.command.ServerCommandSource;
 import net.minecraft.server.network.ServerPlayerEntity;
 import net.minecraft.server.world.ServerWorld;
 import net.minecraft.text.Text;
@@ -39,49 +41,15 @@ public final class SelectionEventHandler {
     }
 
     /** /ku に選択・外交サブコマンドを追加する（ModCommands から1度だけ呼ばれる）。 */
-    public static void registerCommands(
-            com.mojang.brigadier.builder.LiteralArgumentBuilder<net.minecraft.server.command.ServerCommandSource> ku) {
+    public static void registerCommands(LiteralArgumentBuilder<ServerCommandSource> ku) {
         ku
-                    .then(CommandManager.literal("select")
-                            .executes(context -> {
-                                ServerPlayerEntity player = context.getSource().getPlayer();
-                                if (player == null) {
-                                    return 0;
-                                }
-                                return SelectionManager.reopenOrOpen(player,
-                                        ContentRegistry.Kind.ABILITY) ? 1 : 0;
-                            })
-                            .then(CommandManager.literal("ability").executes(context -> {
-                                ServerPlayerEntity player = context.getSource().getPlayer();
-                                return player != null && SelectionManager.reopenOrOpen(player,
-                                        ContentRegistry.Kind.ABILITY) ? 1 : 0;
-                            }))
-                            .then(CommandManager.literal("relic").executes(context -> {
-                                ServerPlayerEntity player = context.getSource().getPlayer();
-                                return player != null && SelectionManager.reopenOrOpen(player,
-                                        ContentRegistry.Kind.RELIC) ? 1 : 0;
-                            }))
-                            .then(CommandManager.literal("curse").executes(context -> {
-                                ServerPlayerEntity player = context.getSource().getPlayer();
-                                return player != null && SelectionManager.reopenOrOpen(player,
-                                        ContentRegistry.Kind.CURSE) ? 1 : 0;
-                            })))
-                    // ショートカット: /ku relic, /ku ability, /ku curse
-                    .then(CommandManager.literal("relic").executes(context -> {
-                        ServerPlayerEntity player = context.getSource().getPlayer();
-                        return player != null && SelectionManager.reopenOrOpen(player,
-                                ContentRegistry.Kind.RELIC) ? 1 : 0;
-                    }))
-                    .then(CommandManager.literal("ability").executes(context -> {
-                        ServerPlayerEntity player = context.getSource().getPlayer();
-                        return player != null && SelectionManager.reopenOrOpen(player,
-                                ContentRegistry.Kind.ABILITY) ? 1 : 0;
-                    }))
-                    .then(CommandManager.literal("curse").executes(context -> {
-                        ServerPlayerEntity player = context.getSource().getPlayer();
-                        return player != null && SelectionManager.reopenOrOpen(player,
-                                ContentRegistry.Kind.CURSE) ? 1 : 0;
-                    }))
+                    .then(manualSelection("select", ContentRegistry.Kind.ABILITY)
+                            .then(manualSelection("ability", ContentRegistry.Kind.ABILITY))
+                            .then(manualSelection("relic", ContentRegistry.Kind.RELIC))
+                            .then(manualSelection("curse", ContentRegistry.Kind.CURSE)))
+                    .then(manualSelection("ability", ContentRegistry.Kind.ABILITY))
+                    .then(manualSelection("relic", ContentRegistry.Kind.RELIC))
+                    .then(manualSelection("curse", ContentRegistry.Kind.CURSE))
                     .then(CommandManager.literal("ally")
                             .then(CommandManager.argument("target",
                                     net.minecraft.command.argument.EntityArgumentType.player())
@@ -110,16 +78,26 @@ public final class SelectionEventHandler {
                                     })));
     }
 
+    private static LiteralArgumentBuilder<ServerCommandSource> manualSelection(String name, ContentRegistry.Kind kind) {
+        return CommandManager.literal(name)
+                .requires(source -> source.hasPermissionLevel(SelectionManager.MANUAL_SELECTION_PERMISSION_LEVEL))
+                .executes(context -> {
+                    ServerPlayerEntity player = context.getSource().getPlayer();
+                    return player != null && SelectionManager.reopenOrOpen(player, kind) ? 1 : 0;
+                });
+    }
+
     public static void register() {
         ServerTickEvents.END_SERVER_TICK.register(SelectionEventHandler::onTick);
-        ServerPlayConnectionEvents.DISCONNECT.register((handler, server) ->
-                GLUTTONY_UNTIL.remove(handler.getPlayer().getUuid()));
+        ServerPlayConnectionEvents.DISCONNECT.register((handler, server) -> {
+            GLUTTONY_UNTIL.remove(handler.getPlayer().getUuid());
+        });
 
         ServerPlayNetworking.registerGlobalReceiver(SelectionChoicePayload.ID, (payload, context) -> {
             ServerPlayerEntity player = context.player();
             SelectionManager.handleChoice(player, payload.kind(), payload.chosenId());
         });
-        // Iキーのメニューおよび専用キーから選択画面を開く要求を受け取る。
+        // 手動選択の権限はコマンドと同じ。
         ServerPlayNetworking.registerGlobalReceiver(
                 com.kingdomunique.network.RequestSelectionPayload.ID, (payload, context) ->
                         SelectionManager.reopenOrOpen(context.player(), payload.kind()));

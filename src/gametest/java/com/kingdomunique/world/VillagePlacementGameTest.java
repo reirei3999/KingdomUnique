@@ -1,14 +1,64 @@
 package com.kingdomunique.world;
 
+import com.kingdomunique.building.BuildingType;
+import com.kingdomunique.building.KingdomBuildingState;
+import com.kingdomunique.building.StructureRotationUtil;
+import com.kingdomunique.kingdom.KingdomData;
+import com.kingdomunique.kingdom.KingdomManager;
+import com.mojang.authlib.GameProfile;
+import it.unimi.dsi.fastutil.longs.LongOpenHashSet;
 import net.fabricmc.fabric.api.gametest.v1.FabricGameTest;
 import net.minecraft.block.Block;
 import net.minecraft.block.Blocks;
+import net.minecraft.network.packet.c2s.common.SyncedClientOptions;
+import net.minecraft.server.network.ServerPlayerEntity;
 import net.minecraft.server.world.ServerWorld;
+import net.minecraft.text.Text;
+import net.minecraft.util.math.BlockBox;
 import net.minecraft.test.GameTest;
 import net.minecraft.test.TestContext;
 import net.minecraft.util.math.BlockPos;
+import net.minecraft.util.math.ChunkPos;
+
+import java.util.List;
+import java.util.UUID;
 
 public final class VillagePlacementGameTest {
+    @GameTest(templateName = FabricGameTest.EMPTY_STRUCTURE, batchId = "starter_village")
+    public void registeringKingdomVillageForceLoadsItsChunks(TestContext context) {
+        ServerWorld world = context.getWorld();
+        BlockPos spawn = context.getAbsolutePos(new BlockPos(527, 0, 527));
+        ChunkPos farCorner = new ChunkPos(spawn.add(104, 0, 104));
+        context.assertTrue(world.getChunkManager().getWorldChunk(farCorner.x, farCorner.z) == null,
+                "The village's far corner must start unloaded");
+        UUID owner = UUID.randomUUID();
+        KingdomData data = new KingdomData();
+        var before = new LongOpenHashSet(world.getForcedChunks());
+        var expected = new LongOpenHashSet(before);
+        for (int x = (spawn.getX() - 104) >> 4; x <= (spawn.getX() + 104) >> 4; x++) {
+            for (int z = (spawn.getZ() - 104) >> 4; z <= (spawn.getZ() + 104) >> 4; z++) {
+                expected.add(ChunkPos.toLong(x, z));
+            }
+        }
+        try {
+            StarterSpawn.registerVillage(world, data, owner, new KingdomData.KingdomInfo(
+                    spawn.getX(), spawn.getZ(), 0, 10, 0, false, 0, true, 100, true, ""));
+
+            context.assertTrue(data.get(owner).villageGenerated(), "The kingdom village must be recorded");
+            context.assertTrue(world.getForcedChunks().equals(expected),
+                    "All chunks out to the starter village's outer generation bounds must be forced");
+            context.assertTrue(world.getChunkManager().getWorldChunk(farCorner.x, farCorner.z) == null,
+                    "Registering forced chunks must not load them synchronously");
+        } finally {
+            var added = new LongOpenHashSet(world.getForcedChunks());
+            added.removeAll(before);
+            for (long pos : added) {
+                world.setChunkForced(ChunkPos.getPackedX(pos), ChunkPos.getPackedZ(pos), false);
+            }
+        }
+        context.complete();
+    }
+
     @GameTest(templateName = FabricGameTest.EMPTY_STRUCTURE)
     public void starterHallUsesTerraceInsteadOfBuriedCenterHeight(TestContext context) {
         ServerWorld world = context.getWorld();
@@ -38,5 +88,60 @@ public final class VillagePlacementGameTest {
                         && world.getBlockState(expected.down(2)).isAir(),
                 "Generation must retain the slope and not build a raised foundation under the hall");
         context.complete();
+    }
+
+    @GameTest(templateName = FabricGameTest.EMPTY_STRUCTURE, batchId = "starter_village_buildings")
+    public void starterVillageBuildingsCountAsKingdomBuildings(TestContext context) {
+        ServerWorld world = context.getWorld();
+        BlockPos center = context.getAbsolutePos(new BlockPos(40, 95, 40));
+        for (int x = -32; x <= 32; x++) {
+            for (int z = -40; z <= 32; z++) {
+                world.setBlockState(center.add(x, 0, z), Blocks.STONE.getDefaultState(), Block.NOTIFY_LISTENERS);
+            }
+        }
+        UUID uuid = UUID.randomUUID();
+        ServerPlayerEntity player = new ServerPlayerEntity(world.getServer(), world,
+                new GameProfile(uuid, "village_test"), SyncedClientOptions.createDefault()) {
+            @Override
+            public void sendMessage(Text message, boolean overlay) {
+            }
+        };
+        KingdomData.getOrCreate(world.getServer().getOverworld()).put(uuid, new KingdomData.KingdomInfo(
+                center.getX(), center.getZ(), 0, 10, 0, false, 0, true, 100, true, ""));
+
+        List<VillageBuilder.StarterBuilding> buildings =
+                VillageBuilder.generateStarterVillage(world, center.getX(), center.getZ(), uuid);
+        long houses = buildings.stream().filter(b -> b.type() == BuildingType.HOUSE).count();
+        context.assertTrue(buildings.stream().anyMatch(b -> b.type() == BuildingType.TOWN_HALL),
+                "The starter village must contain the town hall");
+        context.assertTrue(houses == 3, "The starter village must build three blueprint houses, got " + houses);
+        context.assertTrue(buildings.stream().anyMatch(b -> b.type() == BuildingType.BLACKSMITH),
+                "The starter village must build the blueprint blacksmith");
+        for (int a = 0; a < buildings.size(); a++) {
+            BlockBox first = box(buildings.get(a));
+            for (int b = a + 1; b < buildings.size(); b++) {
+                BlockBox second = box(buildings.get(b));
+                context.assertFalse(first.intersectsXZ(second.getMinX(), second.getMinZ(),
+                        second.getMaxX(), second.getMaxZ()), "Starter buildings must not overlap");
+            }
+        }
+
+        VillageBuilder.registerStarterBuildings(world, player, buildings, center);
+        VillageBuilder.registerStarterBuildings(world, player, buildings, center);
+        KingdomBuildingState state = KingdomBuildingState.get(world);
+        context.assertTrue(state.hasCompletedBuilding(uuid, BuildingType.TOWN_HALL),
+                "The starter town hall must satisfy the palace prerequisite");
+        context.assertTrue(state.entries().stream()
+                        .filter(b -> b.ownerUuid.equals(uuid) && b.type == BuildingType.HOUSE).count() == houses,
+                "Every starter house must be registered once");
+        int cap = KingdomManager.getOrCreate(player).populationCap();
+        context.assertTrue(cap == 10, "Starter houses must not raise the population cap, got " + cap);
+        int max = com.kingdomunique.kingdom.PopulationManager.calculateMaxPopulation(world, uuid);
+        context.assertTrue(max == 10, "Starter houses must not count toward the growth cap, got " + max);
+        context.complete();
+    }
+
+    private static BlockBox box(VillageBuilder.StarterBuilding building) {
+        return StructureRotationUtil.computeBoundingBox(building.origin(), building.type(), building.facing());
     }
 }

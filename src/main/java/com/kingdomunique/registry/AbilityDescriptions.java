@@ -103,7 +103,7 @@ public final class AbilityDescriptions {
             // ---- 遺物（レリック） ----
             case "chalice_of_abundance" -> new String[]{
                     "・王国内のNPC回復量が2倍",
-                    "・空腹ゲージの減少を無効化"
+                    "・空腹のステータス効果を解除（満腹度は通常通り減少）"
             };
             case "banner_of_victory" -> new String[]{
                     "・自国兵士NPCの攻撃力1.2倍",

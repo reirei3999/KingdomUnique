@@ -14,17 +14,13 @@ import org.spongepowered.asm.mixin.injection.callback.CallbackInfo;
 @Mixin(BowItem.class)
 public abstract class BowShotMixin {
 
-    @Inject(method = "onStoppedUsing", at = @At("HEAD"))
+    @Inject(method = "onStoppedUsing", at = @At(value = "INVOKE", shift = At.Shift.AFTER,
+            target = "Lnet/minecraft/item/BowItem;shootAll(Lnet/minecraft/server/world/ServerWorld;"
+                    + "Lnet/minecraft/entity/LivingEntity;Lnet/minecraft/util/Hand;"
+                    + "Lnet/minecraft/item/ItemStack;Ljava/util/List;FFZLnet/minecraft/entity/LivingEntity;)V"))
     private void kingdomUnique$onBowShot(ItemStack stack, World world, LivingEntity user,
                                           int remainingUseTicks, CallbackInfo ci) {
-        if (world.isClient() || !(user instanceof ServerPlayerEntity player)) {
-            return;
-        }
-        // remainingUseTicks は「使用上限(72000)からの残り」なので 0 にはならない。
-        // バニラと同じく、引き絞り 0.1 以上かつ矢を持っている（またはクリエイティブ）ときだけ「放った」とみなす。
-        int usedTicks = ((BowItem) (Object) this).getMaxUseTime(stack, user) - remainingUseTicks;
-        boolean hasArrow = player.isCreative() || !player.getProjectileType(stack).isEmpty();
-        if (BowItem.getPullProgress(usedTicks) >= 0.1F && hasArrow) {
+        if (user instanceof ServerPlayerEntity player) {
             com.kingdomunique.item.unique.UniqueWeaponTriggers.onBowShot(player);
         }
     }

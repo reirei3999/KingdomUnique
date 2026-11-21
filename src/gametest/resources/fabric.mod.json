@@ -11,12 +11,20 @@
       "com.kingdomunique.item.unique.ApolloBowGameTest",
       "com.kingdomunique.kingdom.HeroGameTest",
       "com.kingdomunique.selection.SelectionGameTest",
+      "com.kingdomunique.building.StructureFootprintGameTest",
       "com.kingdomunique.soldier.SoldierOrderGameTest",
       "com.kingdomunique.world.VillagePlacementGameTest",
       "com.kingdomunique.world.CitizenMovementGameTest",
       "com.kingdomunique.world.WarehouseGameTest",
       "com.kingdomunique.effect.GoldenScaleGameTest",
-      "com.kingdomunique.effect.CurseGameTest"
+      "com.kingdomunique.effect.CurseGameTest",
+      "com.kingdomunique.effect.ChaliceGameTest",
+      "com.kingdomunique.effect.SolitudeCrownGameTest",
+      "com.kingdomunique.data.AcquisitionGameTest",
+      "com.kingdomunique.trade.CitizenMerchantGameTest",
+      "com.kingdomunique.unique.VillageWeaponChestGameTest",
+      "com.kingdomunique.compat.jei.JeiLanguageGameTest",
+      "com.kingdomunique.unique.UniqueWeaponGrantGameTest"
     ]
   },
   "depends": {

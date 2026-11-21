@@ -100,6 +100,12 @@ public class KingdomData extends PersistentState {
         markDirty();
     }
 
+    public void remove(UUID owner) {
+        if (kingdoms.remove(owner) != null) {
+            markDirty();
+        }
+    }
+
     public Map<UUID, KingdomInfo> all() {
         return java.util.Collections.unmodifiableMap(kingdoms);
     }

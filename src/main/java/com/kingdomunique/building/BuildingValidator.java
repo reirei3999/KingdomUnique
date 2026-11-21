@@ -8,7 +8,9 @@ import net.minecraft.util.math.BlockBox;
 import net.minecraft.util.math.BlockPos;
 import net.minecraft.world.World;
 
+import java.util.EnumSet;
 import java.util.Optional;
+import java.util.Set;
 import java.util.UUID;
 
 /** 建築開始前のバリデーション（上限・前提・重複・高度・破壊不能ブロック）。 */
@@ -18,44 +20,19 @@ public final class BuildingValidator {
     }
 
     public static Optional<Text> validate(ServerWorld world, BuildData.BuildSite site) {
-        BuildingType type = site.type();
-        UUID owner = site.owner();
-        KingdomBuildingState state = KingdomBuildingState.get(world);
-
-        if ((type == BuildingType.HERO_SANCTUARY || type == BuildingType.TOWN_HALL
-                || type == BuildingType.ROYAL_PALACE)
-                && state.countBuildings(world, owner, type) - (site.ready() ? 1 : 0) >= 1) {
-            return Optional.of(Text.literal("§c[建築不可] " + type.getDisplayName()
-                    + " は1王国につき1つまでです。"));
+        Optional<Text> restriction = kingdomRestriction(world, site.owner(), site.type(), site.ready());
+        if (restriction.isPresent()) {
+            return restriction;
         }
 
-        if (type == BuildingType.ROYAL_PALACE) {
-            if (!state.hasCompletedBuilding(owner, BuildingType.TOWN_HALL)) {
-                return Optional.of(Text.literal("§c[建築不可] 王宮を建てるには先に王城・役場を完成させる必要があります。"));
-            }
-            ServerWorld overworld = world.getServer().getWorld(World.OVERWORLD);
-            int population = 0;
-            if (overworld != null) {
-                com.kingdomunique.kingdom.KingdomData.KingdomInfo info =
-                        com.kingdomunique.kingdom.KingdomData.getOrCreate(overworld).get(owner);
-                if (info != null) {
-                    population = info.population();
-                }
-            }
-            if (population < 30) {
-                return Optional.of(Text.literal(
-                        "§c[建築不可] 王宮の建設には国民30人以上が必要です（現在: " + population + "人）。"));
-            }
-        }
-
-        BlockBox box = StructureRotationUtil.computeBoundingBox(site.pos(), type, site.facing());
+        BlockBox box = StructureRotationUtil.computeBoundingBox(site.pos(), site.type(), site.facing());
         if (box.getMinY() < world.getBottomY() + 1 || box.getMaxY() >= world.getTopY()) {
             return Optional.of(Text.literal("§c[建築不可] 建築範囲がワールドの高度限界を超えています。"));
         }
 
         BlockBox padded = new BlockBox(box.getMinX() - 1, box.getMinY(), box.getMinZ() - 1,
                 box.getMaxX() + 1, box.getMaxY(), box.getMaxZ() + 1);
-        for (KingdomBuildingState.CompletedBuilding b : state.entries()) {
+        for (KingdomBuildingState.CompletedBuilding b : KingdomBuildingState.get(world).entries()) {
             if (padded.intersects(b.boundingBox)) {
                 return Optional.of(Text.literal("§c[建築不可] 既存の建築物（"
                         + b.type.getDisplayName() + "）と範囲が重なっています。"));
@@ -87,6 +64,54 @@ public final class BuildingValidator {
                     }
                 }
             }
+        }
+        return Optional.empty();
+    }
+
+    public static Set<BuildingType> restrictedTypes(ServerWorld world, UUID owner) {
+        Set<BuildingType> restricted = EnumSet.noneOf(BuildingType.class);
+        for (BuildingType type : BuildingType.values()) {
+            if (kingdomRestriction(world, owner, type, false).isPresent()) {
+                restricted.add(type);
+            }
+        }
+        return restricted;
+    }
+
+    private static Optional<Text> kingdomRestriction(ServerWorld world, UUID owner, BuildingType type,
+                                                     boolean excludeReadySite) {
+        Optional<Text> limit = buildingLimit(world, owner, type, excludeReadySite);
+        if (limit.isPresent()) {
+            return limit;
+        }
+
+        if (type == BuildingType.ROYAL_PALACE) {
+            if (!KingdomBuildingState.get(world).hasCompletedBuilding(owner, BuildingType.TOWN_HALL)) {
+                return Optional.of(Text.literal("§c[建築不可] 王宮を建てるには先に王城・役場を完成させる必要があります。"));
+            }
+            ServerWorld overworld = world.getServer().getWorld(World.OVERWORLD);
+            int population = 0;
+            if (overworld != null) {
+                com.kingdomunique.kingdom.KingdomData.KingdomInfo info =
+                        com.kingdomunique.kingdom.KingdomData.getOrCreate(overworld).get(owner);
+                if (info != null) {
+                    population = info.population();
+                }
+            }
+            if (population < 30) {
+                return Optional.of(Text.literal(
+                        "§c[建築不可] 王宮の建設には国民30人以上が必要です（現在: " + population + "人）。"));
+            }
+        }
+        return Optional.empty();
+    }
+
+    static Optional<Text> buildingLimit(ServerWorld world, UUID owner, BuildingType type, boolean excludeReadySite) {
+        if ((type == BuildingType.HERO_SANCTUARY || type == BuildingType.TOWN_HALL
+                || type == BuildingType.ROYAL_PALACE)
+                && KingdomBuildingState.get(world).countBuildings(world, owner, type) - (excludeReadySite ? 1 : 0) >= 1) {
+            return Optional.of(Text.literal("§c[建築不可] " + type.getDisplayName()
+                    + " は1王国につき1つまでです。"));
         }
         return Optional.empty();
     }

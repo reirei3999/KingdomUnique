@@ -12,24 +12,26 @@ public final class StructureRotationUtil {
     private StructureRotationUtil() {
     }
 
-    /** ローカルサイズ（幅X, 高さY, 奥行Z）。 */
+    /**
+     * ローカルサイズ（幅X, 高さY, 奥行Z）。正面（入口）はローカル +Z（南）側。
+     * 占有範囲は origin を北西角として Y は origin.y-1（床・基礎の段）〜 origin.y+高さ。
+     */
     public static int[] getBuildingDimensions(BuildingType type) {
         return switch (type) {
-            case HOUSE -> new int[]{7, 5, 7};
-            case BARRACKS -> new int[]{11, 6, 9};
-            case BLACKSMITH -> new int[]{8, 5, 7};
-            case TOWN_HALL -> new int[]{11, 14, 13};
+            case HOUSE -> new int[]{9, 8, 9};
+            case BARRACKS -> new int[]{11, 9, 11};
+            case BLACKSMITH -> new int[]{11, 6, 9};
+            case TOWN_HALL -> new int[]{11, 13, 15};
             case WATCHTOWER -> new int[]{5, 12, 5};
             case GATE -> new int[]{9, 7, 5};
             case WALL -> new int[]{7, 5, 3};
-            case HERO_SANCTUARY -> new int[]{9, 7, 9};
-            case GRANARY -> new int[]{7, 7, 7};
+            case HERO_SANCTUARY -> new int[]{17, 13, 17};
+            case GRANARY -> new int[]{9, 7, 9};
             case INFIRMARY -> new int[]{9, 7, 7};
             case MARKET -> new int[]{9, 6, 7};
             case ARSENAL -> new int[]{9, 6, 7};
             case TRAINING_GROUND -> new int[]{11, 4, 11};
-            case ROYAL_PALACE -> new int[]{13, 8, 15};
-            case WAREHOUSE -> new int[]{7, 5, 7};
+            case ROYAL_PALACE -> new int[]{19, 16, 19};
         };
     }
 

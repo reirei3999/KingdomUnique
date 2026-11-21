@@ -11,6 +11,7 @@ import net.minecraft.util.math.Box;
 
 import java.util.List;
 import java.util.UUID;
+import java.util.function.Predicate;
 
 /** 戦時中の敵対判定＆索敵ヘルパー（Gemini 提示を既存エンティティへ接続）。 */
 public final class KingdomWarTargetHelper {
@@ -82,10 +83,15 @@ public final class KingdomWarTargetHelper {
 
     /** 戦争相手（兵士・英雄・王）をモンスターより優先して最も近い敵を返す。 */
     public static LivingEntity findBestTarget(ServerWorld world, LivingEntity self, double radius) {
+        return findBestTarget(world, self, radius, candidate -> true);
+    }
+
+    public static LivingEntity findBestTarget(ServerWorld world, LivingEntity self, double radius,
+                                              Predicate<LivingEntity> canTarget) {
         UUID myKingUuid = getOwnerUuid(self);
         Box box = new Box(self.getBlockPos()).expand(radius);
         List<LivingEntity> nearby = world.getEntitiesByClass(LivingEntity.class, box,
-                e -> isValidEnemy(world, self, myKingUuid, e));
+                e -> isValidEnemy(world, self, myKingUuid, e) && canTarget.test(e));
 
         LivingEntity bestWar = null;
         double warDist = Double.MAX_VALUE;
