@@ -28,6 +28,7 @@ import net.minecraft.util.math.BlockBox;
 import net.minecraft.test.GameTest;
 import net.minecraft.test.TestContext;
 import net.minecraft.util.math.BlockPos;
+import net.minecraft.util.math.Box;
 import net.minecraft.util.math.ChunkPos;
 import net.minecraft.world.biome.BiomeKeys;
 
@@ -290,9 +291,11 @@ public final class VillagePlacementGameTest {
         ItemEntity existingItem = new ItemEntity(world, hallWall.getX() + 2.5, hallWall.getY(),
                 hallWall.getZ() + 0.5, new ItemStack(Items.DIAMOND));
         context.assertTrue(world.spawnEntity(existingItem), "The pre-existing item must spawn");
+        Box site = new Box(center).expand(34, 8, 42);
 
         VillageBuilder.generateStarterVillage(world, center.getX(), center.getZ());
         context.assertTrue(existingItem.isAlive(), "Generation must not remove pre-existing dropped items");
+        assertNoGenerationDrops(context, world, site, existingItem);
         context.assertTrue(world.getBlockState(hallWall).isOf(Blocks.STONE_BRICKS)
                         && world.getBlockState(wellWall).isOf(Blocks.COBBLESTONE),
                 "Generation must place solid hall and well blocks at the cows' previous positions");
@@ -305,13 +308,15 @@ public final class VillagePlacementGameTest {
                 context.assertTrue(cow.isAlive() && cow.getHealth() == cow.getMaxHealth(),
                         "The relocated cow must survive without suffocation damage");
             }
-            context.assertTrue(world.getEntitiesByClass(ItemEntity.class, new net.minecraft.util.math.Box(center).expand(34, 8, 42),
-                            item -> item.getStack().isOf(Items.WHEAT_SEEDS)
-                                    || item.getStack().isOf(Items.LEATHER)
-                                    || item.getStack().isOf(Items.BEEF)).isEmpty(),
-                    "Starter generation must not drop seeds, leather or beef");
+            assertNoGenerationDrops(context, world, site, existingItem);
             context.complete();
         });
+    }
+
+    private static void assertNoGenerationDrops(TestContext context, ServerWorld world, Box site, ItemEntity existingItem) {
+        var drops = world.getEntitiesByClass(ItemEntity.class, site, item -> item != existingItem);
+        context.assertTrue(drops.isEmpty(), "Starter generation must not create item entities: "
+                + drops.stream().map(ItemEntity::getStack).toList());
     }
 
     private static CowEntity spawnCow(ServerWorld world, BlockPos pos) {

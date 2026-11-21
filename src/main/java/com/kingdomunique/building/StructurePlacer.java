@@ -55,7 +55,9 @@ public final class StructurePlacer {
         for (Placement p : localPlacements(type)) {
             BlockPos pos = StructureRotationUtil.transformPos(origin, p.local().getX(), p.local().getY(),
                     p.local().getZ(), d[0], d[2], facing);
-            world.setBlockState(pos, StructureRotationUtil.transformState(p.state(), facing), Block.NOTIFY_LISTENERS);
+            // 扉の両半分などが揃うまでは、隣接ブロックの形状を更新しない。
+            world.setBlockState(pos, StructureRotationUtil.transformState(p.state(), facing),
+                    Block.NOTIFY_LISTENERS | Block.FORCE_STATE);
             placed.add(pos);
         }
         // 板ガラス・フェンス・階段などを、後から置かれた隣のブロックに合わせてつなぐ。
