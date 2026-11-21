@@ -70,6 +70,13 @@ public final class StructureFootprintGameTest {
             }
             context.assertTrue(frontDoor, type + " facing " + facing + " has no door opening toward the front");
         }
+        if (type == BuildingType.HERO_SANCTUARY) {
+            BlockPos c = com.kingdomunique.world.HeroSanctuaryBuilder.CORE_OFFSET;
+            int[] d = StructureRotationUtil.getBuildingDimensions(type);
+            BlockPos core = StructureRotationUtil.transformPos(origin, c.getX(), c.getY(), c.getZ(), d[0], d[2], facing);
+            context.assertTrue(world.getBlockState(core).isOf(net.minecraft.block.Blocks.LODESTONE),
+                    "HERO_SANCTUARY facing " + facing + " has no lodestone at its core");
+        }
         if (type == BuildingType.GATE) {
             for (BlockPos leaf : StructurePlacer.gateLeafPositions(origin, facing)) {
                 context.assertTrue(world.getBlockState(leaf).isOf(StructurePlacer.GATE_LEAF_CLOSED.getBlock()),

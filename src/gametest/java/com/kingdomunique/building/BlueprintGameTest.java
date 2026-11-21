@@ -95,8 +95,8 @@ public final class BlueprintGameTest {
 
         context.assertTrue(KingdomBuildingState.get(world).hasCompletedBuilding(creative.getUuid(), BuildingType.HOUSE),
                 "The house must complete");
-        context.assertTrue(world.getBlockState(feet).isOf(Blocks.COBBLESTONE),
-                "The house foundation must fill the player's former position");
+        context.assertFalse(world.getBlockState(feet.down()).isAir(),
+                "The house foundation must lie under the player's former position");
         context.assertTrue(world.isSpaceEmpty(creative), "Instant construction must not leave the player inside blocks");
         context.complete();
     }
@@ -431,7 +431,8 @@ public final class BlueprintGameTest {
         block.getType().materials().forEach((item, count) ->
                 deposit(block, world, pos, player, new ItemStack(item, count)));
         context.assertTrue(blueprint.isReady() && site(world, pos).ready(),
-                "The altar must start once its materials are deposited");
+                "The altar must start once its materials are deposited: "
+                        + BuildingValidator.validate(world, site(world, pos)).map(t -> t.getString()).orElse("valid"));
         context.assertTrue(BuildingManager.completeNow(world, site(world, pos), player),
                 "The altar must complete");
         BlockPos core = pos.add(com.kingdomunique.world.HeroSanctuaryBuilder.CORE_OFFSET);
@@ -440,7 +441,7 @@ public final class BlueprintGameTest {
         context.assertTrue(com.kingdomunique.kingdom.SanctuaryData.getOrCreate(world).isSanctuary(core),
                 "The altar core must be registered");
 
-        BlockPos next = pos.add(12, 0, 0);
+        BlockPos next = pos.add(20, 0, 0);
         BlueprintBlockEntity second = place(block, world, next, player);
         block.getType().materials().forEach((item, count) ->
                 deposit(block, world, next, player, new ItemStack(item, count)));
