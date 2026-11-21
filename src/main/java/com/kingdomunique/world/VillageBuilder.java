@@ -39,6 +39,12 @@ import net.minecraft.util.math.BlockPos;
 import net.minecraft.util.math.Direction;
 import net.minecraft.world.Heightmap;
 
+import com.kingdomunique.building.BuildingManager;
+import com.kingdomunique.building.BuildingType;
+import com.kingdomunique.building.StructurePlacer;
+import com.kingdomunique.building.StructureRotationUtil;
+import net.minecraft.server.network.ServerPlayerEntity;
+
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Optional;
@@ -164,14 +170,26 @@ public final class VillageBuilder {
         generateStarterVillage(world, centerX, centerZ);
     }
 
-    /** 初期村／中立村を生成する（バニラのジグソー生成を優先）。 */
-    public static void generateStarterVillage(ServerWorld world, int centerX, int centerZ) {
-        generateStarterVillage(world, centerX, centerZ, null);
+    /** 初期村で生成された王国の建物（設計図と同じ形・同じ原点）。 */
+    public record StarterBuilding(BuildingType type, BlockPos origin, Direction facing) {
+    }
+
+    /** 井戸を囲む初期村の建物（井戸からの建物中心のずれ）。役場は井戸の北に建つ。 */
+    private static final Object[][] STARTER_LAYOUT = {
+            {BuildingType.HOUSE, 14, -2},
+            {BuildingType.HOUSE, -14, -2},
+            {BuildingType.BLACKSMITH, 13, 13},
+            {BuildingType.HOUSE, -13, 13},
+    };
+
+    /** 初期村／中立村を生成する（王国の設計図と同じ建物で構成）。 */
+    public static List<StarterBuilding> generateStarterVillage(ServerWorld world, int centerX, int centerZ) {
+        return generateStarterVillage(world, centerX, centerZ, null);
     }
 
     /** 所有者付きで初期村を生成し、村人を国民（建築士含む）として割り当てる。 */
-    public static void generateStarterVillage(ServerWorld world, int centerX, int centerZ,
-                                              java.util.UUID owner) {
+    public static List<StarterBuilding> generateStarterVillage(ServerWorld world, int centerX, int centerZ,
+                                                               java.util.UUID owner) {
         forceLoadChunks(world, centerX, centerZ);
         int baseY = surfaceY(world, centerX, centerZ);
         BlockPos hallOrigin = TownHallBuilder.findVillageOrigin(world, centerX, centerZ);
@@ -180,19 +198,82 @@ public final class VillageBuilder {
             reserved.add(TownHallBuilder.villageFootprint(hallOrigin));
         }
 
-        boolean jigsaw = buildVillage(world, new BlockPos(centerX, baseY, centerZ), reserved);
-        if (jigsaw) {
-            com.kingdomunique.KingdomUniqueMod.LOGGER.info("[KingdomUnique] Generated jigsaw village at ({}, {}).",
+        List<StarterBuilding> buildings = buildKingdomVillage(world, centerX, centerZ, reserved);
+        if (buildings.isEmpty()) {
+            com.kingdomunique.KingdomUniqueMod.LOGGER.warn(
+                    "[KingdomUnique] No room for kingdom buildings at ({}, {}); using vanilla village.",
                     centerX, centerZ);
-        } else {
-            com.kingdomunique.KingdomUniqueMod.LOGGER.warn("[KingdomUnique] Jigsaw village failed at ({}, {}); using templates.",
-                    centerX, centerZ);
-            buildTemplateVillage(world, centerX, centerZ, reserved);
+            if (!buildVillage(world, new BlockPos(centerX, baseY, centerZ), reserved)) {
+                buildTemplateVillage(world, centerX, centerZ, reserved);
+            }
         }
         if (hallOrigin != null) {
             TownHallBuilder.buildVillageTownHall(world, hallOrigin);
+            buildings.add(0, new StarterBuilding(BuildingType.TOWN_HALL, hallOrigin.north(), Direction.SOUTH));
         }
         ensureVillagers(world, centerX, baseY, centerZ, owner, hallOrigin);
+        return buildings;
+    }
+
+    /** 初期村の建物を所有者の王国の完成済み建物として登録する（同じ建物の再登録は加算しない）。 */
+    public static void registerStarterBuildings(ServerWorld world, ServerPlayerEntity owner,
+                                                List<StarterBuilding> buildings, BlockPos kingdomCenter) {
+        for (StarterBuilding building : buildings) {
+            BuildingManager.registerExisting(world, owner, building.type(), building.origin(), building.facing());
+            if (building.type() == BuildingType.TOWN_HALL) {
+                com.kingdomunique.kingdom.KingdomManager.markTownHall(owner, kingdomCenter);
+            }
+        }
+        if (!buildings.isEmpty()) {
+            com.kingdomunique.status.StatusManager.syncBuildingBoxesToWorld(world);
+        }
+    }
+
+    /** 井戸を中心に、民家・鍛冶工房を井戸へ正面を向けて建て、畑を添える。 */
+    private static List<StarterBuilding> buildKingdomVillage(ServerWorld world, int centerX, int centerZ,
+                                                           List<BlockBox> reserved) {
+        boolean well = placeVillageTemplate(world.getStructureTemplateManager(), world, WELL,
+                centerX, centerZ, reserved);
+        if (!well) {
+            BlockPos plot = reservePlot(world, centerX - 1, centerZ - 1, 3, 3, reserved);
+            if (plot != null) {
+                buildWell(world, plot.getX() + 1, plot.getY() - 1, plot.getZ() + 1);
+            }
+        }
+
+        List<StarterBuilding> buildings = new ArrayList<>();
+        for (Object[] slot : STARTER_LAYOUT) {
+            BuildingType type = (BuildingType) slot[0];
+            int dx = (Integer) slot[1];
+            int dz = (Integer) slot[2];
+            Direction facing = Math.abs(dx) > Math.abs(dz)
+                    ? (dx > 0 ? Direction.WEST : Direction.EAST)
+                    : (dz > 0 ? Direction.NORTH : Direction.SOUTH);
+            BlockBox size = StructureRotationUtil.computeBoundingBox(BlockPos.ORIGIN, type, facing);
+            int width = size.getBlockCountX();
+            int depth = size.getBlockCountZ();
+            BlockPos plot = VillageTerrain.findPlot(world, centerX + dx - width / 2 - 1,
+                    centerZ + dz - depth / 2 - 1, width + 2, depth + 2, 8, reserved);
+            if (plot == null) {
+                continue;
+            }
+            reserved.add(VillageTerrain.footprint(plot, width + 2, depth + 2));
+            BlockPos origin = plot.add(1, 0, 1);
+            StructurePlacer.place(world, origin, type, facing);
+            buildings.add(new StarterBuilding(type, origin.toImmutable(), facing));
+        }
+        if (buildings.isEmpty()) {
+            return buildings;
+        }
+
+        BlockPos farm = reservePlot(world, centerX - 3, centerZ + 12, 7, 5, reserved);
+        if (farm != null) {
+            buildFarm(world, farm.getX() + 3, farm.getY() - 1, farm.getZ());
+        }
+        com.kingdomunique.KingdomUniqueMod.LOGGER.info(
+                "[KingdomUnique] Generated kingdom village with {} buildings at ({}, {}).",
+                buildings.size(), centerX, centerZ);
+        return buildings;
     }
 
     private static void buildTemplateVillage(ServerWorld world, int centerX, int centerZ,
