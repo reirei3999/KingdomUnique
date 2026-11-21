@@ -2,6 +2,7 @@ package com.kingdomunique.world;
 
 import com.kingdomunique.KingdomUniqueMod;
 import com.kingdomunique.kingdom.KingdomData;
+import net.fabricmc.fabric.api.event.lifecycle.v1.ServerLifecycleEvents;
 import net.fabricmc.fabric.api.event.lifecycle.v1.ServerTickEvents;
 import net.minecraft.block.Blocks;
 import net.minecraft.network.packet.s2c.play.PositionFlag;
@@ -11,6 +12,8 @@ import net.minecraft.server.network.ServerPlayerEntity;
 import net.minecraft.server.world.ServerWorld;
 import net.minecraft.text.Text;
 import net.minecraft.util.math.BlockPos;
+import net.minecraft.util.math.ChunkPos;
+import net.minecraft.world.ForcedChunkState;
 import net.minecraft.world.Heightmap;
 import net.minecraft.world.World;
 
@@ -25,6 +28,7 @@ public final class StarterSpawn {
     private static final int RANGE = 2000;
     private static final int MIN_DISTANCE = 500;
     private static final int MAX_ATTEMPTS = 256;
+    private static final int SPAWN_SEARCH_RADIUS = 8;
 
     /** 次ティックで処理するプレイヤー（JOIN 契機に加え、毎ティックの検出でも積む）。 */
     private static final Queue<UUID> PENDING = new ArrayDeque<>();
@@ -33,7 +37,37 @@ public final class StarterSpawn {
     }
 
     public static void register() {
+        ServerLifecycleEvents.SERVER_STARTED.register(server -> restoreVillageChunks(server.getOverworld()));
         ServerTickEvents.END_SERVER_TICK.register(StarterSpawn::onServerTick);
+    }
+
+    private static void restoreVillageChunks(ServerWorld world) {
+        PlayerSpawnData spawns = PlayerSpawnData.getOrCreate(world);
+        KingdomData.getOrCreate(world).all().forEach((owner, info) -> {
+            if (info.villageGenerated()) {
+                BlockPos spawn = spawns.get(owner);
+                keepVillageLoaded(world, spawn != null ? spawn : new BlockPos(info.centerX(), 0, info.centerZ()));
+            }
+        });
+    }
+
+    static void registerVillage(ServerWorld world, KingdomData data, UUID owner, KingdomData.KingdomInfo village) {
+        data.put(owner, village);
+        keepVillageLoaded(world, new BlockPos(village.centerX(), 0, village.centerZ()));
+    }
+
+    private static void keepVillageLoaded(ServerWorld world, BlockPos spawn) {
+        int radius = VillageBuilder.MAX_VILLAGE_RADIUS + SPAWN_SEARCH_RADIUS;
+        ForcedChunkState forcedChunks = world.getPersistentStateManager().getOrCreate(
+                ForcedChunkState.getPersistentStateType(), ForcedChunkState.CHUNKS_KEY);
+        for (int x = (spawn.getX() - radius) >> 4; x <= (spawn.getX() + radius) >> 4; x++) {
+            for (int z = (spawn.getZ() - radius) >> 4; z <= (spawn.getZ() + radius) >> 4; z++) {
+                if (forcedChunks.getChunks().add(ChunkPos.toLong(x, z))) {
+                    forcedChunks.markDirty();
+                    world.getChunkManager().setChunkForced(new ChunkPos(x, z), true);
+                }
+            }
+        }
     }
 
     /** 接続直後: 王国が未登録なら次ティックのランダムスポーンを予約する。 */
@@ -117,7 +151,7 @@ public final class StarterSpawn {
         player.setSpawnPoint(World.OVERWORLD, spawn, 0.0F, false, false);
         PlayerSpawnData.getOrCreate(world).put(player.getUuid(), spawn);
 
-        kingdomData.put(player.getUuid(), new KingdomData.KingdomInfo(
+        registerVillage(world, kingdomData, player.getUuid(), new KingdomData.KingdomInfo(
                 spawn.getX(), spawn.getZ(),
                 info.population(), info.populationCap(), info.houses(),
                 info.heroSummoned(), info.heroSummonCount(), true, info.territoryRadius(),
@@ -169,7 +203,7 @@ public final class StarterSpawn {
         PlayerSpawnData.getOrCreate(world).put(player.getUuid(), spawn);
 
         // テレポート地点そのものを王国の中心（初期領土半径100）として保存する。
-        KingdomData.getOrCreate(world).put(player.getUuid(),
+        registerVillage(world, KingdomData.getOrCreate(world), player.getUuid(),
                 new KingdomData.KingdomInfo(spawn.getX(), spawn.getZ(), 0, 10, 0, false, 0,
                         true, 100, true, ""));
         VillageBuilder.registerStarterBuildings(world, player, starterBuildings, spawn);
@@ -184,7 +218,7 @@ public final class StarterSpawn {
 
     /** 村の井戸周囲から、足元・頭上が空で地面が固体の安全な立ち位置を探す。 */
     private static BlockPos findVillageSpawn(ServerWorld world, BlockPos center) {
-        for (int radius = 2; radius <= 8; radius++) {
+        for (int radius = 2; radius <= SPAWN_SEARCH_RADIUS; radius++) {
             for (int i = 0; i < 16; i++) {
                 double angle = i * Math.PI * 2.0D / 16.0D;
                 int x = center.getX() + (int) Math.round(Math.cos(angle) * radius);
