@@ -11,12 +11,18 @@ import it.unimi.dsi.fastutil.longs.LongOpenHashSet;
 import net.fabricmc.fabric.api.gametest.v1.FabricGameTest;
 import net.minecraft.block.Block;
 import net.minecraft.block.Blocks;
+import net.minecraft.entity.EntityType;
+import net.minecraft.entity.ItemEntity;
+import net.minecraft.entity.passive.CowEntity;
+import net.minecraft.item.ItemStack;
+import net.minecraft.item.Items;
 import net.minecraft.network.packet.c2s.common.SyncedClientOptions;
 import net.minecraft.nbt.NbtCompound;
 import net.minecraft.nbt.NbtElement;
 import net.minecraft.registry.tag.BiomeTags;
 import net.minecraft.server.network.ServerPlayerEntity;
 import net.minecraft.server.world.ServerWorld;
+import net.minecraft.state.property.Properties;
 import net.minecraft.text.Text;
 import net.minecraft.util.math.BlockBox;
 import net.minecraft.test.GameTest;
@@ -220,6 +226,100 @@ public final class VillagePlacementGameTest {
                         && world.getBlockState(expected.down(2)).isAir(),
                 "Generation must retain the slope and not build a raised foundation under the hall");
         context.complete();
+    }
+
+    @GameTest(templateName = FabricGameTest.EMPTY_STRUCTURE, batchId = "starter_hall_site")
+    public void starterHallClearsCanopyAndLevelsFoundation(TestContext context) {
+        ServerWorld world = context.getWorld();
+        BlockPos center = context.getAbsolutePos(new BlockPos(40, 85, 40));
+        for (int x = -32; x <= 32; x++) {
+            for (int z = -40; z <= 32; z++) {
+                int elevation = x < 0 ? 0 : 1;
+                world.setBlockState(center.add(x, elevation, z), Blocks.STONE.getDefaultState(), Block.NOTIFY_LISTENERS);
+            }
+        }
+
+        BlockPos origin = TownHallBuilder.findVillageOrigin(world, center.getX(), center.getZ());
+        context.assertTrue(origin != null, "A starter hall plot must exist on the one-block slope");
+        BlockPos foundation = origin.add(2, -1, -1);
+        BlockPos interior = origin.add(2, 3, 5);
+        BlockPos outside = origin.add(-1, 3, 5);
+        var leaves = Blocks.OAK_LEAVES.getDefaultState().with(Properties.PERSISTENT, true);
+        world.setBlockState(interior, leaves, Block.NOTIFY_LISTENERS);
+        world.setBlockState(outside, leaves, Block.NOTIFY_LISTENERS);
+        context.assertTrue(world.getBlockState(foundation).isAir()
+                        && world.getBlockState(foundation.down()).isOf(Blocks.STONE),
+                "The low side of the chosen plot must be one block below the hall's foundation level");
+
+        List<VillageBuilder.StarterBuilding> buildings =
+                VillageBuilder.generateStarterVillage(world, center.getX(), center.getZ());
+        context.assertTrue(buildings.stream().anyMatch(b -> b.type() == BuildingType.TOWN_HALL
+                        && b.origin().equals(origin.north())),
+                "The starter village must place the hall on the same plot despite the overhanging leaves");
+        context.assertTrue(world.getBlockState(interior.down(4)).isOf(Blocks.SPRUCE_PLANKS),
+                "The tested obstruction must be above the hall floor");
+        boolean cleared = world.getBlockState(interior).isAir();
+        boolean leveled = world.getBlockState(foundation).isOf(Blocks.DIRT);
+        context.assertTrue(cleared && leveled,
+                "The starter hall must clear overhanging leaves and level the low side of its foundation"
+                        + " (cleared=" + cleared + ", leveled=" + leveled + ")");
+        context.assertTrue(world.getBlockState(outside).isOf(Blocks.OAK_LEAVES),
+                "Site preparation must keep canopy outside the hall footprint");
+        context.complete();
+    }
+
+    @GameTest(templateName = FabricGameTest.EMPTY_STRUCTURE, batchId = "starter_hall_wildlife", tickLimit = 140)
+    public void starterVillageProtectsAnimalsAndClearsPlantsWithoutDrops(TestContext context) {
+        ServerWorld world = context.getWorld();
+        BlockPos center = context.getAbsolutePos(new BlockPos(40, 85, 40));
+        for (int x = -32; x <= 32; x++) {
+            for (int z = -40; z <= 32; z++) {
+                BlockPos ground = center.add(x, 0, z);
+                world.setBlockState(ground, Blocks.GRASS_BLOCK.getDefaultState(), Block.NOTIFY_LISTENERS);
+                world.setBlockState(ground.up(), Blocks.SHORT_GRASS.getDefaultState(), Block.NOTIFY_LISTENERS);
+            }
+        }
+        BlockPos hall = TownHallBuilder.findVillageOrigin(world, center.getX(), center.getZ());
+        context.assertTrue(hall != null, "A starter hall plot must exist under the short grass");
+        BlockPos hallWall = hall.south(5);
+        BlockPos wellWall = center.add(-2, 1, -2);
+        CowEntity hallCow = spawnCow(world, hallWall);
+        CowEntity wellCow = spawnCow(world, wellWall);
+        context.assertTrue(!hallCow.isInsideWall() && !wellCow.isInsideWall(),
+                "Both cows must start unobstructed");
+        ItemEntity existingItem = new ItemEntity(world, hallWall.getX() + 2.5, hallWall.getY(),
+                hallWall.getZ() + 0.5, new ItemStack(Items.DIAMOND));
+        context.assertTrue(world.spawnEntity(existingItem), "The pre-existing item must spawn");
+
+        VillageBuilder.generateStarterVillage(world, center.getX(), center.getZ());
+        context.assertTrue(existingItem.isAlive(), "Generation must not remove pre-existing dropped items");
+        context.assertTrue(world.getBlockState(hallWall).isOf(Blocks.STONE_BRICKS)
+                        && world.getBlockState(wellWall).isOf(Blocks.COBBLESTONE),
+                "Generation must place solid hall and well blocks at the cows' previous positions");
+        for (CowEntity cow : List.of(hallCow, wellCow)) {
+            context.assertTrue(world.isBlockSpaceEmpty(cow, cow.getBoundingBox()),
+                    "Generation must move the cow out of newly placed solid blocks");
+        }
+        context.waitAndRun(105, () -> {
+            for (CowEntity cow : List.of(hallCow, wellCow)) {
+                context.assertTrue(cow.isAlive() && cow.getHealth() == cow.getMaxHealth(),
+                        "The relocated cow must survive without suffocation damage");
+            }
+            context.assertTrue(world.getEntitiesByClass(ItemEntity.class, new net.minecraft.util.math.Box(center).expand(34, 8, 42),
+                            item -> item.getStack().isOf(Items.WHEAT_SEEDS)
+                                    || item.getStack().isOf(Items.LEATHER)
+                                    || item.getStack().isOf(Items.BEEF)).isEmpty(),
+                    "Starter generation must not drop seeds, leather or beef");
+            context.complete();
+        });
+    }
+
+    private static CowEntity spawnCow(ServerWorld world, BlockPos pos) {
+        CowEntity cow = EntityType.COW.create(world);
+        cow.refreshPositionAndAngles(pos.getX() + 0.5, pos.getY(), pos.getZ() + 0.5, 0, 0);
+        cow.setAiDisabled(true);
+        world.spawnEntity(cow);
+        return cow;
     }
 
     @GameTest(templateName = FabricGameTest.EMPTY_STRUCTURE, batchId = "starter_village_buildings")
