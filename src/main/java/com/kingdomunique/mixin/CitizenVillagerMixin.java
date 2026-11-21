@@ -1,6 +1,7 @@
 package com.kingdomunique.mixin;
 
 import com.kingdomunique.entity.CitizenVillager;
+import com.kingdomunique.soldier.SoldierOrderManager;
 import net.minecraft.entity.passive.VillagerEntity;
 import net.minecraft.nbt.NbtCompound;
 import org.spongepowered.asm.mixin.Mixin;
@@ -37,6 +38,13 @@ public abstract class CitizenVillagerMixin implements CitizenVillager {
     @Override
     public void ku$setOwnerUuid(String uuid) {
         kingdomUnique$ownerUuid = uuid == null ? "" : uuid;
+    }
+
+    @Inject(method = "mobTick", at = @At("TAIL"))
+    private void kingdomUnique$waitAtSoldierHoldPosition(CallbackInfo ci) {
+        if (ROLE_SOLDIER.equals(kingdomUnique$role)) {
+            SoldierOrderManager.waitAtHoldPosition((VillagerEntity) (Object) this);
+        }
     }
 
     @Inject(method = "writeCustomDataToNbt", at = @At("HEAD"))
