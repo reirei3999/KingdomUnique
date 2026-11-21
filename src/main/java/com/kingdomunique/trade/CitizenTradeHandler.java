@@ -1,14 +1,20 @@
 package com.kingdomunique.trade;
 
 import com.kingdomunique.entity.CitizenVillager;
+import com.kingdomunique.kingdom.KingdomManager;
 import net.fabricmc.fabric.api.event.player.UseEntityCallback;
+import net.fabricmc.fabric.api.screenhandler.v1.ExtendedScreenHandlerFactory;
 import net.minecraft.entity.passive.VillagerEntity;
-import net.minecraft.screen.MerchantScreenHandler;
-import net.minecraft.screen.SimpleNamedScreenHandlerFactory;
+import net.minecraft.entity.player.PlayerEntity;
+import net.minecraft.entity.player.PlayerInventory;
+import net.minecraft.screen.ScreenHandler;
 import net.minecraft.server.network.ServerPlayerEntity;
 import net.minecraft.text.Text;
 import net.minecraft.util.ActionResult;
 import net.minecraft.util.Hand;
+import net.minecraft.village.VillagerProfession;
+
+import java.util.UUID;
 
 /** 国民化済み村人を通常右クリックした際に、役職・施設連動の独自交易画面を開く。 */
 public final class CitizenTradeHandler {
@@ -17,6 +23,7 @@ public final class CitizenTradeHandler {
     }
 
     public static void register() {
+        CitizenMerchantScreenHandler.initialize();
         UseEntityCallback.EVENT.register((player, world, hand, entity, hitResult) -> {
             if (world.isClient() || hand != Hand.MAIN_HAND
                     || !(player instanceof ServerPlayerEntity serverPlayer)
@@ -33,35 +40,41 @@ public final class CitizenTradeHandler {
             if (CitizenVillager.ROLE_SOLDIER.equals(role)) {
                 return ActionResult.PASS;
             }
-            openKingdomMerchantScreen(serverPlayer, villager, role, formatRoleTitleJa(role));
+            openKingdomMerchantScreen(serverPlayer, villager, role);
             return ActionResult.SUCCESS;
         });
     }
 
-    private static String formatRoleTitleJa(String role) {
-        return switch (role) {
-            case CitizenVillager.ROLE_FARMER -> "国民交易【農民】";
-            case CitizenVillager.ROLE_BUILDER -> "国民交易【建築士】";
-            case CitizenVillager.ROLE_SMITH -> "国民交易【鍛冶屋】";
-            case CitizenVillager.ROLE_SOLDIER -> "国民交易【兵士】";
-            default -> "国民交易【一般国民】";
-        };
-    }
-
-    private static void openKingdomMerchantScreen(ServerPlayerEntity player, VillagerEntity villager,
-                                                  String role, String title) {
+    private static void openKingdomMerchantScreen(ServerPlayerEntity player, VillagerEntity villager, String role) {
         var offers = KingdomTradeRegistry.buildOffersForCitizen(player, villager, role);
+        var villagerData = villager.getVillagerData();
+        var profession = villagerData.getProfession();
+        int level = profession == VillagerProfession.NONE || profession == VillagerProfession.NITWIT
+                ? 0 : villagerData.getLevel();
+        UUID owner = KingdomTradeRegistry.resolveOwner(villager, player);
+        var citizenInfo = new CitizenMerchantScreenHandler.CitizenInfo(
+                KingdomManager.getKingdomName(player.getServerWorld(), owner), role, profession.id(),
+                level, villager.getExperience(), villager.getReputation(player));
 
-        net.minecraft.village.SimpleMerchant merchant =
-                new net.minecraft.village.SimpleMerchant(player) {
-                    @Override
-                    public net.minecraft.village.TradeOfferList getOffers() {
-                        return offers;
-                    }
-                };
+        player.openHandledScreen(new ExtendedScreenHandlerFactory<CitizenMerchantScreenHandler.CitizenInfo>() {
+            @Override
+            public CitizenMerchantScreenHandler.CitizenInfo getScreenOpeningData(ServerPlayerEntity player) {
+                return citizenInfo;
+            }
 
-        player.openHandledScreen(new SimpleNamedScreenHandlerFactory(
-                (syncId, playerInventory, p) -> new MerchantScreenHandler(syncId, playerInventory, merchant),
-                Text.literal("§6" + title)));
+            @Override
+            public Text getDisplayName() {
+                return Text.literal("王国民交易");
+            }
+
+            @Override
+            public ScreenHandler createMenu(int syncId, PlayerInventory inventory, PlayerEntity player) {
+                return new CitizenMerchantScreenHandler(syncId, inventory, citizenInfo, offers);
+            }
+        }).ifPresent(syncId -> {
+            if (player.currentScreenHandler instanceof CitizenMerchantScreenHandler handler) {
+                handler.sendOffers(player);
+            }
+        });
     }
 }
