@@ -24,7 +24,7 @@ public final class BuildingValidator {
 
         if ((type == BuildingType.HERO_SANCTUARY || type == BuildingType.TOWN_HALL
                 || type == BuildingType.ROYAL_PALACE)
-                && state.countBuildings(world, owner, type) >= 1) {
+                && state.countBuildings(world, owner, type) - (site.ready() ? 1 : 0) >= 1) {
             return Optional.of(Text.literal("§c[建築不可] " + type.getDisplayName()
                     + " は1王国につき1つまでです。"));
         }
