@@ -62,7 +62,7 @@ public final class CurseEffects {
         multiply(player, EntityAttributes.GENERIC_ARMOR, SOLITUDE_ARMOR, solitude, 0.5D);
         multiply(player, EntityAttributes.PLAYER_MINING_EFFICIENCY, SOLITUDE_MINING, solitude, 0.5D);
         multiply(player, EntityAttributes.GENERIC_MOVEMENT_SPEED, SHACKLES_SPEED, shackles, -0.2D);
-        multiply(player, EntityAttributes.GENERIC_FALL_DAMAGE_MULTIPLIER, SHACKLES_DAMAGE, shackles, -0.4D);
+        multiply(player, EntityAttributes.GENERIC_FALL_DAMAGE_MULTIPLIER, SHACKLES_DAMAGE, false, 0.0D);
         add(player, EntityAttributes.GENERIC_KNOCKBACK_RESISTANCE, SHACKLES_KNOCKBACK, shackles, 1.0D);
         multiply(player, EntityAttributes.PLAYER_BLOCK_BREAK_SPEED, DESTRUCTION_MINING, destruction, 200.0D);
 
@@ -143,6 +143,6 @@ public final class CurseEffects {
 
     /** 被ダメージ倍率（夜間襲撃は遺物側でも処理）。 */
     public static double incomingMultiplier(ServerPlayerEntity player) {
-        return 1.0D;
+        return has(player, CurseRegistry.SHACKLES) ? 0.4D : 1.0D;
     }
 }

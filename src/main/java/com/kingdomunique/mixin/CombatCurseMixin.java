@@ -26,6 +26,9 @@ public abstract class CombatCurseMixin {
         if (source.getAttacker() instanceof ServerPlayerEntity player) {
             amount *= (float) CurseEffects.rollChaosMultiplier(player);
         }
+        if (self instanceof ServerPlayerEntity victim) {
+            amount *= (float) CurseEffects.incomingMultiplier(victim);
+        }
         // 刺客英雄は落下ダメージ完全無効。
         if (self instanceof ServerPlayerEntity victim
                 && RelicEffects.getNightRaidDamageMultiplier(victim) < 1.0D
