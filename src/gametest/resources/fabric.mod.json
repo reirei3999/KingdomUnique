@@ -11,9 +11,12 @@
       "com.kingdomunique.world.VillagePlacementGameTest",
       "com.kingdomunique.world.CitizenMovementGameTest",
       "com.kingdomunique.effect.GoldenScaleGameTest",
+      "com.kingdomunique.effect.ChaliceGameTest",
       "com.kingdomunique.effect.SolitudeCrownGameTest",
       "com.kingdomunique.data.AcquisitionGameTest",
       "com.kingdomunique.trade.CitizenMerchantGameTest",
+      "com.kingdomunique.unique.VillageWeaponChestGameTest",
+      "com.kingdomunique.compat.jei.JeiLanguageGameTest",
       "com.kingdomunique.unique.UniqueWeaponGrantGameTest"
     ]
   },

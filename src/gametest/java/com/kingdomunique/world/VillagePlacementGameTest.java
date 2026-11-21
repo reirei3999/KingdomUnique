@@ -4,8 +4,6 @@ import com.kingdomunique.building.BuildingType;
 import com.kingdomunique.building.KingdomBuildingState;
 import com.kingdomunique.building.StructureRotationUtil;
 import com.kingdomunique.data.WorldUniqueData;
-import com.kingdomunique.component.ModDataComponents;
-import com.kingdomunique.item.unique.UniqueWeaponManager;
 import com.kingdomunique.kingdom.KingdomData;
 import com.kingdomunique.kingdom.KingdomManager;
 import com.mojang.authlib.GameProfile;
@@ -13,7 +11,6 @@ import it.unimi.dsi.fastutil.longs.LongOpenHashSet;
 import net.fabricmc.fabric.api.gametest.v1.FabricGameTest;
 import net.minecraft.block.Block;
 import net.minecraft.block.Blocks;
-import net.minecraft.inventory.Inventory;
 import net.minecraft.network.packet.c2s.common.SyncedClientOptions;
 import net.minecraft.nbt.NbtCompound;
 import net.minecraft.nbt.NbtElement;
@@ -27,7 +24,6 @@ import net.minecraft.test.TestContext;
 import net.minecraft.util.math.BlockPos;
 import net.minecraft.util.math.ChunkPos;
 import net.minecraft.world.biome.BiomeKeys;
-import net.minecraft.world.Heightmap;
 
 import java.util.List;
 import java.util.UUID;
@@ -51,17 +47,10 @@ public final class VillagePlacementGameTest {
         VillageGenState state = VillageGenState.get(world);
         WorldUniqueData unique = WorldUniqueData.getOrCreate(world);
         var beforeSites = List.copyOf(unique.getVillageSites());
-        UUID originalWeaponOwner = unique.getOwner("excalibur");
         var entry = new VillageGenState.VillageEntry(planned.getX(), planned.getZ(), false);
         state.pendingVillages.add(entry);
         unique.setVillageSites(List.of(new WorldUniqueData.VillageSite(planned.getX(), planned.getZ())));
         try {
-            if (originalWeaponOwner != null) {
-                unique.releaseId(originalWeaponOwner, "excalibur");
-            }
-            UniqueWeaponManager.distributeToVillages(world);
-            context.assertFalse(unique.isClaimed("excalibur"),
-                    "World load must not distribute a weapon at an unbuilt planned site");
             context.assertTrue(WorldInitializer.tryBuildVillage(world, entry, 128) == 0
                             && entry.searchCursor == 1 && entry.retryAfter == 0,
                     "One search step must inspect only the planned center, without exhausting the search");
@@ -76,18 +65,7 @@ public final class VillagePlacementGameTest {
             context.assertTrue(unique.getVillageSites().contains(new WorldUniqueData.VillageSite(entry.x, entry.z))
                             && !unique.getVillageSites().contains(
                                     new WorldUniqueData.VillageSite(planned.getX(), planned.getZ())),
-                    "Protection and chest sites must follow the relocated center");
-            BlockPos chest = world.getTopPosition(Heightmap.Type.WORLD_SURFACE,
-                    new BlockPos(entry.x + 2, 0, entry.z + 2)).down();
-            context.assertTrue(UniqueWeaponManager.WORLD_OWNER.equals(unique.getOwner("excalibur"))
-                            && world.getBlockEntity(chest) instanceof Inventory inventory
-                            && "excalibur".equals(inventory.getStack(0).get(ModDataComponents.UNIQUE_WEAPON_ID)),
-                    "The weapon chest must be placed at the actual relocated village after construction");
-            context.assertFalse(world.getBlockState(planned.add(2, 1, 2)).isOf(Blocks.CHEST),
-                    "No weapon chest may be left on the old planned water surface");
-            UniqueWeaponManager.distributeToVillages(world);
-            context.assertTrue(world.getTopPosition(Heightmap.Type.WORLD_SURFACE, chest).down().equals(chest),
-                    "Repeated distribution must not create a second chest above the first");
+                    "Protection sites must follow the relocated center");
             var saved = state.writeNbt(new NbtCompound(), world.getRegistryManager())
                     .getList("villages", NbtElement.COMPOUND_TYPE);
             var savedEntry = saved.getCompound(saved.size() - 1);
@@ -96,16 +74,6 @@ public final class VillagePlacementGameTest {
             context.assertTrue(WorldInitializer.tryBuildVillage(world, entry, 128) == 0,
                     "Completed entries must not generate a second village");
         } finally {
-            BlockPos chest = world.getTopPosition(Heightmap.Type.WORLD_SURFACE,
-                    new BlockPos(entry.x + 2, 0, entry.z + 2)).down();
-            if (world.getBlockEntity(chest) instanceof Inventory inventory) {
-                inventory.clear();
-                world.setBlockState(chest, Blocks.AIR.getDefaultState(), Block.NOTIFY_LISTENERS);
-            }
-            unique.releaseId(UniqueWeaponManager.WORLD_OWNER, "excalibur");
-            if (originalWeaponOwner != null) {
-                unique.claimId(originalWeaponOwner, "excalibur");
-            }
             state.pendingVillages.remove(entry);
             state.markDirty();
             unique.setVillageSites(beforeSites);
@@ -254,7 +222,7 @@ public final class VillagePlacementGameTest {
         context.complete();
     }
 
-    @GameTest(templateName = FabricGameTest.EMPTY_STRUCTURE, batchId = "starter_village")
+    @GameTest(templateName = FabricGameTest.EMPTY_STRUCTURE, batchId = "starter_village_buildings")
     public void starterVillageBuildingsCountAsKingdomBuildings(TestContext context) {
         ServerWorld world = context.getWorld();
         BlockPos center = context.getAbsolutePos(new BlockPos(40, 95, 40));
@@ -270,9 +238,19 @@ public final class VillagePlacementGameTest {
             public void sendMessage(Text message, boolean overlay) {
             }
         };
-        KingdomData.getOrCreate(world.getServer().getOverworld()).put(uuid, new KingdomData.KingdomInfo(
+        KingdomData data = KingdomData.getOrCreate(world.getServer().getOverworld());
+        data.put(uuid, new KingdomData.KingdomInfo(
                 center.getX(), center.getZ(), 0, 10, 0, false, 0, true, 100, true, ""));
+        try {
+            assertStarterVillageBuildings(context, world, player, center, uuid);
+        } finally {
+            data.remove(uuid);
+        }
+        context.complete();
+    }
 
+    private static void assertStarterVillageBuildings(TestContext context, ServerWorld world,
+                                                      ServerPlayerEntity player, BlockPos center, UUID uuid) {
         List<VillageBuilder.StarterBuilding> buildings =
                 VillageBuilder.generateStarterVillage(world, center.getX(), center.getZ(), uuid);
         long houses = buildings.stream().filter(b -> b.type() == BuildingType.HOUSE).count();
@@ -302,7 +280,6 @@ public final class VillagePlacementGameTest {
         context.assertTrue(cap == 10, "Starter houses must not raise the population cap, got " + cap);
         int max = com.kingdomunique.kingdom.PopulationManager.calculateMaxPopulation(world, uuid);
         context.assertTrue(max == 10, "Starter houses must not count toward the growth cap, got " + max);
-        context.complete();
     }
 
     private static BlockBox box(VillageBuilder.StarterBuilding building) {

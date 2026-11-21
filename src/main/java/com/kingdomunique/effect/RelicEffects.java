@@ -5,6 +5,7 @@ import com.kingdomunique.registry.RelicRegistry;
 import net.minecraft.entity.attribute.EntityAttributeInstance;
 import net.minecraft.entity.attribute.EntityAttributeModifier;
 import net.minecraft.entity.attribute.EntityAttributes;
+import net.minecraft.entity.effect.StatusEffects;
 import net.minecraft.item.ItemStack;
 import net.minecraft.server.MinecraftServer;
 import net.minecraft.server.network.ServerPlayerEntity;
@@ -81,9 +82,11 @@ public final class RelicEffects {
         return has(player, RelicRegistry.CHALICE) ? 2.0F : 1.0F;
     }
 
-    /** 空腹無効（豊穣の聖杯）。 */
-    public static boolean isHungerDisabled(ServerPlayerEntity player) {
-        return has(player, RelicRegistry.CHALICE);
+    /** 空腹ステータス効果を解除（豊穣の聖杯）。 */
+    public static void tickChalice(ServerPlayerEntity player) {
+        if (has(player, RelicRegistry.CHALICE)) {
+            player.removeStatusEffect(StatusEffects.HUNGER);
+        }
     }
 
     /** 王国支配範囲内の敵対スポーンを禁止するか（守護の結界石）。 */

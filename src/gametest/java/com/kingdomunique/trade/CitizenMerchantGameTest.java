@@ -1,5 +1,6 @@
 package com.kingdomunique.trade;
 
+import com.kingdomunique.building.BuildingType;
 import net.fabricmc.fabric.api.gametest.v1.FabricGameTest;
 import net.minecraft.item.ItemStack;
 import net.minecraft.item.Items;
@@ -10,9 +11,70 @@ import net.minecraft.village.TradeOfferList;
 import net.minecraft.village.TradedItem;
 import net.minecraft.world.GameMode;
 
+import java.util.EnumSet;
+import java.util.List;
 import java.util.Optional;
 
 public final class CitizenMerchantGameTest {
+    @GameTest(templateName = FabricGameTest.EMPTY_STRUCTURE)
+    public void displayUnlocksMatchEveryTradeAndBuildingCombination(TestContext context) {
+        List<BuildingType> buildings = List.of(BuildingType.MARKET, BuildingType.GRANARY,
+                BuildingType.BLACKSMITH, BuildingType.TOWN_HALL, BuildingType.ROYAL_PALACE);
+        for (String role : List.of("farmer", "builder", "smith", "citizen", "unknown")) {
+            var displays = TradeDisplayOffers.build(role);
+            for (int mask = 0; mask < (1 << buildings.size()); mask++) {
+                var completed = EnumSet.noneOf(BuildingType.class);
+                for (int bit = 0; bit < buildings.size(); bit++) {
+                    if ((mask & (1 << bit)) != 0) {
+                        completed.add(buildings.get(bit));
+                    }
+                }
+                var actual = KingdomTradeRegistry.buildOffers(role, completed::contains);
+                var visible = displays.stream().filter(e -> e.matches(completed)).toList();
+                context.assertEquals(visible.size(), actual.size(), "Every trade must have exactly one matching display");
+                for (var offer : actual) {
+                    context.assertTrue(visible.stream().anyMatch(e -> TradeDisplayOffers.sameOffer(e.offer(), offer)),
+                            "Missing trade or inaccurate unlock condition for " + role + " with " + completed);
+                }
+            }
+        }
+        var blacksmith = TradeDisplayOffers.build("builder").stream().filter(e -> e.offer().getSellItem().isOf(
+                TradeRewardFactory.createBlueprintStack(BuildingType.BLACKSMITH).getItem())).findFirst().orElseThrow();
+        context.assertEquals(blacksmith.alternatives(), List.of(java.util.Set.of(BuildingType.TOWN_HALL)),
+                "The blacksmith blueprint requires a completed town hall, not a royal palace or a blueprint item");
+        context.complete();
+    }
+
+    @GameTest(templateName = FabricGameTest.EMPTY_STRUCTURE)
+    public void staticTradeOffersRespectBuildingRequirements(TestContext context) {
+        var base = KingdomTradeRegistry.buildOffers("builder", type -> false);
+        var unlocked = KingdomTradeRegistry.buildOffers("builder",
+                type -> type == com.kingdomunique.building.BuildingType.TOWN_HALL);
+        context.assertEquals(base.size(), 8, "Builder base offers must not require a world");
+        context.assertEquals(unlocked.size(), 14, "Town hall should unlock six builder offers");
+        var smith = KingdomTradeRegistry.buildOffers("smith", type -> true);
+        context.assertEquals(smith.size(), 10, "Smith should include materials and market exchanges");
+        context.complete();
+    }
+
+    @GameTest(templateName = FabricGameTest.EMPTY_STRUCTURE)
+    public void unknownCitizenRoleUsesBasicOffers(TestContext context) {
+        var offers = KingdomTradeRegistry.buildOffers("unknown", type -> false);
+        context.assertEquals(offers.size(), 1, "Unknown roles should receive basic offers");
+        context.assertTrue(offers.getFirst().getSellItem().isOf(Items.TORCH), "Basic offer should sell torches");
+        context.complete();
+    }
+
+    @GameTest(templateName = FabricGameTest.EMPTY_STRUCTURE)
+    public void registeredModItemsHaveNoAnvilEnhancementExamples(TestContext context) {
+        net.minecraft.registry.Registries.ITEM.getIds().stream()
+                .filter(id -> id.getNamespace().equals("kingdomunique"))
+                .forEach(id -> context.assertFalse(com.kingdomunique.util.EnhancementUtil.isEnhanceable(
+                        new ItemStack(net.minecraft.registry.Registries.ITEM.get(id))),
+                        "Mod item unexpectedly supports enhancement: " + id));
+        context.complete();
+    }
+
     @GameTest(templateName = FabricGameTest.EMPTY_STRUCTURE)
     public void selectingAnOfferFillsBothInputsAndTakingResultConsumesStock(TestContext context) {
         var player = context.createMockPlayer(GameMode.SURVIVAL);

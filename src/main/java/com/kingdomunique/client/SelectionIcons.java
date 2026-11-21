@@ -59,7 +59,7 @@ public final class SelectionIcons {
             case "shadow_step" -> new String[]{"敵の背後にワープ", "次攻撃1.5倍"};
             case "absolute_dominion" -> new String[]{"敵Mobを味方化", "_automatic追従AI"};
             case "gravity_control" -> new String[]{"敵を浮かせて拘束", "投擲で吹き飛ばす"};
-            case "chalice_of_abundance" -> new String[]{"NPC回復2倍", "空腹無効"};
+            case "chalice_of_abundance" -> new String[]{"NPC回復2倍", "空腹ステータス効果解除"};
             case "banner_of_victory" -> new String[]{"兵士攻撃1.2倍", "英雄枠+1"};
             case "sages_blueprint" -> new String[]{"建築時間半減", "建築士効率2倍"};
             case "golden_scale" -> new String[]{"1日ごとに資材生成"};

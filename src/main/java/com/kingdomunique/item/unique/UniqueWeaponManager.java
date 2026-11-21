@@ -129,66 +129,46 @@ public final class UniqueWeaponManager {
         return false;
     }
 
-    /** ステップ1の10村のチェストへ未取得の武器を1本ずつ配置する。 */
-    public static void distributeToVillages(ServerWorld world) {
+    /**
+     * ユニーク武器は村のチェストには置かない。旧バージョンで村チェストに置かれた武器は、
+     * チェストのチャンクが読み込まれたときに取り除き、取得条件で手に入るよう所有を解放する。
+     */
+    public static void clearVillageChestWeapons(ServerWorld world) {
         WorldUniqueData data = WorldUniqueData.getOrCreate(world);
-        com.kingdomunique.world.VillageGenState gen = com.kingdomunique.world.VillageGenState.get(world);
         java.util.List<WorldUniqueData.VillageSite> sites = data.getVillageSites();
         for (int index = 0; index < Math.min(sites.size(), UniqueWeapons.ALL_IDS.length); index++) {
             String id = UniqueWeapons.ALL_IDS[index];
+            if (!WORLD_OWNER.equals(data.getOwner(id))) {
+                continue;
+            }
             WorldUniqueData.VillageSite site = sites.get(index);
-            if (data.isClaimed(id) || !isVillageBuilt(gen, site)) {
+            if (!world.isChunkLoaded((site.x() + 2) >> 4, (site.z() + 2) >> 4)) {
                 continue;
             }
-            int chestX = site.x() + 2;
-            int chestZ = site.z() + 2;
-            if (!world.isChunkLoaded(chestX >> 4, chestZ >> 4)) {
-                continue;
-            }
-            BlockPos chestPos = new BlockPos(chestX,
-                    world.getTopY(net.minecraft.world.Heightmap.Type.WORLD_SURFACE, chestX, chestZ), chestZ);
-            net.minecraft.inventory.Inventory inventory = null;
-            if (world.getBlockEntity(chestPos) instanceof net.minecraft.inventory.Inventory found) {
-                inventory = found;
-            } else {
-                world.setBlockState(chestPos, net.minecraft.block.Blocks.CHEST.getDefaultState());
-                if (world.getBlockEntity(chestPos) instanceof net.minecraft.inventory.Inventory created) {
-                    inventory = created;
-                }
-            }
-            if (inventory == null) {
-                continue;
-            }
-            inventory.setStack(0, new ItemStack(uniqueStack(id).getItem()));
-            data.claimId(WORLD_OWNER, id);
+            removeFromChestColumn(world, site, id);
+            data.releaseId(WORLD_OWNER, id);
         }
-    }
-
-    private static boolean isVillageBuilt(com.kingdomunique.world.VillageGenState gen,
-                                          WorldUniqueData.VillageSite site) {
-        for (com.kingdomunique.world.VillageGenState.VillageEntry entry : gen.pendingVillages) {
-            if (entry.x == site.x() && entry.z == site.z()) {
-                return entry.built;
-            }
-        }
-        return false;
     }
 
     /** 村チェストに残っている武器を取り除く（取得条件で付与したときの重複防止）。 */
     public static void removeFromVillageChests(ServerWorld world, String id) {
         WorldUniqueData data = WorldUniqueData.getOrCreate(world);
         for (WorldUniqueData.VillageSite site : data.getVillageSites()) {
-            BlockPos.Mutable pos = new BlockPos.Mutable(site.x() + 2, 0, site.z() + 2);
-            for (int y = world.getBottomY(); y < world.getTopY(); y++) {
-                pos.setY(y);
-                if (!(world.getBlockEntity(pos) instanceof net.minecraft.inventory.Inventory inventory)) {
-                    continue;
-                }
-                for (int slot = 0; slot < inventory.size(); slot++) {
-                    if (id.equals(inventory.getStack(slot).get(ModDataComponents.UNIQUE_WEAPON_ID))) {
-                        inventory.setStack(slot, ItemStack.EMPTY);
-                        inventory.markDirty();
-                    }
+            removeFromChestColumn(world, site, id);
+        }
+    }
+
+    private static void removeFromChestColumn(ServerWorld world, WorldUniqueData.VillageSite site, String id) {
+        BlockPos.Mutable pos = new BlockPos.Mutable(site.x() + 2, 0, site.z() + 2);
+        for (int y = world.getBottomY(); y < world.getTopY(); y++) {
+            pos.setY(y);
+            if (!(world.getBlockEntity(pos) instanceof net.minecraft.inventory.Inventory inventory)) {
+                continue;
+            }
+            for (int slot = 0; slot < inventory.size(); slot++) {
+                if (id.equals(inventory.getStack(slot).get(ModDataComponents.UNIQUE_WEAPON_ID))) {
+                    inventory.setStack(slot, ItemStack.EMPTY);
+                    inventory.markDirty();
                 }
             }
         }
