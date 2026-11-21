@@ -25,6 +25,9 @@ public final class SelectionScreen extends Screen {
     private long openedAt;
     private long lastClickAt;
     private int lastClickIndex = -1;
+    private int detailIndex = -1;
+    private int detailScroll;
+    private int detailMaxScroll;
 
     public SelectionScreen(ContentRegistry.Kind kind, List<String> optionIds) {
         super(Text.literal(titleOf(kind)));
@@ -45,6 +48,9 @@ public final class SelectionScreen extends Screen {
     protected void init() {
         openedAt = System.currentTimeMillis();
         lastClickIndex = -1;
+        detailIndex = -1;
+        detailScroll = 0;
+        detailMaxScroll = 0;
         int buttonWidth = Math.min(150, (width - 30) / 2);
         decideButton = addDrawableChild(ButtonWidget.builder(Text.literal("§a§lこのカードで確定"),
                 button -> decide()).dimensions(width / 2 + 5, height - 26, buttonWidth, 20).build());
@@ -61,7 +67,7 @@ public final class SelectionScreen extends Screen {
         int rows = optionIds.size() > columns ? 2 : 1;
         columns = Math.min(optionIds.size(), Math.max(columns, (optionIds.size() + rows - 1) / rows));
         int cardWidth = Math.max(1, Math.min(120, (available - (columns - 1) * 8) / columns));
-        int cardHeight = Math.max(32, Math.min(145, (height - 120) / rows - 8));
+        int cardHeight = Math.max(32, Math.min(145, (height - 144) / rows - 8));
         return new Layout(columns, cardWidth, cardHeight, 44 + rows * (cardHeight + 8));
     }
 
@@ -226,12 +232,17 @@ public final class SelectionScreen extends Screen {
     private void drawDetails(DrawContext context, int top, int index) {
         int bottom = height - 34;
         if (top >= bottom) return;
+        if (detailIndex != index) {
+            detailIndex = index;
+            detailScroll = 0;
+        }
         context.fill(12, top, width - 12, bottom, 0xFF111827);
         drawBorder(context, 12, top, width - 24, bottom - top, 0xFF334155);
-        context.enableScissor(18, top + 4, width - 18, bottom - 4);
-        int y = top + 6;
+        int contentBottom = bottom - 15;
+        context.enableScissor(18, top + 4, width - 18, contentBottom);
+        int y = top + 6 - detailScroll;
         if (index < 0) {
-            drawWrapped(context, "カードにカーソルを合わせると詳細が見えます", y, 0xFF94A3B8);
+            y = drawWrapped(context, "カードにカーソルを合わせると詳細が見えます", y, 0xFF94A3B8);
         } else {
             UniqueLoreRegistry.UniqueInfo info = UniqueLoreRegistry.getOrFallback(optionIds.get(index));
             y = drawWrapped(context, info.name() + "  [" + info.category() + "]", y, themeColor());
@@ -240,7 +251,23 @@ public final class SelectionScreen extends Screen {
                 y = drawWrapped(context, line, y + 2, line.contains("【代償】") ? 0xFFF87171 : 0xFFE2E8F0);
             }
         }
+        detailMaxScroll = Math.max(0, y + detailScroll - contentBottom);
+        detailScroll = Math.min(detailScroll, detailMaxScroll);
         context.disableScissor();
+        if (detailMaxScroll > 0) {
+            context.drawCenteredTextWithShadow(textRenderer, Text.literal("詳細はホイールでスクロール"),
+                    width / 2, bottom - 12, 0xFF94A3B8);
+        }
+    }
+
+    @Override
+    public boolean mouseScrolled(double mouseX, double mouseY, double horizontalAmount, double verticalAmount) {
+        if (mouseX >= 12 && mouseX < width - 12
+                && mouseY >= layout().detailTop() && mouseY < height - 34 && detailMaxScroll > 0) {
+            detailScroll = Math.clamp(detailScroll - (int) Math.round(verticalAmount * 20), 0, detailMaxScroll);
+            return true;
+        }
+        return super.mouseScrolled(mouseX, mouseY, horizontalAmount, verticalAmount);
     }
 
     private int drawWrapped(DrawContext context, String text, int y, int color) {
