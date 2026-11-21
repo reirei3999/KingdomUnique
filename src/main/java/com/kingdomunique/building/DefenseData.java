@@ -7,6 +7,7 @@ import net.minecraft.nbt.NbtList;
 import net.minecraft.registry.RegistryWrapper;
 import net.minecraft.server.world.ServerWorld;
 import net.minecraft.util.math.BlockPos;
+import net.minecraft.util.math.Direction;
 import net.minecraft.world.PersistentState;
 
 import java.util.ArrayList;
@@ -42,7 +43,8 @@ public class DefenseData extends PersistentState {
                 target.add(new DefenseSite(
                         new BlockPos(c.getInt("x"), c.getInt("y"), c.getInt("z")),
                         UUID.fromString(c.getString("owner")),
-                        c.getBoolean("open")));
+                        c.getBoolean("open"),
+                        c.contains("facing") ? Direction.byName(c.getString("facing")) : null));
             } catch (IllegalArgumentException ignored) {
                 // 壊れたエントリは無視する。
             }
@@ -69,18 +71,21 @@ public class DefenseData extends PersistentState {
             c.putInt("z", site.pos().getZ());
             c.putString("owner", site.owner().toString());
             c.putBoolean("open", site.open());
+            if (site.facing() != null) {
+                c.putString("facing", site.facing().asString());
+            }
             list.add(c);
         }
         return list;
     }
 
-    public void addWatchtower(BlockPos pos, UUID owner) {
-        watchtowers.add(new DefenseSite(pos.toImmutable(), owner, false));
+    public void addWatchtower(BlockPos pos, UUID owner, Direction facing) {
+        watchtowers.add(new DefenseSite(pos.toImmutable(), owner, false, facing));
         markDirty();
     }
 
-    public void addGate(BlockPos pos, UUID owner) {
-        gates.add(new DefenseSite(pos.toImmutable(), owner, false));
+    public void addGate(BlockPos pos, UUID owner, Direction facing) {
+        gates.add(new DefenseSite(pos.toImmutable(), owner, false, facing));
         markDirty();
     }
 
@@ -96,7 +101,7 @@ public class DefenseData extends PersistentState {
         for (int i = 0; i < gates.size(); i++) {
             DefenseSite site = gates.get(i);
             if (site.pos().equals(pos) && site.open() != open) {
-                gates.set(i, new DefenseSite(site.pos(), site.owner(), open));
+                gates.set(i, new DefenseSite(site.pos(), site.owner(), open, site.facing()));
                 markDirty();
                 return;
             }
@@ -104,12 +109,13 @@ public class DefenseData extends PersistentState {
     }
 
     /** 防衛建築の登録（完成時に呼ばれる）。 */
-    public static void register(ServerWorld world, BlockPos pos, BuildingType type, UUID owner) {
+    public static void register(ServerWorld world, BlockPos pos, BuildingType type, UUID owner,
+                                Direction facing) {
         DefenseData data = getOrCreate(world);
         if (type == BuildingType.WATCHTOWER) {
-            data.addWatchtower(pos, owner);
+            data.addWatchtower(pos, owner, facing);
         } else if (type == BuildingType.GATE) {
-            data.addGate(pos, owner);
+            data.addGate(pos, owner, facing);
         }
     }
 
@@ -122,7 +128,10 @@ public class DefenseData extends PersistentState {
         }
     }
 
-    /** 監視塔・門の情報。open は門の開閉状態（監視塔では未使用）。 */
-    public record DefenseSite(BlockPos pos, UUID owner, boolean open) {
+    /**
+     * 監視塔・門の情報。pos は設計図の origin（北西角）、open は門の開閉状態（監視塔では未使用）。
+     * facing が null の旧データは pos を中心とした旧レイアウトとして扱う。
+     */
+    public record DefenseSite(BlockPos pos, UUID owner, boolean open, Direction facing) {
     }
 }
