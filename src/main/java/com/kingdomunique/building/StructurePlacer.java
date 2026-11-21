@@ -50,12 +50,20 @@ public final class StructurePlacer {
         }
         prepareSite(world, box);
         int[] d = StructureRotationUtil.getBuildingDimensions(type);
+        List<BlockPos> placed = new ArrayList<>();
         for (Placement p : localPlacements(type)) {
-            world.setBlockState(
-                    StructureRotationUtil.transformPos(origin, p.local().getX(), p.local().getY(),
-                            p.local().getZ(), d[0], d[2], facing),
-                    StructureRotationUtil.transformState(p.state(), facing),
-                    Block.NOTIFY_LISTENERS);
+            BlockPos pos = StructureRotationUtil.transformPos(origin, p.local().getX(), p.local().getY(),
+                    p.local().getZ(), d[0], d[2], facing);
+            world.setBlockState(pos, StructureRotationUtil.transformState(p.state(), facing), Block.NOTIFY_LISTENERS);
+            placed.add(pos);
+        }
+        // 板ガラス・フェンス・階段などを、後から置かれた隣のブロックに合わせてつなぐ。
+        for (BlockPos pos : placed) {
+            BlockState state = world.getBlockState(pos);
+            BlockState connected = Block.postProcessState(state, world, pos);
+            if (connected != state && !connected.isAir()) {
+                world.setBlockState(pos, connected, Block.NOTIFY_LISTENERS | Block.FORCE_STATE);
+            }
         }
     }
 
