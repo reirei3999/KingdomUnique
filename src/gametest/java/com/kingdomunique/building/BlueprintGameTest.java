@@ -2,6 +2,7 @@ package com.kingdomunique.building;
 
 import com.mojang.authlib.GameProfile;
 import net.fabricmc.fabric.api.gametest.v1.FabricGameTest;
+import net.minecraft.block.Blocks;
 import net.minecraft.block.entity.BlockEntity;
 import net.minecraft.item.ItemStack;
 import net.minecraft.item.Items;
@@ -21,6 +22,130 @@ import net.minecraft.util.math.Vec3d;
 import java.util.UUID;
 
 public final class BlueprintGameTest {
+    @GameTest(templateName = FabricGameTest.EMPTY_STRUCTURE)
+    public void creativePlacementCompletesWithoutMaterialsOrPermission(TestContext context) {
+        ServerWorld world = context.getWorld();
+        BlockPos pos = context.getAbsolutePos(new BlockPos(0, 64, 0));
+        ServerPlayerEntity player = player(world, true);
+        context.assertFalse(player.hasPermissionLevel(2), "Creative construction must not require OP");
+        place(ModBlocks.WATCHTOWER, world, pos, player);
+        assertCompleted(context, pos, player);
+        context.complete();
+    }
+
+    @GameTest(templateName = FabricGameTest.EMPTY_STRUCTURE)
+    public void survivalPlacementStaysUnreadyWithoutMaterials(TestContext context) {
+        ServerWorld world = context.getWorld();
+        BlockPos pos = context.getAbsolutePos(new BlockPos(0, 96, 0));
+        ServerPlayerEntity player = player(world);
+        BlueprintBlockEntity blueprint = place(ModBlocks.WATCHTOWER, world, pos, player);
+        context.assertFalse(blueprint.isReady() || site(world, pos).ready(), "Survival placement must stay unready");
+        context.assertTrue(blueprint.inventory().isEmpty(), "Placement must not supply materials");
+        context.assertFalse(KingdomBuildingState.get(world).hasCompletedBuilding(player.getUuid(), BuildingType.WATCHTOWER),
+                "Survival placement must not complete a building");
+        context.complete();
+    }
+
+    @GameTest(templateName = FabricGameTest.EMPTY_STRUCTURE)
+    public void creativeClickCompletesExistingUnreadyAndReadySites(TestContext context) {
+        ServerWorld world = context.getWorld();
+        ServerPlayerEntity survival = player(world);
+        ServerPlayerEntity creative = player(world, true, survival.getUuid());
+        for (int height : new int[]{128, 160}) {
+            BlockPos pos = context.getAbsolutePos(new BlockPos(0, height, 0));
+            BlueprintBlockEntity blueprint = place(ModBlocks.WATCHTOWER, world, pos, survival);
+            if (height == 160) {
+                BuildData data = BuildData.getOrCreate(world);
+                BuildData.BuildSite site = site(world, pos);
+                data.remove(site);
+                data.add(site.withReady(true));
+                blueprint.setReady(true);
+            }
+            var state = world.getBlockState(pos);
+            context.assertEquals(state.onUseWithItem(ItemStack.EMPTY, world, creative, Hand.MAIN_HAND, hit(pos)),
+                    ItemActionResult.PASS_TO_DEFAULT_BLOCK_INTERACTION, "Empty-hand use must reach construction controls");
+            state.onUse(world, creative, hit(pos));
+            assertCompleted(context, pos, creative);
+        }
+        context.complete();
+    }
+
+    @GameTest(templateName = FabricGameTest.EMPTY_STRUCTURE)
+    public void creativeNonOwnerCannotCompleteExistingSites(TestContext context) {
+        ServerWorld world = context.getWorld();
+        ServerPlayerEntity owner = player(world);
+        ServerPlayerEntity creative = player(world, true);
+        for (int height : new int[]{256, 288}) {
+            BlockPos pos = context.getAbsolutePos(new BlockPos(0, height, 0));
+            BlueprintBlockEntity blueprint = place(ModBlocks.WATCHTOWER, world, pos, owner);
+            boolean ready = height == 288;
+            if (ready) {
+                BuildData data = BuildData.getOrCreate(world);
+                BuildData.BuildSite site = site(world, pos);
+                data.remove(site);
+                data.add(site.withReady(true));
+                blueprint.setReady(true);
+            }
+            var state = world.getBlockState(pos);
+            context.assertEquals(state.onUseWithItem(ItemStack.EMPTY, world, creative, Hand.MAIN_HAND, hit(pos)),
+                    ItemActionResult.PASS_TO_DEFAULT_BLOCK_INTERACTION, "Empty-hand use must reach construction controls");
+            state.onUse(world, creative, hit(pos));
+            context.assertEquals(site(world, pos).ready(), ready, "Non-owner clicks must preserve construction readiness");
+            context.assertEquals(site(world, pos).owner(), owner.getUuid(), "Non-owner clicks must preserve ownership");
+            context.assertTrue(world.getBlockEntity(pos) == blueprint, "Non-owner clicks must not replace the blueprint");
+            context.assertTrue(blueprint.inventory().isEmpty(), "Non-owner clicks must not supply free materials");
+            context.assertFalse(CompletedBuildingsData.getOrCreate(world).entries().stream()
+                            .anyMatch(entry -> entry.pos().equals(pos)),
+                    "Non-owner clicks must not register a completed building");
+        }
+        context.complete();
+    }
+
+    @GameTest(templateName = FabricGameTest.EMPTY_STRUCTURE)
+    public void creativePlacementAndClickRespectValidation(TestContext context) {
+        ServerWorld world = context.getWorld();
+        BlockPos pos = context.getAbsolutePos(new BlockPos(0, 192, 0));
+        ServerPlayerEntity creative = player(world, true);
+        world.setBlockState(pos.up(), Blocks.BEDROCK.getDefaultState());
+        BlueprintBlockEntity blueprint = place(ModBlocks.WATCHTOWER, world, pos, creative);
+        context.assertFalse(site(world, pos).ready(), "Invalid creative placement must leave an unready site");
+        ModBlocks.WATCHTOWER.onUse(world.getBlockState(pos), world, pos, creative, hit(pos));
+        context.assertFalse(site(world, pos).ready() || blueprint.isReady(), "Creative clicks must also validate");
+        context.assertTrue(blueprint.inventory().isEmpty(), "Invalid creative clicks must not synthesize materials");
+        world.removeBlock(pos.up(), false);
+        ModBlocks.WATCHTOWER.onUse(world.getBlockState(pos), world, pos, creative, hit(pos));
+        assertCompleted(context, pos, creative);
+        context.complete();
+    }
+
+    @GameTest(templateName = FabricGameTest.EMPTY_STRUCTURE)
+    public void readyTownHallDoesNotCountItselfAgainstLimit(TestContext context) {
+        ServerWorld world = context.getWorld();
+        BlockPos pos = context.getAbsolutePos(new BlockPos(0, 224, 0));
+        ServerPlayerEntity player = player(world);
+        place(ModBlocks.TOWN_HALL, world, pos, player);
+        BuildData data = BuildData.getOrCreate(world);
+        BuildData.BuildSite site = site(world, pos);
+        data.remove(site);
+        site = site.withReady(true);
+        data.add(site);
+        context.assertTrue(BuildingValidator.validate(world, site).isEmpty(), "A ready town hall must exclude itself from its limit");
+        context.complete();
+    }
+
+    private static void assertCompleted(TestContext context, BlockPos pos, ServerPlayerEntity player) {
+        ServerWorld world = context.getWorld();
+        context.assertTrue(BuildData.getOrCreate(world).sites().stream().noneMatch(site -> site.pos().equals(pos)),
+                "Instant completion must remove the construction site");
+        context.assertTrue(CompletedBuildingsData.getOrCreate(world).entries().stream()
+                        .anyMatch(entry -> entry.pos().equals(pos) && entry.owner().equals(player.getUuid())),
+                "Instant completion must register the completed building");
+        context.assertTrue(KingdomBuildingState.get(world).hasCompletedBuilding(player.getUuid(), BuildingType.WATCHTOWER),
+                "Instant completion must register kingdom building state");
+        context.assertFalse(world.getBlockState(pos).getBlock() instanceof BlueprintBlock,
+                "Instant completion must replace the blueprint with the structure");
+    }
+
     @GameTest(templateName = FabricGameTest.EMPTY_STRUCTURE)
     public void reloadedTownHallAcceptsFullOakPlankRequirement(TestContext context) {
         ServerWorld world = context.getWorld();
@@ -159,8 +284,21 @@ public final class BlueprintGameTest {
     }
 
     private static ServerPlayerEntity player(ServerWorld world) {
+        return player(world, false);
+    }
+
+    private static ServerPlayerEntity player(ServerWorld world, boolean creative) {
+        return player(world, creative, UUID.randomUUID());
+    }
+
+    private static ServerPlayerEntity player(ServerWorld world, boolean creative, UUID uuid) {
         return new ServerPlayerEntity(world.getServer(), world,
-                new GameProfile(UUID.randomUUID(), "blueprint_test"), SyncedClientOptions.createDefault()) {
+                new GameProfile(uuid, "blueprint_test"), SyncedClientOptions.createDefault()) {
+            @Override
+            public boolean isCreative() {
+                return creative;
+            }
+
             @Override
             public void sendMessage(Text message, boolean overlay) {
             }
