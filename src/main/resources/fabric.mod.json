@@ -11,6 +11,9 @@
   "license": "MIT",
   "environment": "*",
   "entrypoints": {
+    "jei_mod_plugin": [
+      "com.kingdomunique.compat.jei.KingdomJeiPlugin"
+    ],
     "main": [
       "com.kingdomunique.KingdomUniqueMod"
     ],

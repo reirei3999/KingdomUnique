@@ -14,6 +14,7 @@
       "com.kingdomunique.effect.SolitudeCrownGameTest",
       "com.kingdomunique.data.AcquisitionGameTest",
       "com.kingdomunique.trade.CitizenMerchantGameTest",
+      "com.kingdomunique.compat.jei.JeiLanguageGameTest",
       "com.kingdomunique.unique.UniqueWeaponGrantGameTest"
     ]
   },
