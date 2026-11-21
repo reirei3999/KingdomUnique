@@ -1,7 +1,6 @@
 package com.kingdomunique.ability;
 
 import net.minecraft.entity.Entity;
-import net.minecraft.entity.EntityType;
 import net.minecraft.entity.LivingEntity;
 import net.minecraft.entity.mob.HostileEntity;
 import net.minecraft.entity.mob.MobEntity;
@@ -16,6 +15,10 @@ import java.util.concurrent.ConcurrentHashMap;
 
 /** 絶対支配によって味方化したMobの管理。 */
 public final class AlliedMobManager {
+
+    private static final String ALLY_TAG = "kingdomunique_ally";
+    /** 所有者UUIDをエンティティのコマンドタグへ保存し、再起動後も復元できるようにする。 */
+    private static final String OWNER_TAG_PREFIX = "kingdomunique_ally_owner:";
 
     /** Mob UUID -> 所有者 UUID。 */
     private static final Map<UUID, UUID> ALLIES = new ConcurrentHashMap<>();
@@ -33,19 +36,40 @@ public final class AlliedMobManager {
 
     /** Mobを味方化し、カスタムAIを組み込む。 */
     public static void ally(MobEntity mob, ServerPlayerEntity owner) {
-        ALLIES.put(mob.getUuid(), owner.getUuid());
-        mob.addCommandTag("kingdomunique_ally");
+        mob.getCommandTags().removeIf(tag -> tag.startsWith(OWNER_TAG_PREFIX));
+        mob.addCommandTag(ALLY_TAG);
+        mob.addCommandTag(OWNER_TAG_PREFIX + owner.getUuid());
+        mob.setPersistent();
+        install(mob, owner.getUuid());
+    }
+
+    /** ワールドへ読み込まれたMobが味方タグを持っていれば、所有者とAIを復元する。 */
+    public static void restore(Entity entity) {
+        if (!(entity instanceof MobEntity mob)) {
+            return;
+        }
+        for (String tag : mob.getCommandTags()) {
+            if (!tag.startsWith(OWNER_TAG_PREFIX)) {
+                continue;
+            }
+            try {
+                install(mob, UUID.fromString(tag.substring(OWNER_TAG_PREFIX.length())));
+            } catch (IllegalArgumentException ignored) {
+                // 壊れたタグは無視する。
+            }
+            return;
+        }
+    }
+
+    private static void install(MobEntity mob, UUID ownerUuid) {
+        ALLIES.put(mob.getUuid(), ownerUuid);
 
         // 既存のターゲット候補を排除し、こちらのAIだけにする。
         com.kingdomunique.mixin.MobEntityAccessor accessor = (com.kingdomunique.mixin.MobEntityAccessor) mob;
         accessor.kingdomUnique$targetSelector().clear(goal -> true);
-        accessor.kingdomUnique$goalSelector().add(1, new AlliedFollowGoal(mob, owner));
+        accessor.kingdomUnique$goalSelector().clear(goal -> goal instanceof AlliedFollowGoal);
+        accessor.kingdomUnique$goalSelector().add(1, new AlliedFollowGoal(mob, ownerUuid));
         mob.setTarget(null);
-    }
-
-    /** 所有者が死亡的などで切断した際の解除。 */
-    public static void forgetOwner(UUID ownerUuid) {
-        ALLIES.entrySet().removeIf(entry -> ownerUuid.equals(entry.getValue()));
     }
 
     public static void forget(UUID mobUuid) {
@@ -60,16 +84,17 @@ public final class AlliedMobManager {
     public static boolean tryRevive(HostileEntity dead, ServerPlayerEntity owner, ServerWorld world) {
         NbtCompound nbt = new NbtCompound();
         dead.writeNbt(nbt);
+        // 死体はまだワールドに残っているため、別UUIDの新しい個体として蘇らせる。
+        nbt.remove("UUID");
+        nbt.remove("DeathTime");
+        nbt.remove("HurtTime");
         Vec3d pos = dead.getPos();
 
-        Entity revived = EntityType.loadEntityWithPassengers(nbt, world, entity -> {
-            entity.refreshPositionAndAngles(pos.x, pos.y, pos.z, dead.getYaw(), dead.getPitch());
-            return entity;
-        });
-        if (!(revived instanceof MobEntity mob)) {
+        if (!(dead.getType().create(world) instanceof MobEntity mob)) {
             return false;
         }
-
+        mob.readNbt(nbt);
+        mob.refreshPositionAndAngles(pos.x, pos.y, pos.z, dead.getYaw(), dead.getPitch());
         mob.setHealth(Math.max(1.0F, mob.getMaxHealth() * 0.5F));
         if (world.spawnEntity(mob)) {
             ally(mob, owner);

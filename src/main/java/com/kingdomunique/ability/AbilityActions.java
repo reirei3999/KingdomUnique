@@ -3,6 +3,7 @@ package com.kingdomunique.ability;
 import com.kingdomunique.registry.AbilityDescriptions;
 import com.kingdomunique.registry.UniqueContentRegistry;
 import com.kingdomunique.util.EnhancementUtil;
+import net.fabricmc.fabric.api.tag.convention.v2.ConventionalEntityTypeTags;
 import net.minecraft.entity.EntityType;
 import net.minecraft.entity.LivingEntity;
 import net.minecraft.entity.attribute.EntityAttributeInstance;
@@ -11,6 +12,7 @@ import net.minecraft.entity.attribute.EntityAttributes;
 import net.minecraft.entity.decoration.ArmorStandEntity;
 import net.minecraft.entity.effect.StatusEffectInstance;
 import net.minecraft.entity.effect.StatusEffects;
+import net.minecraft.entity.player.PlayerEntity;
 import net.minecraft.particle.ParticleTypes;
 import net.minecraft.server.MinecraftServer;
 import net.minecraft.server.network.ServerPlayerEntity;
@@ -31,6 +33,8 @@ import java.util.UUID;
 public final class AbilityActions {
 
     private static final Identifier GRAVITY_FALL_HALF = Identifier.of("kingdomunique", "gravity_fall_half");
+    private static final long GRAVITY_MOB_HOLD_MS = 5000L;
+    private static final long GRAVITY_PLAYER_HOLD_MS = 1500L;
 
     /** 分身UUID -> 消滅ティック。 */
     private static final Map<UUID, Long> DECOYS = new HashMap<>();
@@ -182,6 +186,11 @@ public final class AbilityActions {
             player.sendMessage(Text.literal("§c[重力操作] 対象が見つかりませんでした。"), true);
             return false;
         }
+        if (!canLift(target)) {
+            player.sendMessage(Text.literal("§c[重力操作] " + target.getName().getString()
+                    + " は重すぎて持ち上げられない。"), true);
+            return false;
+        }
 
         EntityAttributeInstance instance = target.getAttributeInstance(EntityAttributes.GENERIC_FALL_DAMAGE_MULTIPLIER);
         if (instance != null) {
@@ -191,9 +200,19 @@ public final class AbilityActions {
         }
         target.setNoGravity(true);
         state.setGravityTarget(target.getUuid());
-        state.setGravityReleaseAt(now + 5000L);
+        state.setGravityReleaseAt(now + (target instanceof PlayerEntity ? GRAVITY_PLAYER_HOLD_MS : GRAVITY_MOB_HOLD_MS));
         player.sendMessage(Text.literal("§d[重力操作] " + target.getName().getString() + " を拘束しました。"), true);
         return true;
+    }
+
+    /** 重力操作で持ち上げられるか（ボス級は不可）。 */
+    public static boolean canLift(LivingEntity target) {
+        EntityType<?> type = target.getType();
+        return !type.isIn(ConventionalEntityTypeTags.BOSSES)
+                && type != EntityType.ENDER_DRAGON
+                && type != EntityType.WITHER
+                && type != EntityType.WARDEN
+                && type != EntityType.ELDER_GUARDIAN;
     }
 
     /** 新・奇術：視線20マス以内の対象と位置・向きを入れ替え、分身を残す（12秒）。 */

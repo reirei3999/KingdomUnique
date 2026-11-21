@@ -29,6 +29,15 @@ public final class CurseEffects {
     private static final Identifier VOID_LIGHT_ARMOR = id("void_light_armor");
     private static final Identifier DESTRUCTION_MINING = id("destruction_mining");
 
+    private static final double GLASS_CANNON_MAX_HEALTH = 10.0D;
+    private static final double DEFAULT_MAX_HEALTH = 20.0D;
+    /** 重力の足枷：あらゆる被ダメージを60%カットする。 */
+    private static final double SHACKLES_INCOMING_MULTIPLIER = 0.4D;
+    public static final double CHAOS_OUTGOING_MIN = 0.1D;
+    public static final double CHAOS_OUTGOING_MAX = 3.0D;
+    public static final double CHAOS_INCOMING_MIN = 0.5D;
+    public static final double CHAOS_INCOMING_MAX = 4.0D;
+
     private CurseEffects() {
     }
 
@@ -52,25 +61,27 @@ public final class CurseEffects {
         boolean glass = has(player, CurseRegistry.GLASS_CANNON);
         boolean solitude = has(player, CurseRegistry.SOLITUDE);
         boolean shackles = has(player, CurseRegistry.SHACKLES);
-        boolean destruction = has(player, CurseRegistry.DESTRUCTION);
 
         multiply(player, EntityAttributes.GENERIC_ATTACK_DAMAGE, BERSERKER_DAMAGE, berserker, 0.6D);
         multiply(player, EntityAttributes.GENERIC_ATTACK_DAMAGE, GLASS_DAMAGE, glass, 1.5D);
         multiply(player, EntityAttributes.PLAYER_MINING_EFFICIENCY, GLASS_MINING, glass, 1.5D);
-        multiply(player, EntityAttributes.GENERIC_ATTACK_DAMAGE, SOLITUDE_DAMAGE, solitude, 0.8D);
-        multiply(player, EntityAttributes.GENERIC_MOVEMENT_SPEED, SOLITUDE_SPEED, solitude, 0.8D);
-        multiply(player, EntityAttributes.GENERIC_ARMOR, SOLITUDE_ARMOR, solitude, 0.8D);
-        multiply(player, EntityAttributes.PLAYER_MINING_EFFICIENCY, SOLITUDE_MINING, solitude, 0.8D);
+        multiply(player, EntityAttributes.GENERIC_ATTACK_DAMAGE, SOLITUDE_DAMAGE, solitude, 0.4D);
+        multiply(player, EntityAttributes.GENERIC_MOVEMENT_SPEED, SOLITUDE_SPEED, solitude, 0.2D);
+        multiply(player, EntityAttributes.GENERIC_ARMOR, SOLITUDE_ARMOR, solitude, 0.4D);
+        multiply(player, EntityAttributes.PLAYER_MINING_EFFICIENCY, SOLITUDE_MINING, solitude, 0.4D);
         multiply(player, EntityAttributes.GENERIC_MOVEMENT_SPEED, SHACKLES_SPEED, shackles, -0.2D);
-        multiply(player, EntityAttributes.GENERIC_FALL_DAMAGE_MULTIPLIER, SHACKLES_DAMAGE, shackles, -0.4D);
         add(player, EntityAttributes.GENERIC_KNOCKBACK_RESISTANCE, SHACKLES_KNOCKBACK, shackles, 1.0D);
-        multiply(player, EntityAttributes.PLAYER_BLOCK_BREAK_SPEED, DESTRUCTION_MINING, destruction, 200.0D);
+        // 旧版で付与していた補正（足枷の落下軽減・ツルハシの全身採掘速度）を確実に外す。
+        multiply(player, EntityAttributes.GENERIC_FALL_DAMAGE_MULTIPLIER, SHACKLES_DAMAGE, false, 0.0D);
+        multiply(player, EntityAttributes.PLAYER_BLOCK_BREAK_SPEED, DESTRUCTION_MINING, false, 0.0D);
 
+        // 硝子の大砲：所持中は最大HP10、手放したら通常の20へ戻す。
         EntityAttributeInstance health = player.getAttributeInstance(EntityAttributes.GENERIC_MAX_HEALTH);
-        if (health != null && glass) {
-            if (health.getBaseValue() != 10.0D) {
-                health.setBaseValue(10.0D);
-                player.setHealth(Math.min(player.getHealth(), 10.0F));
+        if (health != null) {
+            double base = glass ? GLASS_CANNON_MAX_HEALTH : DEFAULT_MAX_HEALTH;
+            if (health.getBaseValue() != base) {
+                health.setBaseValue(base);
+                player.setHealth(Math.min(player.getHealth(), player.getMaxHealth()));
             }
         }
     }
@@ -123,12 +134,24 @@ public final class CurseEffects {
         return has(player, CurseRegistry.SHACKLES);
     }
 
-    /** 混乱サイコロ：攻撃ごとの倍率（0.7〜2.7、期待値1.7）。 */
+    /** 混沌のサイコロ：攻撃ごとの与ダメージ倍率（0.1〜3.0、期待値1.55）。 */
     public static double rollChaosMultiplier(ServerPlayerEntity player) {
         if (!has(player, CurseRegistry.CHAOS)) {
             return 1.0D;
         }
-        return 0.7D + player.getRandom().nextDouble() * 2.0D;
+        return roll(player, CHAOS_OUTGOING_MIN, CHAOS_OUTGOING_MAX);
+    }
+
+    /** 混沌のサイコロ：被弾ごとの被ダメージ倍率（0.5〜4.0、期待値2.25）。 */
+    public static double rollChaosIncomingMultiplier(ServerPlayerEntity player) {
+        if (!has(player, CurseRegistry.CHAOS)) {
+            return 1.0D;
+        }
+        return roll(player, CHAOS_INCOMING_MIN, CHAOS_INCOMING_MAX);
+    }
+
+    private static double roll(ServerPlayerEntity player, double min, double max) {
+        return min + player.getRandom().nextDouble() * (max - min);
     }
 
     /** 与ダメージの追加倍率（狂戦士は属性で既に反映済みのため1.0）。 */
@@ -143,6 +166,7 @@ public final class CurseEffects {
 
     /** 被ダメージ倍率（夜間襲撃は遺物側でも処理）。 */
     public static double incomingMultiplier(ServerPlayerEntity player) {
-        return 1.0D;
+        double multiplier = has(player, CurseRegistry.SHACKLES) ? SHACKLES_INCOMING_MULTIPLIER : 1.0D;
+        return multiplier * rollChaosIncomingMultiplier(player);
     }
 }

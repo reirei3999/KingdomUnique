@@ -3,6 +3,7 @@ package com.kingdomunique.ability;
 import com.kingdomunique.network.AbilityKeyPayload;
 import com.kingdomunique.registry.UniqueContentRegistry;
 import net.fabricmc.fabric.api.entity.event.v1.ServerLivingEntityEvents;
+import net.fabricmc.fabric.api.event.lifecycle.v1.ServerEntityEvents;
 import net.fabricmc.fabric.api.event.lifecycle.v1.ServerTickEvents;
 import net.fabricmc.fabric.api.networking.v1.ServerPlayNetworking;
 import net.fabricmc.fabric.api.networking.v1.ServerPlayConnectionEvents;
@@ -33,8 +34,10 @@ public final class AbilityEventHandler {
 
         ServerPlayConnectionEvents.DISCONNECT.register((handler, server) -> {
             AbilityState.remove(handler.getPlayer().getUuid());
-            AlliedMobManager.forgetOwner(handler.getPlayer().getUuid());
         });
+
+        ServerEntityEvents.ENTITY_LOAD.register((entity, world) -> AlliedMobManager.restore(entity));
+        ServerEntityEvents.ENTITY_UNLOAD.register((entity, world) -> AlliedMobManager.forget(entity.getUuid()));
 
         ServerPlayNetworking.registerGlobalReceiver(AbilityKeyPayload.ID, (payload, context) -> {
             ServerPlayerEntity player = context.player();

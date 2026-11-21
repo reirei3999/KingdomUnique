@@ -2,6 +2,9 @@ package com.kingdomunique.item;
 
 import com.kingdomunique.KingdomUniqueMod;
 import net.minecraft.component.DataComponentTypes;
+import net.minecraft.component.type.AttributeModifierSlot;
+import net.minecraft.entity.attribute.EntityAttributeModifier;
+import net.minecraft.entity.attribute.EntityAttributes;
 import net.minecraft.item.Item;
 import net.minecraft.item.PickaxeItem;
 import net.minecraft.item.SwordItem;
@@ -14,6 +17,9 @@ import net.minecraft.util.Identifier;
 
 /** 遺物・呪物に紐づく専用アイテム。 */
 public final class ModItems {
+
+    /** 破壊衝動のツルハシの採掘速度ボーナス（+200% x 100 = 201倍）。 */
+    private static final double DESTRUCTION_BREAK_SPEED_BONUS = 200.0D;
 
     /** 殺戮の宝剣（撃破ごとに攻撃力が上昇する）。 */
     public static final SwordItem SLAUGHTER_BLADE = register("slaughter_blade",
@@ -31,7 +37,7 @@ public final class ModItems {
                                             .styled(style -> style.withColor(Formatting.AQUA)
                                                     .withItalic(false)))));
 
-    /** 破壊衝動のツルハシ（あらゆるブロックを即破壊する）。 */
+    /** 破壊衝動のツルハシ（手に持っている間だけ採掘速度が大幅に上昇する）。 */
     public static final PickaxeItem DESTRUCTION_PICKAXE = register("destruction_pickaxe",
             new PickaxeItem(ToolMaterials.DIAMOND,
                     new Item.Settings()
@@ -41,7 +47,13 @@ public final class ModItems {
                             .component(DataComponentTypes.UNBREAKABLE,
                                     new net.minecraft.component.type.UnbreakableComponent(true))
                             .component(DataComponentTypes.ATTRIBUTE_MODIFIERS,
-                                    SwordItem.createAttributeModifiers(ToolMaterials.DIAMOND, 5, -2.8F))
+                                    SwordItem.createAttributeModifiers(ToolMaterials.DIAMOND, 5, -2.8F)
+                                            .with(EntityAttributes.PLAYER_BLOCK_BREAK_SPEED,
+                                                    new EntityAttributeModifier(
+                                                            Identifier.of(KingdomUniqueMod.MOD_ID, "destruction_break_speed"),
+                                                            DESTRUCTION_BREAK_SPEED_BONUS,
+                                                            EntityAttributeModifier.Operation.ADD_MULTIPLIED_TOTAL),
+                                                    AttributeModifierSlot.MAINHAND))
                             .component(DataComponentTypes.CUSTOM_NAME,
                                     Text.translatable("item.kingdomunique.destruction_pickaxe")
                                             .styled(style -> style.withColor(Formatting.DARK_RED)

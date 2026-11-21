@@ -61,6 +61,7 @@ public abstract class LivingEntityMixin {
     private void kingdomUnique$recordDamage(DamageSource source, float amount, CallbackInfoReturnable<Boolean> cir) {
         if ((Object) this instanceof ServerPlayerEntity player && amount > 0.0F) {
             AbilityPassives.markDamaged(player);
+            AbilityPassives.breakFree(player);
         }
     }
 }

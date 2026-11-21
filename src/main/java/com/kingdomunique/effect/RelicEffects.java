@@ -128,11 +128,14 @@ public final class RelicEffects {
         player.giveItemStack(new ItemStack(net.minecraft.item.Items.ENCHANTED_BOOK));
     }
 
-    /** 暫定の国民数（近傍の村人）。本来の王国システムで置き換える。 */
+    /** 王国データに記録された国民数（未建国なら0）。 */
     private static int countCitizens(ServerPlayerEntity player) {
-        return player.getServerWorld().getEntitiesByClass(
-                net.minecraft.entity.passive.VillagerEntity.class,
-                player.getBoundingBox().expand(256.0D),
-                villager -> villager.isAlive()).size();
+        ServerWorld overworld = player.getServer().getWorld(World.OVERWORLD);
+        if (overworld == null) {
+            return 0;
+        }
+        com.kingdomunique.kingdom.KingdomData.KingdomInfo info =
+                com.kingdomunique.kingdom.KingdomData.getOrCreate(overworld).get(player.getUuid());
+        return info == null ? 0 : info.population();
     }
 }
