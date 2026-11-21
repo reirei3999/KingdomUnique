@@ -53,7 +53,7 @@ public final class SelectionIcons {
             case "site_supervisor" -> new String[]{"リーチ延長", "建築コスト/時間短縮"};
             case "conqueror" -> new String[]{"与ダメージ1.3倍", "ノックバック耐性"};
             case "gale" -> new String[]{"移動速度1.2倍", "落下ダメージ80%カット"};
-            case "indomitable" -> new String[]{"8秒無傷で再生IV"};
+            case "indomitable" -> new String[]{"10秒無傷で再生III", "常時耐性II"};
             case "spatial_leap" -> new String[]{"最大8マス瞬間移動", "クールタイム5秒"};
             case "phase_through" -> new String[]{"3マス壁の通過", "クールタイム8秒"};
             case "shadow_step" -> new String[]{"敵の背後にワープ", "次攻撃1.5倍"};

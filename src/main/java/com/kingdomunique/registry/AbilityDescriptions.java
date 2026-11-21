@@ -77,7 +77,8 @@ public final class AbilityDescriptions {
                     "・落下ダメージ80%カット"
             };
             case UniqueContentRegistry.INDOMITABLE -> new String[]{
-                    "・8秒間ダメージを受けなければ再生IVが継続付与"
+                    "・10秒間ダメージを受けなければ再生IIIが継続付与",
+                    "・耐性IIが常時付与される"
             };
             case UniqueContentRegistry.SPATIAL_LEAP -> new String[]{
                     "・Rキー：視線方向最大8マスの安全な地点へ瞬間移動",
