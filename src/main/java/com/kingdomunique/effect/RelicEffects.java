@@ -13,15 +13,12 @@ import net.minecraft.text.Text;
 import net.minecraft.util.Identifier;
 import net.minecraft.world.World;
 
-import java.util.Map;
 import java.util.UUID;
-import java.util.concurrent.ConcurrentHashMap;
 
 /** 遺物9種のパッシブ効果（所持しているだけでも発動）。 */
 public final class RelicEffects {
 
     private static final long DAY_TICKS = 24000L;
-    private static final Map<UUID, Long> LAST_PAYOUT = new ConcurrentHashMap<>();
 
     private RelicEffects() {
     }
@@ -106,13 +103,12 @@ public final class RelicEffects {
         }
     }
 
-    private static void tickGoldenScale(ServerPlayerEntity player) {
+    static void tickGoldenScale(ServerPlayerEntity player) {
+        WorldUniqueData data = data(player);
         long day = player.getServerWorld().getTimeOfDay() / DAY_TICKS;
-        Long last = LAST_PAYOUT.get(player.getUuid());
-        if (last != null && last == day) {
+        if (data == null || !data.claimGoldenScalePayout(player.getUuid(), day)) {
             return;
         }
-        LAST_PAYOUT.put(player.getUuid(), day);
 
         int citizens = countCitizens(player);
         int emeralds = Math.max(1, citizens / 3);
