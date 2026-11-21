@@ -96,9 +96,12 @@ public final class KeyBindings {
                     && ClientPlayNetworking.canSend(RequestOpenItemMenuPayload.ID)) {
                 ClientPlayNetworking.send(new RequestOpenItemMenuPayload());
             }
-            if (statusKey.wasPressed()
-                    && ClientPlayNetworking.canSend(RequestStatusPayload.ID)) {
-                ClientPlayNetworking.send(new RequestStatusPayload());
+            if (statusKey.wasPressed()) {
+                // 待ち時間なしで詳細画面を開き、ついでにサーバーへ最新状態を要求する。
+                client.setScreen(new StatusScreen());
+                if (ClientPlayNetworking.canSend(RequestStatusPayload.ID)) {
+                    ClientPlayNetworking.send(new RequestStatusPayload());
+                }
             }
         });
     }

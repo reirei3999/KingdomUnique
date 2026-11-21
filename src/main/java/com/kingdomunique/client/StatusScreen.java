@@ -1,163 +1,181 @@
 package com.kingdomunique.client;
 
 import com.kingdomunique.network.SyncPlayerStatusPayload;
-import com.kingdomunique.registry.AbilityDescriptions;
 import com.kingdomunique.registry.ContentRegistry;
 import net.fabricmc.api.EnvType;
 import net.fabricmc.api.Environment;
 import net.minecraft.client.gui.DrawContext;
 import net.minecraft.client.gui.screen.Screen;
 import net.minecraft.client.gui.widget.ButtonWidget;
-import net.minecraft.item.ItemStack;
 import net.minecraft.text.OrderedText;
 import net.minecraft.text.Text;
-import net.minecraft.util.Formatting;
 
+import java.util.ArrayList;
 import java.util.List;
 
-/** 所持している能力・遺物・呪物の効果と操作方法を見返す確認画面。 */
+/**
+ * 能力・遺物・呪物の詳細確認画面（Gemini 提示の2ペインUI）。
+ * 左のリストをクリックすると右側にアイコン・カテゴリ・発動条件・効果説明を表示する。
+ */
 @Environment(EnvType.CLIENT)
 public final class StatusScreen extends Screen {
 
-    private static final int CARD_WIDTH = 210;
-    private static final int CARD_HEIGHT = 116;
-    private static final int CARD_GAP = 10;
-    private static final int COLUMNS = 3;
-    private static final int ROWS = 2;
-    private static final int PER_PAGE = COLUMNS * ROWS;
-
-    private static final int FRAME = 0xFF8B0000;
-    private static final int CARD_BG = 0xFF1E1E1E;
-    private static final int TEXT_WHITE = 0xFFFFFFFF;
-    private static final int TEXT_SUBTLE = 0xFFAAAAAA;
-
-    private final List<String> ids;
-    private final String abilityId;
+    private final List<String> displayIds = new ArrayList<>();
+    private final String activeAbilityId;
     private final int cooldownTicks;
     private final int miningRange;
-    private int page = 0;
+    private int selectedIndex = 0;
 
+    /** キャッシュ済み同期データから開く（Kキー用）。 */
+    public StatusScreen() {
+        this(StatusClient.latest());
+    }
+
+    /** サーバーから届いたペイロードから開く（/ku info 用）。 */
     public StatusScreen(SyncPlayerStatusPayload payload) {
-        super(Text.literal("所持能力・遺物・呪物 一覧"));
-        this.ids = List.copyOf(payload.ownedIds());
-        this.abilityId = payload.abilityId();
+        super(Text.literal("KingdomUnique 能力・遺物・呪物ステータス"));
+        this.activeAbilityId = payload.abilityId();
         this.cooldownTicks = payload.cooldownTicks();
         this.miningRange = payload.miningRange();
+
+        if (activeAbilityId != null && !activeAbilityId.isEmpty()) {
+            displayIds.add(activeAbilityId);
+        }
+        for (String id : payload.ownedIds()) {
+            if (!displayIds.contains(id)) {
+                displayIds.add(id);
+            }
+        }
+        if (displayIds.isEmpty()) {
+            displayIds.add("");
+        }
     }
 
     @Override
     protected void init() {
-        int maxPage = Math.max(0, (ids.size() - 1) / PER_PAGE);
-        int y = this.height - 28;
-        this.addDrawableChild(ButtonWidget.builder(Text.literal("前へ"), button -> {
-            page = Math.max(0, page - 1);
-        }).dimensions(this.width / 2 - 110, y, 100, 20).build());
-        this.addDrawableChild(ButtonWidget.builder(Text.literal("閉じる"), button -> this.close())
-                .dimensions(this.width / 2 - 5, y, 100, 20).build());
-        this.addDrawableChild(ButtonWidget.builder(Text.literal("次へ"), button -> {
-            page = Math.min(maxPage, page + 1);
-        }).dimensions(this.width / 2 + 100, y, 100, 20).build());
+        super.init();
+
+        int panelW = Math.min(420, this.width - 24);
+        int panelH = Math.min(260, this.height - 24);
+        int left = (this.width - panelW) / 2;
+        int top = (this.height - panelH) / 2;
+
+        int listW = 132;
+        int maxButtons = Math.min(displayIds.size(), Math.max(1, (panelH - 56) / 22));
+        for (int i = 0; i < maxButtons; i++) {
+            final int idx = i;
+            UniqueLoreRegistry.UniqueInfo info = UniqueLoreRegistry.getOrFallback(displayIds.get(i));
+            String prefix = displayIds.get(i).equals(activeAbilityId) ? "§6★ " : "・";
+            this.addDrawableChild(ButtonWidget.builder(
+                    Text.literal(prefix + info.name()),
+                    btn -> this.selectedIndex = idx)
+                    .dimensions(left + 8, top + 30 + i * 22, listW, 20).build());
+        }
+
+        this.addDrawableChild(ButtonWidget.builder(
+                Text.literal("閉じる (K / ESC)"), btn -> this.close())
+                .dimensions(left + panelW - 112, top + panelH - 26, 104, 20).build());
     }
 
-    private int gridTop() {
-        return 52;
-    }
-
-    /** 世界のぼかしをやめて単色背景にする（文字のフリンジ防止）。 */
     @Override
     public void renderBackground(DrawContext context, int mouseX, int mouseY, float delta) {
-        context.fill(0, 0, this.width, this.height, 0xFF0E0E12);
+        context.fill(0, 0, this.width, this.height, 0xFF0B0B10);
     }
 
     @Override
     public void render(DrawContext context, int mouseX, int mouseY, float delta) {
         this.renderBackground(context, mouseX, mouseY, delta);
 
-        // テキストは必ず等倍・整数座標で描画する（拡大縮小でフォントがにじまないように）。
-        context.getMatrices().push();
-        context.getMatrices().scale(1.0F, 1.0F, 1.0F);
-        context.drawCenteredTextWithShadow(this.textRenderer, this.title,
-                (int) (this.width / 2), (int) 16, 0xFFFFD700);
-        context.drawCenteredTextWithShadow(this.textRenderer,
-                Text.literal("Kキー / /ku info でいつでも確認できます（ページ " + (page + 1) + "）"),
-                (int) (this.width / 2), (int) 34, TEXT_SUBTLE);
+        int panelW = Math.min(420, this.width - 24);
+        int panelH = Math.min(260, this.height - 24);
+        int left = (this.width - panelW) / 2;
+        int top = (this.height - panelH) / 2;
 
-        if (ids.isEmpty()) {
-            context.drawCenteredTextWithShadow(this.textRenderer,
-                    Text.literal("まだ能力・遺物・呪物を所持していません。"),
-                    (int) (this.width / 2), (int) (this.height / 2), 0xFFFF6666);
-            context.getMatrices().pop();
-            super.render(context, mouseX, mouseY, delta);
-            return;
-        }
-        context.getMatrices().pop();
+        context.fill(left, top, left + panelW, top + panelH, 0xE60F172A);
+        drawBorder(context, left, top, panelW, panelH, 0xFFE5B84B);
 
-        int totalWidth = COLUMNS * CARD_WIDTH + (COLUMNS - 1) * CARD_GAP;
-        int startX = this.width / 2 - totalWidth / 2;
-        int startIndex = page * PER_PAGE;
-        for (int i = 0; i < PER_PAGE && startIndex + i < ids.size(); i++) {
-            String id = ids.get(startIndex + i);
-            int col = i % COLUMNS;
-            int row = i / COLUMNS;
-            drawCard(context, id, startX + col * (CARD_WIDTH + CARD_GAP),
-                    gridTop() + row * (CARD_HEIGHT + CARD_GAP));
+        context.fill(left + 1, top + 1, left + panelW - 1, top + 24, 0xFF1E293B);
+        context.drawTextWithShadow(this.textRenderer,
+                Text.literal("§6§l✦ KingdomUnique 能力詳細 §r§7(保有: "
+                        + ContentRegistry.ALL_IDS.size() + "種 / 所持: " + countOwned() + ")"),
+                left + 10, top + 8, 0xFFFFFF);
+
+        int dividerX = left + 146;
+        context.fill(dividerX, top + 28, dividerX + 1, top + panelH - 8, 0x6094A3B8);
+
+        String selectedId = displayIds.get(Math.min(selectedIndex, displayIds.size() - 1));
+        UniqueLoreRegistry.UniqueInfo info = UniqueLoreRegistry.getOrFallback(selectedId);
+
+        int detailX = dividerX + 10;
+        int detailY = top + 32;
+        int detailW = (left + panelW) - detailX - 10;
+
+        context.drawItem(info.icon(), detailX, detailY);
+        context.drawTextWithShadow(this.textRenderer, Text.literal("§e§l" + info.name()),
+                detailX + 22, detailY + 1, 0xFFFFFF);
+        context.drawTextWithShadow(this.textRenderer, Text.literal("§b[" + info.category() + "]"),
+                detailX + 22, detailY + 11, 0xFFFFFF);
+
+        detailY += 26;
+        context.drawTextWithShadow(this.textRenderer,
+                Text.literal("§7発動・条件: §f" + info.triggerInfo()), detailX, detailY, 0xFFFFFF);
+        detailY += 12;
+
+        if (selectedId.equals(activeAbilityId) && !selectedId.isEmpty()) {
+            String ct = cooldownTicks <= 0 ? "§a使用可能 (READY)"
+                    : String.format("§cクールタイム中 (残り %.1f秒)", cooldownTicks / 20.0D);
+            String range = miningRange > 1 ? " §7/ §b採掘範囲: " + miningRange + "x" + miningRange : "";
+            context.drawTextWithShadow(this.textRenderer, Text.literal("§7状態: " + ct + range),
+                    detailX, detailY, 0xFFFFFF);
+            detailY += 14;
         }
+
+        context.fill(detailX, detailY, detailX + detailW, detailY + 1, 0x40FFFFFF);
+        detailY += 6;
+
+        for (String line : info.descriptionLines()) {
+            for (OrderedText wrapped : this.textRenderer.wrapLines(Text.literal(line), detailW)) {
+                if (detailY > top + panelH - 32) {
+                    break;
+                }
+                context.drawTextWithShadow(this.textRenderer, wrapped, detailX, detailY, 0xE2E8F0);
+                detailY += 11;
+            }
+            detailY += 2;
+        }
+
         super.render(context, mouseX, mouseY, delta);
     }
 
-    private void drawCard(DrawContext context, String id, int x, int y) {
-        ContentRegistry.Kind kind = ContentRegistry.kindOf(id);
-        int frame = kind == ContentRegistry.Kind.RELIC ? 0xFF55CCFF
-                : kind == ContentRegistry.Kind.CURSE ? 0xFFFF5555 : 0xFFAAAA55;
-        String category = kind == ContentRegistry.Kind.RELIC ? "遺物"
-                : kind == ContentRegistry.Kind.CURSE ? "呪物" : "能力";
-
-        // 影→本体→枠→ヘッダーの順に重ねて立体感を出す（等倍・整数座標）。
-        context.fill(x + 3, y + 3, x + CARD_WIDTH + 3, y + CARD_HEIGHT + 3, 0x88000000);
-        context.fill(x, y, x + CARD_WIDTH, y + CARD_HEIGHT, CARD_BG);
-        context.fill(x, y, x + CARD_WIDTH, y + 2, frame);
-        context.fill(x, y + CARD_HEIGHT - 2, x + CARD_WIDTH, y + CARD_HEIGHT, frame);
-        context.fill(x, y, x + 2, y + CARD_HEIGHT, frame);
-        context.fill(x + CARD_WIDTH - 2, y, x + CARD_WIDTH, y + CARD_HEIGHT, frame);
-        context.fill(x + 2, y + 2, x + CARD_WIDTH - 2, y + 18, 0xFF2A2A30);
-        context.fill(x + 2, y + 18, x + CARD_WIDTH - 2, y + 19, frame);
-
-        context.drawText(this.textRenderer,
-                Text.literal("[" + category + "]").formatted(Formatting.YELLOW),
-                x + 6, y + 5, 0xFFFFFF55, false);
-        context.drawText(this.textRenderer,
-                Text.literal(ContentRegistry.nameOf(id)).formatted(Formatting.BOLD),
-                x + 52, y + 5, TEXT_WHITE, false);
-
-        ItemStack icon = SelectionIcons.iconFor(id);
-        if (!icon.isEmpty()) {
-            context.fill(x + 6, y + 26, x + 26, y + 46, 0xFF101014);
-            context.fill(x + 6, y + 26, x + 26, y + 27, frame);
-            context.fill(x + 6, y + 45, x + 26, y + 46, frame);
-            context.drawItem(icon, x + 8, y + 28);
-        }
-
-        int textY = y + 28;
-        int limit = y + CARD_HEIGHT - 24;
-        for (String line : AbilityDescriptions.details(id)) {
-            for (OrderedText wrapped : this.textRenderer.wrapLines(
-                    Text.literal(line), CARD_WIDTH - 36)) {
-                if (textY > limit) {
-                    break;
-                }
-                context.drawText(this.textRenderer, wrapped, x + 32, textY, 0xFFFFFFFF, false);
-                textY += 11;
+    private int countOwned() {
+        int count = 0;
+        for (String id : displayIds) {
+            if (!id.isEmpty()) {
+                count++;
             }
         }
-
-        context.fill(x + 2, y + CARD_HEIGHT - 21, x + CARD_WIDTH - 2,
-                y + CARD_HEIGHT - 2, 0xFF1A1A20);
-        context.drawText(this.textRenderer,
-                Text.literal("操作: " + AbilityDescriptions.controlHint(id)),
-                x + 6, y + CARD_HEIGHT - 17, 0xFFFFDD55, false);
+        return count;
     }
+
+    @Override
+    public boolean keyPressed(int keyCode, int scanCode, int modifiers) {
+        // Kキー (GLFW_KEY_K = 75) でも閉じられる。
+        if (keyCode == 75) {
+            this.close();
+            return true;
+        }
+        return super.keyPressed(keyCode, scanCode, modifiers);
+    }
+
     @Override
     public boolean shouldPause() {
         return false;
+    }
+
+    private static void drawBorder(DrawContext context, int x, int y, int w, int h, int color) {
+        context.fill(x, y, x + w, y + 1, color);
+        context.fill(x, y + h - 1, x + w, y + h, color);
+        context.fill(x, y, x + 1, y + h, color);
+        context.fill(x + w - 1, y, x + w, y + h, color);
     }
 }

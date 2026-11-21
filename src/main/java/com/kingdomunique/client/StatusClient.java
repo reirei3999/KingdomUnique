@@ -20,7 +20,8 @@ public final class StatusClient {
     public static void initialize() {
         ClientPlayNetworking.registerGlobalReceiver(SyncPlayerStatusPayload.ID, (payload, context) -> {
             latest = payload;
-            if (payload.openScreen()) {
+            // Kキーで既に画面を開いている場合は差し替えず、選択状態を保持する。
+            if (payload.openScreen() && !(context.client().currentScreen instanceof StatusScreen)) {
                 context.client().execute(() ->
                         context.client().setScreen(new StatusScreen(payload)));
             }
