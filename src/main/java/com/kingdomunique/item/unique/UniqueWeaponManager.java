@@ -129,36 +129,24 @@ public final class UniqueWeaponManager {
         return false;
     }
 
-    /** ステップ1の10村のチェストへ未取得の武器を1本ずつ配置する。 */
-    public static void distributeToVillages(ServerWorld world) {
+    /**
+     * ユニーク武器は村のチェストには置かない。旧バージョンで村チェストに置かれた武器は、
+     * チェストのチャンクが読み込まれたときに取り除き、取得条件で手に入るよう所有を解放する。
+     */
+    public static void clearVillageChestWeapons(ServerWorld world) {
         WorldUniqueData data = WorldUniqueData.getOrCreate(world);
-        int index = 0;
-        for (com.kingdomunique.data.WorldUniqueData.VillageSite site : data.getVillageSites()) {
-            if (index >= UniqueWeapons.ALL_IDS.length) {
-                break;
-            }
-            String id = UniqueWeapons.ALL_IDS[index++];
-            if (data.isClaimed(id)) {
+        java.util.List<WorldUniqueData.VillageSite> sites = data.getVillageSites();
+        for (int index = 0; index < Math.min(sites.size(), UniqueWeapons.ALL_IDS.length); index++) {
+            String id = UniqueWeapons.ALL_IDS[index];
+            if (!WORLD_OWNER.equals(data.getOwner(id))) {
                 continue;
             }
-            BlockPos base = new BlockPos(site.x(),
-                    world.getTopY(net.minecraft.world.Heightmap.Type.WORLD_SURFACE, site.x(), site.z()) + 1,
-                    site.z());
-            BlockPos chestPos = base.add(2, 0, 2);
-            net.minecraft.inventory.Inventory inventory = null;
-            if (world.getBlockEntity(chestPos) instanceof net.minecraft.inventory.Inventory found) {
-                inventory = found;
-            } else {
-                world.setBlockState(chestPos, net.minecraft.block.Blocks.CHEST.getDefaultState());
-                if (world.getBlockEntity(chestPos) instanceof net.minecraft.inventory.Inventory created) {
-                    inventory = created;
-                }
-            }
-            if (inventory == null) {
+            WorldUniqueData.VillageSite site = sites.get(index);
+            if (!world.isChunkLoaded((site.x() + 2) >> 4, (site.z() + 2) >> 4)) {
                 continue;
             }
-            inventory.setStack(0, new ItemStack(uniqueStack(id).getItem()));
-            data.claimId(WORLD_OWNER, id);
+            removeFromChestColumn(world, site, id);
+            data.releaseId(WORLD_OWNER, id);
         }
     }
 
@@ -166,17 +154,21 @@ public final class UniqueWeaponManager {
     public static void removeFromVillageChests(ServerWorld world, String id) {
         WorldUniqueData data = WorldUniqueData.getOrCreate(world);
         for (WorldUniqueData.VillageSite site : data.getVillageSites()) {
-            BlockPos.Mutable pos = new BlockPos.Mutable(site.x() + 2, 0, site.z() + 2);
-            for (int y = world.getBottomY(); y < world.getTopY(); y++) {
-                pos.setY(y);
-                if (!(world.getBlockEntity(pos) instanceof net.minecraft.inventory.Inventory inventory)) {
-                    continue;
-                }
-                for (int slot = 0; slot < inventory.size(); slot++) {
-                    if (id.equals(inventory.getStack(slot).get(ModDataComponents.UNIQUE_WEAPON_ID))) {
-                        inventory.setStack(slot, ItemStack.EMPTY);
-                        inventory.markDirty();
-                    }
+            removeFromChestColumn(world, site, id);
+        }
+    }
+
+    private static void removeFromChestColumn(ServerWorld world, WorldUniqueData.VillageSite site, String id) {
+        BlockPos.Mutable pos = new BlockPos.Mutable(site.x() + 2, 0, site.z() + 2);
+        for (int y = world.getBottomY(); y < world.getTopY(); y++) {
+            pos.setY(y);
+            if (!(world.getBlockEntity(pos) instanceof net.minecraft.inventory.Inventory inventory)) {
+                continue;
+            }
+            for (int slot = 0; slot < inventory.size(); slot++) {
+                if (id.equals(inventory.getStack(slot).get(ModDataComponents.UNIQUE_WEAPON_ID))) {
+                    inventory.setStack(slot, ItemStack.EMPTY);
+                    inventory.markDirty();
                 }
             }
         }

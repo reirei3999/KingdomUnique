@@ -90,7 +90,7 @@ public final class VillagePlacementGameTest {
         context.complete();
     }
 
-    @GameTest(templateName = FabricGameTest.EMPTY_STRUCTURE, batchId = "starter_village")
+    @GameTest(templateName = FabricGameTest.EMPTY_STRUCTURE, batchId = "starter_village_buildings")
     public void starterVillageBuildingsCountAsKingdomBuildings(TestContext context) {
         ServerWorld world = context.getWorld();
         BlockPos center = context.getAbsolutePos(new BlockPos(40, 95, 40));

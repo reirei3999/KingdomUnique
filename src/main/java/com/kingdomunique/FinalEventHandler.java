@@ -9,14 +9,12 @@ import com.kingdomunique.network.DetonatePayload;
 import com.kingdomunique.util.EnhancementUtil;
 import net.fabricmc.fabric.api.entity.event.v1.ServerLivingEntityEvents;
 import net.fabricmc.fabric.api.event.lifecycle.v1.ServerTickEvents;
-import net.fabricmc.fabric.api.event.lifecycle.v1.ServerWorldEvents;
 import net.fabricmc.fabric.api.networking.v1.ServerPlayNetworking;
 import net.minecraft.entity.LivingEntity;
 import net.minecraft.entity.damage.DamageSource;
 import net.minecraft.item.ItemStack;
 import net.minecraft.server.MinecraftServer;
 import net.minecraft.server.network.ServerPlayerEntity;
-import net.minecraft.world.World;
 
 /** ステップ6の最終統合イベント登録。 */
 public final class FinalEventHandler {
@@ -25,12 +23,6 @@ public final class FinalEventHandler {
     }
 
     public static void register() {
-        ServerWorldEvents.LOAD.register((server, world) -> {
-            if (world.getRegistryKey() == World.OVERWORLD) {
-                UniqueWeaponManager.distributeToVillages(world);
-            }
-        });
-
         ServerTickEvents.END_SERVER_TICK.register(FinalEventHandler::onTick);
 
         ServerPlayNetworking.registerGlobalReceiver(DetonatePayload.ID,
