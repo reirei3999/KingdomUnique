@@ -8,6 +8,7 @@ import net.minecraft.block.Blocks;
 import net.minecraft.server.world.ServerWorld;
 import net.minecraft.structure.StructurePlacementData;
 import net.minecraft.structure.StructureTemplate;
+import net.minecraft.structure.processor.BlockIgnoreStructureProcessor;
 import net.minecraft.structure.processor.JigsawReplacementStructureProcessor;
 import net.minecraft.util.BlockMirror;
 import net.minecraft.util.BlockRotation;
@@ -160,7 +161,8 @@ public final class StructurePlacer {
                 .setMirror(BlockMirror.NONE)
                 .setIgnoreEntities(true)
                 .setInitializeMobs(false)
-                .addProcessor(JigsawReplacementStructureProcessor.INSTANCE);
+                .addProcessor(JigsawReplacementStructureProcessor.INSTANCE)
+                .addProcessor(BlockIgnoreStructureProcessor.IGNORE_AIR_AND_STRUCTURE_BLOCKS);
         BlockBox local = template.calculateBoundingBox(data, BlockPos.ORIGIN);
         BlockPos pos = new BlockPos(box.getMinX() - local.getMinX(), box.getMinY(),
                 box.getMinZ() - local.getMinZ());
