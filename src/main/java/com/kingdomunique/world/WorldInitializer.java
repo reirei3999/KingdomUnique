@@ -3,8 +3,6 @@ package com.kingdomunique.world;
 import com.kingdomunique.KingdomUniqueMod;
 import com.kingdomunique.data.WorldUniqueData;
 import net.fabricmc.fabric.api.event.lifecycle.v1.ServerTickEvents;
-import net.minecraft.block.Blocks;
-import net.minecraft.registry.tag.BiomeTags;
 import net.minecraft.server.world.ServerWorld;
 import net.minecraft.util.math.BlockPos;
 import net.minecraft.util.math.ChunkPos;
@@ -72,33 +70,25 @@ public final class WorldInitializer {
         border.setSize(WORLD_SIZE);
     }
 
-    /** 毎ティック（1秒ごと）未生成の村をチェックし、チャンク読み込み後に生成する。 */
+    /** 毎ティック1候補ずつ村の用地を探し、チャンク読み込み後に生成する。 */
     private static void onWorldTick(ServerWorld world) {
         if (world.getRegistryKey() != World.OVERWORLD) {
             return;
         }
-        if (world.getTime() % 20L != 0L) {
-            return;
-        }
         VillageGenState state = VillageGenState.get(world);
-        boolean updated = false;
         for (VillageGenState.VillageEntry entry : state.pendingVillages) {
-            if (entry.built) {
+            if (entry.built || world.getTime() < entry.retryAfter) {
                 continue;
             }
             ChunkPos center = new ChunkPos(entry.x >> 4, entry.z >> 4);
             if (!isAreaLoaded(world, center, 4)) {
                 continue;
             }
-            int surfaceY = findSafeSurfaceY(world, entry.x, entry.z);
-            VillageBuilder.build(world, entry.x, entry.z);
-            entry.built = true;
-            updated = true;
-            KingdomUniqueMod.LOGGER.info("[KingdomUnique] Generated deferred village at ({}, {}).",
-                    entry.x, entry.z);
+            tryBuildVillage(world, entry, 256);
+            break;
         }
-        if (updated) {
-            state.markDirty();
+        if (world.getTime() % 20L != 0L) {
+            return;
         }
         com.kingdomunique.item.unique.UniqueWeaponManager.clearVillageChestWeapons(world);
     }
@@ -115,27 +105,45 @@ public final class WorldInitializer {
         return true;
     }
 
-    /** 海・マグマを避けた安全な地表Yを返す。 */
-    private static int findSafeSurfaceY(ServerWorld world, int centerX, int centerZ) {
-        for (int r = 0; r <= 32; r += 8) {
-            for (int dx = -r; dx <= r; dx += 8) {
-                for (int dz = -r; dz <= r; dz += 8) {
-                    int x = centerX + dx;
-                    int z = centerZ + dz;
-                    if (world.getBiome(new BlockPos(x, 0, z)).isIn(BiomeTags.IS_OCEAN)) {
-                        continue;
-                    }
-                    int y = world.getTopY(Heightmap.Type.MOTION_BLOCKING_NO_LEAVES, x, z);
-                    BlockPos ground = new BlockPos(x, y - 1, z);
-                    if (!world.getBlockState(ground).isOf(Blocks.WATER)
-                            && !world.getBlockState(ground).isOf(Blocks.LAVA)
-                            && world.getFluidState(ground).isEmpty()) {
-                        return y;
-                    }
-                }
-            }
+    static int tryBuildVillage(ServerWorld world, VillageGenState.VillageEntry entry, int searchRadius) {
+        if (entry.built || world.getTime() < entry.retryAfter) {
+            return 0;
         }
-        return world.getSeaLevel() + 1;
+        int plannedX = entry.x;
+        int plannedZ = entry.z;
+        List<BlockPos> offsets = VillageSiteFinder.nearbyOffsets(searchRadius, 32);
+        BlockPos offset = offsets.get(entry.searchCursor++);
+        BlockPos center = VillageSiteFinder.suitableCenter(world,
+                plannedX + offset.getX(), plannedZ + offset.getZ());
+        int placed = center == null ? 0
+                : VillageBuilder.generateVillage(world, center.getX(), center.getZ(), null).placedBuildings();
+        if (placed == 0) {
+            if (entry.searchCursor == offsets.size()) {
+                entry.searchCursor = 0;
+                entry.retryAfter = world.getTime() + 1200;
+                KingdomUniqueMod.LOGGER.warn(
+                        "[KingdomUnique] No suitable village site within {} blocks of ({}, {}); retrying in 60 seconds.",
+                        searchRadius, plannedX, plannedZ);
+            }
+            return 0;
+        }
+        BlockPos plannedSurface = world.getTopPosition(Heightmap.Type.MOTION_BLOCKING_NO_LEAVES,
+                new BlockPos(plannedX, 0, plannedZ));
+        String plannedBiome = world.getBiome(plannedSurface).getKey()
+                .map(key -> key.getValue().toString()).orElse("unknown");
+        entry.x = center.getX();
+        entry.z = center.getZ();
+        entry.built = true;
+        VillageGenState.get(world).markDirty();
+        WorldUniqueData unique = WorldUniqueData.getOrCreate(world);
+        unique.setVillageSites(unique.getVillageSites().stream()
+                .map(site -> site.x() == plannedX && site.z() == plannedZ
+                        ? new WorldUniqueData.VillageSite(entry.x, entry.z) : site).toList());
+        KingdomUniqueMod.LOGGER.info(
+                "[KingdomUnique] Generated deferred village: planned ({}, {}) [{}], actual ({}, {}) [{}], {} buildings.",
+                plannedX, plannedZ, plannedBiome, entry.x, entry.z,
+                world.getBiome(center).getKey().map(key -> key.getValue().toString()).orElse("unknown"), placed);
+        return placed;
     }
 
     /** 4x3=12グリッドから、互いに800マス以上離れた10箇所を選ぶ。 */
