@@ -3,6 +3,7 @@ package com.kingdomunique.data;
 import com.kingdomunique.registry.ContentRegistry.Kind;
 import com.kingdomunique.registry.CurseRegistry;
 import com.kingdomunique.selection.SelectionManager;
+import com.mojang.brigadier.exceptions.CommandSyntaxException;
 import com.mojang.authlib.GameProfile;
 import net.fabricmc.fabric.api.gametest.v1.FabricGameTest;
 import net.minecraft.item.ItemStack;
@@ -41,6 +42,40 @@ public final class AcquisitionGameTest {
         context.assertTrue(reloaded.recordTrigger(UUID.randomUUID(), Kind.ABILITY),
                 "A new player must still be eligible for their first milestone");
         context.complete();
+    }
+
+    @GameTest(templateName = FabricGameTest.EMPTY_STRUCTURE)
+    public void manualSelectionRequiresOp(TestContext context) throws CommandSyntaxException {
+        var world = context.getWorld();
+        var state = PendingSelectionState.get(world);
+        var dispatcher = world.getServer().getCommandManager().getDispatcher();
+        var regular = player(context, UUID.randomUUID());
+        var operator = player(context, UUID.randomUUID(), 2);
+        var commands = List.of("ku select", "ku select ability", "ku select relic", "ku select curse",
+                "ku ability", "ku relic", "ku curse");
+
+        try {
+            for (String command : commands) {
+                boolean denied = false;
+                try {
+                    dispatcher.execute(command, regular.getCommandSource());
+                } catch (CommandSyntaxException e) {
+                    denied = true;
+                }
+                context.assertTrue(denied, "Non-OP must not be able to use /" + command);
+                context.assertEquals(dispatcher.execute(command, operator.getCommandSource()), 1,
+                        "OP must be able to use /" + command);
+                context.assertTrue(state.hasPending(operator.getUuid()), "Command must open a selection");
+                state.clearPending(operator.getUuid());
+            }
+            context.assertFalse(SelectionManager.reopenOrOpen(regular, Kind.RELIC),
+                    "The manual selection request used by networking must also reject non-OP");
+            context.assertFalse(state.hasPending(regular.getUuid()), "Non-OP must not receive a manual draw");
+            context.complete();
+        } finally {
+            state.clearPending(regular.getUuid());
+            state.clearPending(operator.getUuid());
+        }
     }
 
     @GameTest(templateName = FabricGameTest.EMPTY_STRUCTURE)
@@ -112,10 +147,19 @@ public final class AcquisitionGameTest {
     }
 
     private static ServerPlayerEntity player(TestContext context, UUID uuid) {
+        return player(context, uuid, 0);
+    }
+
+    private static ServerPlayerEntity player(TestContext context, UUID uuid, int permissionLevel) {
         var world = context.getWorld();
         var profile = new GameProfile(uuid, "acquisition_test");
         var client = ConnectedClientData.createDefault(profile, false);
         var player = new ServerPlayerEntity(world.getServer(), world, profile, client.syncedOptions()) {
+            @Override
+            protected int getPermissionLevel() {
+                return permissionLevel;
+            }
+
             @Override
             public void sendMessage(Text message, boolean overlay) {
             }

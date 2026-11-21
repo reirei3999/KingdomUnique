@@ -21,6 +21,7 @@ public final class SelectionManager {
     public static final int DIAMOND_OPTIONS = 2;
     public static final int RELIC_OPTIONS = 3;
     public static final int CURSE_OPTIONS = 5;
+    static final int MANUAL_SELECTION_PERMISSION_LEVEL = 2;
 
     private SelectionManager() {
     }
@@ -73,10 +74,12 @@ public final class SelectionManager {
     }
 
     /**
-     * /ku select 用: 保留中の選択があればそれを再表示し、
-     * なければ指定カテゴリの選択肢を新規抽選して必ず選択GUIを開く。
+     * 管理者向けの手動選択。保留中なら再表示し、なければ新規抽選する。
      */
     public static boolean reopenOrOpen(ServerPlayerEntity player, ContentRegistry.Kind kind) {
+        if (!player.hasPermissionLevel(MANUAL_SELECTION_PERMISSION_LEVEL)) {
+            return false;
+        }
         if (reopen(player)) {
             return true;
         }
