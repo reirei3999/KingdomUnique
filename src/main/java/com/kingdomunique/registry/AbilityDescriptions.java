@@ -146,7 +146,7 @@ public final class AbilityDescriptions {
                     "・最大HPが10に固定される"
             };
             case "crown_of_solitude" -> new String[]{
-                    "・全ての能力効果が1.8倍",
+                    "・攻撃力・防御力・採掘速度1.5倍、移動速度1.2倍",
                     "・味方や随伴者を連れられない"
             };
             case "chaos_dice" -> new String[]{

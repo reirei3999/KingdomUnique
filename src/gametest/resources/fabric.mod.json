@@ -12,6 +12,7 @@
       "com.kingdomunique.world.CitizenMovementGameTest",
       "com.kingdomunique.effect.GoldenScaleGameTest",
       "com.kingdomunique.effect.ChaliceGameTest",
+      "com.kingdomunique.effect.SolitudeCrownGameTest",
       "com.kingdomunique.data.AcquisitionGameTest",
       "com.kingdomunique.trade.CitizenMerchantGameTest"
     ]

@@ -6,6 +6,7 @@ import com.kingdomunique.building.StructureRotationUtil;
 import com.kingdomunique.kingdom.KingdomData;
 import com.kingdomunique.kingdom.KingdomManager;
 import com.mojang.authlib.GameProfile;
+import it.unimi.dsi.fastutil.longs.LongOpenHashSet;
 import net.fabricmc.fabric.api.gametest.v1.FabricGameTest;
 import net.minecraft.block.Block;
 import net.minecraft.block.Blocks;
@@ -17,11 +18,47 @@ import net.minecraft.util.math.BlockBox;
 import net.minecraft.test.GameTest;
 import net.minecraft.test.TestContext;
 import net.minecraft.util.math.BlockPos;
+import net.minecraft.util.math.ChunkPos;
 
 import java.util.List;
 import java.util.UUID;
 
 public final class VillagePlacementGameTest {
+    @GameTest(templateName = FabricGameTest.EMPTY_STRUCTURE, batchId = "starter_village")
+    public void registeringKingdomVillageForceLoadsItsChunks(TestContext context) {
+        ServerWorld world = context.getWorld();
+        BlockPos spawn = context.getAbsolutePos(new BlockPos(527, 0, 527));
+        ChunkPos farCorner = new ChunkPos(spawn.add(104, 0, 104));
+        context.assertTrue(world.getChunkManager().getWorldChunk(farCorner.x, farCorner.z) == null,
+                "The village's far corner must start unloaded");
+        UUID owner = UUID.randomUUID();
+        KingdomData data = new KingdomData();
+        var before = new LongOpenHashSet(world.getForcedChunks());
+        var expected = new LongOpenHashSet(before);
+        for (int x = (spawn.getX() - 104) >> 4; x <= (spawn.getX() + 104) >> 4; x++) {
+            for (int z = (spawn.getZ() - 104) >> 4; z <= (spawn.getZ() + 104) >> 4; z++) {
+                expected.add(ChunkPos.toLong(x, z));
+            }
+        }
+        try {
+            StarterSpawn.registerVillage(world, data, owner, new KingdomData.KingdomInfo(
+                    spawn.getX(), spawn.getZ(), 0, 10, 0, false, 0, true, 100, true, ""));
+
+            context.assertTrue(data.get(owner).villageGenerated(), "The kingdom village must be recorded");
+            context.assertTrue(world.getForcedChunks().equals(expected),
+                    "All chunks out to the starter village's outer generation bounds must be forced");
+            context.assertTrue(world.getChunkManager().getWorldChunk(farCorner.x, farCorner.z) == null,
+                    "Registering forced chunks must not load them synchronously");
+        } finally {
+            var added = new LongOpenHashSet(world.getForcedChunks());
+            added.removeAll(before);
+            for (long pos : added) {
+                world.setChunkForced(ChunkPos.getPackedX(pos), ChunkPos.getPackedZ(pos), false);
+            }
+        }
+        context.complete();
+    }
+
     @GameTest(templateName = FabricGameTest.EMPTY_STRUCTURE)
     public void starterHallUsesTerraceInsteadOfBuriedCenterHeight(TestContext context) {
         ServerWorld world = context.getWorld();
