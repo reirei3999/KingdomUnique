@@ -197,8 +197,9 @@ public final class ItemMenuHandler {
         if (stack.getCount() <= 0) {
             stack.setCount(1);
         }
+        String itemName = stack.getName().getString();
         // 管理者メニューからは所有者に関係なく付与する（排他リストは変更しない）。
         player.giveItemStack(stack);
-        player.sendMessage(Text.literal("§6[KingdomUnique] " + stack.getName().getString() + " を入手しました。"), false);
+        player.sendMessage(Text.literal("§6[KingdomUnique] " + itemName + " を入手しました。"), false);
     }
 }
