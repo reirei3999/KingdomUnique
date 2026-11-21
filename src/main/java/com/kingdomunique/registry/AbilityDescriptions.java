@@ -125,7 +125,7 @@ public final class AbilityDescriptions {
                     "・空腹も全回復する"
             };
             case "artisans_hammer" -> new String[]{
-                    "・一定間隔で装備やエンチャント本を自動生産"
+                    "・30秒ごとに12%の確率で、ランダムな有効レベルのエンチャント本を生成"
             };
             case "blade_of_slaughter" -> new String[]{
                     "・専用の殺戮の宝剣を付与",
