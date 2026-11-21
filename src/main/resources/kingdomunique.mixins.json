@@ -17,6 +17,7 @@
     "LivingEntityMixin",
     "LoseJobOnSiteLossTaskMixin",
     "MobEntityAccessor",
+    "MobSpawnReasonMixin",
     "PlayerCurseMixin",
     "RangedDamageMixin",
     "StatusEffectMixin",

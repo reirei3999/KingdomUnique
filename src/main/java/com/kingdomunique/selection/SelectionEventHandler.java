@@ -182,7 +182,7 @@ public final class SelectionEventHandler {
                 center.getX() - radius, world.getBottomY(), center.getZ() - radius,
                 center.getX() + radius, world.getTopY(), center.getZ() + radius);
         for (HostileEntity hostile : world.getEntitiesByClass(HostileEntity.class, box,
-                h -> h.isAlive() && !h.isPersistent()
+                h -> h.isAlive() && h.getCommandTags().contains("kingdomunique_natural_spawn") && !h.isPersistent()
                         && !com.kingdomunique.ability.AlliedMobManager.isAlly(h)
                         && com.kingdomunique.ability.AbilityActions.canLift(h)
                         && com.kingdomunique.kingdom.KingdomManager.isInTerritory(world, owner, h.getPos()))) {
