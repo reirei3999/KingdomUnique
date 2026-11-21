@@ -129,7 +129,7 @@ public final class AbilityDescriptions {
             };
             case "blade_of_slaughter" -> new String[]{
                     "・専用の殺戮の宝剣を付与",
-                    "・撃破ごとに攻撃力+0.05が永久に蓄積"
+                    "・中立・敵対Mobの撃破ごとに攻撃力+0.05が永久に蓄積（動物・村人などの友好Mobは対象外）"
             };
             case "cradle_of_prosperity" -> new String[]{
                     "・王国の人口増加速度が1.5倍"

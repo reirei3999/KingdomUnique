@@ -57,7 +57,7 @@ public final class FinalEventHandler {
             float bonus = held.getOrDefault(ModDataComponents.SLAUGHTER_BONUS, 0.0F) + 0.35F;
             held.set(ModDataComponents.SLAUGHTER_BONUS, bonus);
             EnhancementUtil.applySlaughterBonus(held, bonus);
-        } else if ("slaughter_blade".equals(id)) {
+        } else if ("slaughter_blade".equals(id) && isSlaughterGrowthTarget(entity)) {
             float bonus = held.getOrDefault(ModDataComponents.SLAUGHTER_BONUS, 0.0F) + 0.05F;
             held.set(ModDataComponents.SLAUGHTER_BONUS, bonus);
             EnhancementUtil.applySlaughterBonus(held, bonus);
@@ -65,5 +65,15 @@ public final class FinalEventHandler {
         if ("gae_bolg".equals(id)) {
             UniqueWeaponManager.onPlayerKill(player);
         }
+    }
+
+    public static boolean isSlaughterGrowthTarget(LivingEntity entity) {
+        return entity instanceof net.minecraft.entity.mob.MobEntity
+                && (entity.getType().getSpawnGroup() == net.minecraft.entity.SpawnGroup.MONSTER
+                || entity instanceof net.minecraft.entity.mob.Angerable
+                || entity instanceof net.minecraft.entity.passive.DolphinEntity
+                || entity instanceof net.minecraft.entity.passive.LlamaEntity
+                || entity instanceof net.minecraft.entity.passive.PandaEntity
+                || entity instanceof net.minecraft.entity.passive.GoatEntity);
     }
 }

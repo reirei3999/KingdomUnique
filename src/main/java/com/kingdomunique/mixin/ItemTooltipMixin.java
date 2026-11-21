@@ -132,7 +132,7 @@ public abstract class ItemTooltipMixin {
                 .formatted(Formatting.GRAY, Formatting.ITALIC));
         tooltip.add(Text.literal("  現在の攻撃力ボーナス: +" + String.format("%.2f", bonus))
                 .formatted(Formatting.YELLOW));
-        tooltip.add(Text.literal("  撃破ごとに +0.05 ずつ永久上昇").formatted(Formatting.GREEN));
+        tooltip.add(Text.literal("  中立・敵対Mob撃破ごとに +0.05 ずつ永久上昇").formatted(Formatting.GREEN));
     }
 
     private static String flavor(String id) {

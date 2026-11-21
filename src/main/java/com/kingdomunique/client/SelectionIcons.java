@@ -66,7 +66,7 @@ public final class SelectionIcons {
             case "ward_stone" -> new String[]{"敵スポーン無効", "夜間被ダメ30%カット"};
             case "phoenix_feather" -> new String[]{"1日1回死亡時に復活"};
             case "artisans_hammer" -> new String[]{"30秒ごと12%でエンチャント本を生成"};
-            case "blade_of_slaughter" -> new String[]{"専用剣を付与", "撃破で攻撃力上昇"};
+            case "blade_of_slaughter" -> new String[]{"専用剣を付与", "中立・敵対Mob撃破で攻撃力上昇"};
             case "cradle_of_prosperity" -> new String[]{"人口増加1.5倍"};
             case "berserker_mask" -> new String[]{"与ダメージ1.6倍", "自然回復不可"};
             case "ring_of_gluttony" -> new String[]{"撃破で一時強化", "空腹3倍・0で猛毒"};
