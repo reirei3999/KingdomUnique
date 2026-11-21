@@ -33,6 +33,9 @@ public abstract class CombatCurseMixin {
                 && source.getAttacker() instanceof net.minecraft.entity.mob.HostileEntity) {
             amount *= (float) RelicEffects.getNightRaidDamageMultiplier(victim);
         }
+        if (self instanceof ServerPlayerEntity victim) {
+            amount *= (float) CurseEffects.incomingMultiplier(victim);
+        }
         return amount;
     }
 }

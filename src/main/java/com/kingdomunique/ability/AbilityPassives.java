@@ -1,5 +1,8 @@
 package com.kingdomunique.ability;
 
+import com.kingdomunique.data.WorldUniqueData;
+import com.kingdomunique.kingdom.KingdomData;
+import com.kingdomunique.kingdom.KingdomManager;
 import com.kingdomunique.registry.UniqueContentRegistry;
 import net.minecraft.block.BlockState;
 import net.minecraft.block.CropBlock;
@@ -14,12 +17,14 @@ import net.minecraft.server.network.ServerPlayerEntity;
 import net.minecraft.server.world.ServerWorld;
 import net.minecraft.util.Identifier;
 import net.minecraft.util.math.BlockPos;
+import net.minecraft.util.math.Vec3d;
+import net.minecraft.util.math.random.Random;
+import net.minecraft.world.Heightmap;
 import net.minecraft.world.World;
 
 import java.util.List;
 import java.util.Map;
 import java.util.UUID;
-import java.util.concurrent.ThreadLocalRandom;
 
 /** 常時発動型の能力効果と毎Tick処理。 */
 public final class AbilityPassives {
@@ -28,13 +33,11 @@ public final class AbilityPassives {
     private static final Identifier CONQUEROR_KNOCKBACK = id("conqueror_knockback");
     private static final Identifier GALE_SPEED = id("gale_speed");
     private static final Identifier GALE_FALL = id("gale_fall");
-    private static final Identifier SITE_BLOCK_REACH = id("site_block_reach");
-    private static final Identifier SITE_ENTITY_REACH = id("site_entity_reach");
     private static final Identifier SITE_BREAK_SPEED = id("site_break_speed");
 
     public static final long INDOMITABLE_DELAY_MS = 8000L;
 
-    private static long tickCounter = 0L;
+    private static final double FERTILITY_CHANCE_PER_COLUMN_PER_SECOND = 0.15D;
 
     private AbilityPassives() {
     }
@@ -54,13 +57,9 @@ public final class AbilityPassives {
         apply(player, EntityAttributes.GENERIC_KNOCKBACK_RESISTANCE, CONQUEROR_KNOCKBACK,
                 abilities.contains(UniqueContentRegistry.CONQUEROR), 1.0D, EntityAttributeModifier.Operation.ADD_VALUE);
         apply(player, EntityAttributes.GENERIC_MOVEMENT_SPEED, GALE_SPEED,
-                abilities.contains(UniqueContentRegistry.GALE), 0.2D, EntityAttributeModifier.Operation.ADD_MULTIPLIED_TOTAL);
+                abilities.contains(UniqueContentRegistry.GALE), 0.5D, EntityAttributeModifier.Operation.ADD_MULTIPLIED_TOTAL);
         apply(player, EntityAttributes.GENERIC_FALL_DAMAGE_MULTIPLIER, GALE_FALL,
                 abilities.contains(UniqueContentRegistry.GALE), -0.8D, EntityAttributeModifier.Operation.ADD_MULTIPLIED_TOTAL);
-        apply(player, EntityAttributes.PLAYER_BLOCK_INTERACTION_RANGE, SITE_BLOCK_REACH,
-                abilities.contains(UniqueContentRegistry.SITE_SUPERVISOR), 3.0D, EntityAttributeModifier.Operation.ADD_VALUE);
-        apply(player, EntityAttributes.PLAYER_ENTITY_INTERACTION_RANGE, SITE_ENTITY_REACH,
-                abilities.contains(UniqueContentRegistry.SITE_SUPERVISOR), 3.0D, EntityAttributeModifier.Operation.ADD_VALUE);
         apply(player, EntityAttributes.PLAYER_BLOCK_BREAK_SPEED, SITE_BREAK_SPEED,
                 abilities.contains(UniqueContentRegistry.SITE_SUPERVISOR), 0.5D, EntityAttributeModifier.Operation.ADD_MULTIPLIED_TOTAL);
     }
@@ -80,8 +79,6 @@ public final class AbilityPassives {
 
     /** サーバー Tick ごとの処理（重い処理は20Tickごと）。 */
     public static void onServerTick(MinecraftServer server) {
-        tickCounter++;
-
         for (ServerPlayerEntity player : server.getPlayerManager().getPlayerList()) {
             List<String> abilities = UniqueContentRegistry.getAbilities(player);
             applyAttributes(player, abilities);
@@ -92,10 +89,8 @@ public final class AbilityPassives {
             if (abilities.contains(UniqueContentRegistry.GRAVITY_CONTROL)) {
                 tickGravity(player);
             }
-            if (tickCounter % 20L == 0L && abilities.contains(UniqueContentRegistry.FERTILITY)) {
-                tickFertility(player);
-            }
         }
+        tickFertility(server);
     }
 
     /** 不屈：8秒無傷なら再生IVを付与し続ける。 */
@@ -112,26 +107,56 @@ public final class AbilityPassives {
         }
     }
 
-    /** 豊穣：半径16マスの作物の成長を加速する。 */
-    private static void tickFertility(ServerPlayerEntity player) {
-        ServerWorld world = player.getServerWorld();
-        BlockPos center = player.getBlockPos();
-        int radius = 16;
-        for (int dx = -radius; dx <= radius; dx++) {
-            for (int dz = -radius; dz <= radius; dz++) {
+    /** 豊穣：所持者の王国領土内にある畑の作物の成長を加速する（1列あたり毎秒15%）。 */
+    private static void tickFertility(MinecraftServer server) {
+        ServerWorld world = server.getWorld(World.OVERWORLD);
+        if (world == null) {
+            return;
+        }
+        WorldUniqueData unique = WorldUniqueData.getOrCreate(world);
+        Random random = world.getRandom();
+        for (Map.Entry<UUID, KingdomData.KingdomInfo> entry : KingdomData.getOrCreate(world).all().entrySet()) {
+            if (!unique.hasId(entry.getKey(), UniqueContentRegistry.FERTILITY)) {
+                continue;
+            }
+            KingdomData.KingdomInfo info = entry.getValue();
+            int radius = info.territoryRadius();
+            int side = radius * 2 + 1;
+            int samples = (int) Math.ceil(side * side * FERTILITY_CHANCE_PER_COLUMN_PER_SECOND / 20.0D);
+            for (int i = 0; i < samples; i++) {
+                int dx = random.nextBetween(-radius, radius);
+                int dz = random.nextBetween(-radius, radius);
                 if (dx * dx + dz * dz > radius * radius) {
                     continue;
                 }
-                if (ThreadLocalRandom.current().nextDouble() > 0.15D) {
+                int x = info.centerX() + dx;
+                int z = info.centerZ() + dz;
+                if (!world.isChunkLoaded(x >> 4, z >> 4)) {
                     continue;
                 }
-                BlockPos pos = center.add(dx, 0, dz);
+                BlockPos pos = new BlockPos(x, world.getTopY(Heightmap.Type.WORLD_SURFACE, x, z) - 1, z);
                 BlockState state = world.getBlockState(pos);
                 if (state.getBlock() instanceof CropBlock crop && !crop.isMature(state)) {
                     crop.applyGrowth(world, pos, state);
                 }
             }
         }
+    }
+
+    /** 指定座標を領土に含む、豊穣所持者の王国（王UUID）を返す。該当なしなら null。 */
+    public static UUID fertilityKingdomAt(ServerWorld world, BlockPos pos) {
+        if (world.getRegistryKey() != World.OVERWORLD) {
+            return null;
+        }
+        WorldUniqueData unique = WorldUniqueData.getOrCreate(world);
+        Vec3d center = Vec3d.ofCenter(pos);
+        for (UUID owner : KingdomData.getOrCreate(world).all().keySet()) {
+            if (unique.hasId(owner, UniqueContentRegistry.FERTILITY)
+                    && KingdomManager.isInTerritory(world, owner, center)) {
+                return owner;
+            }
+        }
+        return null;
     }
 
     /** 重力操作：拘束中の敵を視線先に浮かせ、時間経過で解放する。 */
@@ -157,7 +182,12 @@ public final class AbilityPassives {
         double x = player.getX() + holder.x * 3.0D;
         double y = player.getY() + player.getEyeHeight(player.getPose()) + holder.y * 3.0D;
         double z = player.getZ() + holder.z * 3.0D;
-        target.setPosition(x, y, z);
+        if (target instanceof ServerPlayerEntity heldPlayer && heldPlayer.networkHandler != null) {
+            // プレイヤーはサーバー側の座標変更だけではクライアントへ反映されないため、テレポートで同期する。
+            heldPlayer.networkHandler.requestTeleport(x, y, z, heldPlayer.getYaw(), heldPlayer.getPitch());
+        } else {
+            target.setPosition(x, y, z);
+        }
         target.setVelocity(0.0D, 0.0D, 0.0D);
         target.setNoGravity(true);
     }
@@ -169,10 +199,31 @@ public final class AbilityPassives {
         if (!target.isAlive()) {
             return;
         }
-        target.setNoGravity(false);
+        clearGravity(target);
         Vec3fHolder holder = new Vec3fHolder(player);
         target.setVelocity(holder.x * 2.0D, holder.y * 2.0D + 0.3D, holder.z * 2.0D);
+        target.velocityModified = true;
+    }
 
+    /** 拘束中のプレイヤーがダメージを受けたら、投擲せずにその場で拘束を解く。 */
+    public static void breakFree(ServerPlayerEntity victim) {
+        for (Map.Entry<UUID, PlayerAbilityState> entry : AbilityState.all().entrySet()) {
+            if (!victim.getUuid().equals(entry.getValue().getGravityTarget())) {
+                continue;
+            }
+            entry.getValue().setGravityTarget(null);
+            clearGravity(victim);
+            ServerPlayerEntity holder = victim.getServer() == null ? null
+                    : victim.getServer().getPlayerManager().getPlayer(entry.getKey());
+            if (holder != null) {
+                holder.sendMessage(net.minecraft.text.Text.literal(
+                        "§d[重力操作] " + victim.getName().getString() + " に拘束を振りほどかれました。"), true);
+            }
+        }
+    }
+
+    private static void clearGravity(net.minecraft.entity.LivingEntity target) {
+        target.setNoGravity(false);
         EntityAttributeInstance instance = target.getAttributeInstance(EntityAttributes.GENERIC_FALL_DAMAGE_MULTIPLIER);
         if (instance != null) {
             instance.removeModifier(id("gravity_fall_half"));

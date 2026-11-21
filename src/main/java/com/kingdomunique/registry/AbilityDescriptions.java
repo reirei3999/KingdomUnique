@@ -60,19 +60,19 @@ public final class AbilityDescriptions {
                     "・対象がいない場合はクールタイムを消費しない（CT 12秒）"
             };
             case UniqueContentRegistry.FERTILITY -> new String[]{
-                    "・半径16マスの作物成長を加速",
-                    "・成熟作物の収穫ドロップが2倍"
+                    "・自国の領土内にある畑の作物成長を加速",
+                    "・領土内で収穫した成熟作物のドロップが2倍"
             };
             case UniqueContentRegistry.SITE_SUPERVISOR -> new String[]{
-                    "・ブロック／エンティティのリーチが+3",
-                    "・建築コスト30%OFF・時間30%短縮・採掘速度向上"
+                    "・建築コスト30%OFF・時間30%短縮",
+                    "・採掘速度向上"
             };
             case UniqueContentRegistry.CONQUEROR -> new String[]{
                     "・与ダメージが1.3倍（近接・遠距離ともに有効）",
                     "・ノックバック耐性を獲得"
             };
             case UniqueContentRegistry.GALE -> new String[]{
-                    "・移動速度1.2倍",
+                    "・移動速度1.5倍",
                     "・落下ダメージ80%カット"
             };
             case UniqueContentRegistry.INDOMITABLE -> new String[]{
@@ -95,8 +95,10 @@ public final class AbilityDescriptions {
                     "・味方は自動で追従・戦闘する"
             };
             case UniqueContentRegistry.GRAVITY_CONTROL -> new String[]{
-                    "・Rキー：視線先の敵を浮かせて拘束、再押下で解放",
-                    "・落下ダメージ50%カット、CT 15秒"
+                    "・Rキー：視線先の敵を浮かせて拘束（5秒）、再押下で投擲",
+                    "・プレイヤーは1.5秒まで、ダメージを受けると振りほどかれる",
+                    "・ボス級（ウィザー・ドラゴン等）は持ち上げられない",
+                    "・投げた相手の落下ダメージ50%カット、CT 15秒"
             };
             // ---- 遺物（レリック） ----
             case "chalice_of_abundance" -> new String[]{
@@ -146,14 +148,15 @@ public final class AbilityDescriptions {
                     "・最大HPが10に固定される"
             };
             case "crown_of_solitude" -> new String[]{
-                    "・全ての能力効果が1.8倍",
+                    "・攻撃力・防御力・採掘速度1.4倍、移動速度1.2倍",
                     "・味方や随伴者を連れられない"
             };
             case "chaos_dice" -> new String[]{
-                    "・攻撃ごとにダメージ0.7〜2.7倍（期待値1.7倍）"
+                    "・攻撃ごとに与ダメージ0.1〜3倍（期待値1.55倍）",
+                    "・被弾ごとに被ダメージ0.5〜4倍（期待値2.25倍）"
             };
             case "gravity_shackles" -> new String[]{
-                    "・被ダメージ60%カット",
+                    "・あらゆる被ダメージを60%カット",
                     "・ジャンプ不可・移動速度0.8倍・状態異常を無効化"
             };
             case "immoral_contract" -> new String[]{
@@ -165,8 +168,8 @@ public final class AbilityDescriptions {
                     "・明所では防御力が半減する"
             };
             case "pickaxe_of_destruction" -> new String[]{
-                    "・専用ツルハシでどんなブロックも一瞬で破壊",
-                    "・破壊したブロックのドロップは消滅"
+                    "・専用ツルハシを持っている間、採掘速度が大幅に上昇",
+                    "・そのツルハシで壊したブロックのドロップは消滅"
             };
             default -> new String[]{"世界で唯一の力。所持しているだけで効果が発動します。"};
         };
