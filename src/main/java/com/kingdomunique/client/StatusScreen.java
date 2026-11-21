@@ -29,7 +29,7 @@ public final class StatusScreen extends Screen {
     private int listOffset;
 
     private int visibleEntries() {
-        return Math.min(displayIds.size(), Math.max(1, (Math.min(260, height - 24) - 154) / 36));
+        return Math.min(displayIds.size(), Math.max(1, (Math.min(260, height - 24) - 102) / 36));
     }
 
     private static int categoryAccent(ContentRegistry.Kind kind) {
@@ -141,8 +141,8 @@ public final class StatusScreen extends Screen {
         context.drawItem(info.icon(), detailX, detailY);
         context.drawTextWithShadow(this.textRenderer, Text.literal("§e§l" + info.name()),
                 detailX + 22, detailY + 1, KuTheme.PRIMARY);
-        context.drawTextWithShadow(this.textRenderer, Text.literal("§b[" + info.category() + "]"),
-                detailX + 22, detailY + 11, KuTheme.PRIMARY);
+        context.drawTextWithShadow(this.textRenderer, Text.literal("[" + info.category() + "]"),
+                detailX + 22, detailY + 11, categoryAccent(ContentRegistry.kindOf(selectedId)));
 
         detailY += 26;
         context.drawTextWithShadow(this.textRenderer,
@@ -178,20 +178,33 @@ public final class StatusScreen extends Screen {
         context.enableScissor(x + 4, y + 4, x + w - 4, y + h - 4);
         context.drawTextWithShadow(textRenderer, Text.literal("所持ユニーク " + countOwned() + "種"),
                 x + 6, y + 8, KuTheme.PRIMARY);
+        boolean compact = h < 90;
         int lineY = y + 26;
+        var counts = Text.empty();
         for (ContentRegistry.Kind kind : ContentRegistry.Kind.values()) {
             long count = displayIds.stream().filter(id -> ContentRegistry.kindOf(id) == kind).count();
-            context.drawTextWithShadow(textRenderer, Text.literal(kind.getJapanese() + "  " + count),
-                    x + 6, lineY, categoryAccent(kind));
-            lineY += 14;
+            Text label = Text.literal(kind.getJapanese() + " " + count).withColor(categoryAccent(kind));
+            if (compact) {
+                counts.append(label).append("  ");
+            } else {
+                context.drawTextWithShadow(textRenderer, label, x + 6, lineY, KuTheme.PRIMARY);
+                lineY += 14;
+            }
+        }
+        if (compact) {
+            context.drawTextWithShadow(textRenderer, counts, x + 6, y + 24, KuTheme.PRIMARY);
+            lineY = y + 36;
         }
         Text active = Text.literal("発動中: " + UniqueLoreRegistry.getOrFallback(activeAbilityId).name());
         context.drawTextWithShadow(textRenderer, KuButton.fitLabel(textRenderer, active, w - 12),
                 x + 6, lineY + 4, KuTheme.SECONDARY);
         int hintY = lineY + 22;
-        for (OrderedText line : textRenderer.wrapLines(Text.literal("カードをクリックで詳細 / ホイールで一覧"), w - 12)) {
-            context.drawTextWithShadow(textRenderer, line, x + 6, hintY, KuTheme.MUTED);
-            hintY += 11;
+        var hints = textRenderer.wrapLines(Text.literal("カードをクリックで詳細 / ホイールで一覧"), w - 12);
+        if (hintY + hints.size() * 11 <= y + h - 6) {
+            for (OrderedText line : hints) {
+                context.drawTextWithShadow(textRenderer, line, x + 6, hintY, KuTheme.MUTED);
+                hintY += 11;
+            }
         }
         context.disableScissor();
     }
