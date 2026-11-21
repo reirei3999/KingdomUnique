@@ -60,6 +60,8 @@ public final class AlliedMobManager {
     public static boolean tryRevive(HostileEntity dead, ServerPlayerEntity owner, ServerWorld world) {
         NbtCompound nbt = new NbtCompound();
         dead.writeNbt(nbt);
+        nbt.putString("id", EntityType.getId(dead.getType()).toString());
+        nbt.remove("UUID");
         Vec3d pos = dead.getPos();
 
         Entity revived = EntityType.loadEntityWithPassengers(nbt, world, entity -> {

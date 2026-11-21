@@ -168,11 +168,12 @@ public final class AbilityActions {
 
         UUID targetUuid = state.getGravityTarget();
         if (targetUuid != null) {
-            ServerWorld world = player.getServerWorld();
-            if (world.getEntity(targetUuid) instanceof LivingEntity held) {
+            LivingEntity held = state.getGravityHeldEntity();
+            if (held != null) {
                 AbilityPassives.releaseGravity(player, held);
+            } else {
+                AbilityPassives.clearGravity(player);
             }
-            state.setGravityTarget(null);
             player.sendMessage(Text.literal("§d[重力操作] 拘束を解放しました。"), true);
             return true;
         }
@@ -191,6 +192,7 @@ public final class AbilityActions {
         }
         target.setNoGravity(true);
         state.setGravityTarget(target.getUuid());
+        state.setGravityHeldEntity(target);
         state.setGravityReleaseAt(now + 5000L);
         player.sendMessage(Text.literal("§d[重力操作] " + target.getName().getString() + " を拘束しました。"), true);
         return true;

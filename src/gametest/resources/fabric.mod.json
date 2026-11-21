@@ -5,6 +5,7 @@
   "name": "KingdomUnique GameTest",
   "entrypoints": {
     "fabric-gametest": [
+      "com.kingdomunique.ability.AbilityCleanupGameTest",
       "com.kingdomunique.building.BlueprintGameTest",
       "com.kingdomunique.building.StructureFootprintGameTest",
       "com.kingdomunique.soldier.SoldierOrderGameTest",
