@@ -98,6 +98,43 @@ public final class BlueprintGameTest {
         context.complete();
     }
 
+    @GameTest(templateName = FabricGameTest.EMPTY_STRUCTURE)
+    public void heroSanctuaryStartsAndCompletesWithItsCore(TestContext context) {
+        ServerWorld world = context.getWorld();
+        BlockPos pos = context.getAbsolutePos(new BlockPos(0, 8, 0));
+        ServerPlayerEntity player = player(world);
+        BlueprintBlock block = ModBlocks.HERO_SANCTUARY;
+        BlueprintBlockEntity blueprint = place(block, world, pos, player);
+        block.getType().materials().forEach((item, count) ->
+                deposit(block, world, pos, player, new ItemStack(item, count)));
+        context.assertTrue(blueprint.isReady() && site(world, pos).ready(),
+                "The altar must start once its materials are deposited");
+        context.assertTrue(BuildingManager.completeNow(world, site(world, pos), player),
+                "The altar must complete");
+        BlockPos core = pos.add(com.kingdomunique.world.HeroSanctuaryBuilder.CORE_OFFSET);
+        context.assertTrue(world.getBlockState(core).isOf(net.minecraft.block.Blocks.LODESTONE),
+                "The altar core must be a lodestone, was " + world.getBlockState(core));
+        context.assertTrue(com.kingdomunique.kingdom.SanctuaryData.getOrCreate(world).isSanctuary(core),
+                "The altar core must be registered");
+
+        BlockPos next = pos.add(12, 0, 0);
+        BlueprintBlockEntity second = place(block, world, next, player);
+        block.getType().materials().forEach((item, count) ->
+                deposit(block, world, next, player, new ItemStack(item, count)));
+        context.assertFalse(second.isReady(), "A standing altar must keep the one-per-kingdom limit");
+
+        world.setBlockState(core, net.minecraft.block.Blocks.AIR.getDefaultState());
+        world.breakBlock(next, false);
+        BlueprintBlockEntity rebuilt = place(block, world, next, player);
+        block.getType().materials().forEach((item, count) ->
+                deposit(block, world, next, player, new ItemStack(item, count)));
+        context.assertTrue(rebuilt.isReady() && site(world, next).ready(),
+                "A destroyed altar must not block building a new one");
+        context.assertFalse(com.kingdomunique.kingdom.SanctuaryData.getOrCreate(world).isSanctuary(core),
+                "A destroyed altar core must be unregistered");
+        context.complete();
+    }
+
     private static ServerPlayerEntity player(ServerWorld world) {
         return new ServerPlayerEntity(world.getServer(), world,
                 new GameProfile(UUID.randomUUID(), "blueprint_test"), SyncedClientOptions.createDefault()) {

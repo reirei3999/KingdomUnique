@@ -1,5 +1,7 @@
 package com.kingdomunique.building;
 
+import com.kingdomunique.kingdom.SanctuaryData;
+import net.minecraft.block.Blocks;
 import net.minecraft.datafixer.DataFixTypes;
 import net.minecraft.nbt.NbtCompound;
 import net.minecraft.nbt.NbtElement;
@@ -58,6 +60,7 @@ public final class KingdomBuildingState extends PersistentState {
 
     /** 完成＋建築中の合計（上限チェック用、建築中は BuildData から数える）。 */
     public int countBuildings(ServerWorld world, UUID owner, BuildingType type) {
+        pruneDestroyedCores(world);
         int count = (int) completedBuildings.stream()
                 .filter(b -> b.ownerUuid.equals(owner) && b.type == type).count();
         for (BuildData.BuildSite site : BuildData.getOrCreate(world).sites()) {
@@ -66,6 +69,22 @@ public final class KingdomBuildingState extends PersistentState {
             }
         }
         return count;
+    }
+
+    /** コア（祭壇のロードストーン）が失われた完成記録を破棄し、再建築できるようにする。 */
+    public void pruneDestroyedCores(ServerWorld world) {
+        boolean removed = completedBuildings.removeIf(b -> {
+            BlockPos core = b.specialCorePos;
+            if (core == null || !world.isChunkLoaded(core.getX() >> 4, core.getZ() >> 4)
+                    || world.getBlockState(core).isOf(Blocks.LODESTONE)) {
+                return false;
+            }
+            SanctuaryData.getOrCreate(world).unregister(core);
+            return true;
+        });
+        if (removed) {
+            markDirty();
+        }
     }
 
     public void add(UUID owner, BuildingType type, BlockPos origin, Direction facing,
