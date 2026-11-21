@@ -37,7 +37,7 @@ public final class AbilityDescriptions {
             return "Rキー：発動（CT " + (ct / 20) + "秒）";
         }
         if (UniqueContentRegistry.DIVINE_SMITH.equals(id)) {
-            return "Vキー：採掘範囲切替（最大3x3）/ 金床で無限強化";
+            return "Vキー：採掘範囲切替（最大3x3）/ 確率で強化数値アップ";
         }
         return "常在効果（操作キーなし）";
     }
@@ -49,7 +49,7 @@ public final class AbilityDescriptions {
         }
         return switch (id) {
             case UniqueContentRegistry.DIVINE_SMITH -> new String[]{
-                    "・金床で同じアイテム同士を合成すると無限強化（+1、稀に+2/+3）",
+                    "・確率で強化数値アップ：金床で同じアイテム・同じ段階を合成すると、60%で+1・25%で+2・15%で+3",
                     "・強化品の基本性能・耐久は 1.1^n 倍、ツール採掘速度は 2×1.1^n 倍",
                     "・製作時の採掘速度ボーナスが付いたツールは、従来のボーナス込み速度からさらに2倍",
                     "・Vキーで採掘範囲を 1x1 / 3x3（最大）に切り替え"

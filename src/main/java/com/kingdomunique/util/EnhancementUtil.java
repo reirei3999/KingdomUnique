@@ -241,7 +241,7 @@ public final class EnhancementUtil {
             return false;
         }
         WorldUniqueData data = WorldUniqueData.getOrCreate(overworld);
-        return DIVINE_SMITH_ID.equals(data.getClaimedId(player.getUuid()));
+        return data.hasId(player.getUuid(), DIVINE_SMITH_ID);
     }
 
     /** 神匠のクラフトボーナス。アイテム種別ごとに渡された値のみを反映する。 */
@@ -370,5 +370,10 @@ public final class EnhancementUtil {
 
     /** 強化結果。 */
     public record EnhancementResult(ItemStack stack, int levelCost, boolean divineBonus, int newLevel) {
+    }
+
+    public interface AnvilTransfer {
+        void ku$prepareTransfer(PlayerEntity player, int slot);
+        void ku$clearTransfer();
     }
 }

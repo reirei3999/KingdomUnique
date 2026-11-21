@@ -76,7 +76,7 @@ public abstract class ItemTooltipMixin {
         int level = stack.getOrDefault(ModDataComponents.ENHANCE_LEVEL, 0);
         if (level >= 1) {
             tooltip.add(Text.literal(""));
-            tooltip.add(Text.literal("◆ 無限強化 +" + level + "（基本性能・耐久値 1.1^"
+            tooltip.add(Text.literal("◆ 強化 +" + level + "（基本性能・耐久値 1.1^"
                     + level + "倍）").formatted(Formatting.AQUA));
         }
 
