@@ -13,6 +13,7 @@ import net.minecraft.client.gui.screen.Screen;
 import net.minecraft.text.Text;
 import net.minecraft.client.sound.PositionedSoundInstance;
 import net.minecraft.sound.SoundEvents;
+import org.lwjgl.glfw.GLFW;
 
 /** 専用アイテムを一覧から取得するメニュー。 */
 @Environment(EnvType.CLIENT)
@@ -83,11 +84,8 @@ public final class ItemMenuScreen extends Screen {
         int available = Math.max(1, width - 24);
         int longest = ItemCatalog.entries().stream().mapToInt(entry -> textRenderer.getWidth(entry.label()))
                 .max().orElse(0);
-        int maxColumns = Math.max(1, Math.min(5, (available + GAP) / (56 + GAP)));
-        int preferred = Math.max(1, Math.min(maxColumns, (available + GAP) / (longest + 12 + GAP)));
+        int columns = Math.max(1, Math.min(5, (available + GAP) / (longest + 12 + GAP)));
         int maxRows = Math.max(1, (height - 78 - resultHeight()) / (BUTTON_HEIGHT + GAP));
-        int required = (ItemCatalog.entries().size() + maxRows - 1) / maxRows;
-        int columns = Math.min(maxColumns, Math.max(preferred, required));
         int rows = Math.max(1, Math.min(maxRows, (ItemCatalog.entries().size() + columns - 1) / columns));
         int panelHeight = rows * (BUTTON_HEIGHT + GAP) + 66 + resultHeight();
         return new Layout(columns, rows, Math.max(1, (available - (columns - 1) * GAP) / columns),
@@ -127,6 +125,22 @@ public final class ItemMenuScreen extends Screen {
             }).dimensions(startX + totalWidth - 60, footerY, 60, 18).build());
             next.active = page + 1 < pages;
         }
+    }
+
+    @Override
+    public boolean keyPressed(int keyCode, int scanCode, int modifiers) {
+        int pages = Math.max(1, (ItemCatalog.entries().size() + layout().pageSize() - 1) / layout().pageSize());
+        if (keyCode == GLFW.GLFW_KEY_PAGE_UP && page > 0) {
+            page--;
+            clearAndInit();
+            return true;
+        }
+        if (keyCode == GLFW.GLFW_KEY_PAGE_DOWN && page + 1 < pages) {
+            page++;
+            clearAndInit();
+            return true;
+        }
+        return super.keyPressed(keyCode, scanCode, modifiers);
     }
 
     @Override
