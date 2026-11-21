@@ -1,11 +1,12 @@
 package com.kingdomunique.compat.jei;
 
 import com.kingdomunique.building.BuildingType;
-import com.kingdomunique.trade.KingdomTradeRegistry;
 import com.kingdomunique.trade.TradeRewardFactory;
+import com.kingdomunique.trade.TradeDisplayOffers;
 import mezz.jei.api.IModPlugin;
 import mezz.jei.api.JeiPlugin;
 import mezz.jei.api.constants.VanillaTypes;
+import mezz.jei.api.constants.RecipeTypes;
 import mezz.jei.api.recipe.RecipeType;
 import mezz.jei.api.registration.IRecipeCategoryRegistration;
 import mezz.jei.api.registration.IRecipeCatalystRegistration;
@@ -16,11 +17,10 @@ import net.minecraft.item.Items;
 import net.minecraft.registry.Registries;
 import net.minecraft.text.Text;
 import net.minecraft.util.Identifier;
-import net.minecraft.village.TradeOffer;
 
 import java.util.ArrayList;
-import java.util.HashSet;
 import java.util.List;
+import java.util.Locale;
 import java.util.Set;
 
 @JeiPlugin
@@ -83,10 +83,15 @@ public final class KingdomJeiPlugin implements IModPlugin {
         registration.addRecipes(CONSTRUCTION, construction);
         List<DisplayRecipe> trades = new ArrayList<>();
         for (String role : List.of("farmer", "builder", "smith", "citizen")) {
-            Set<String> seen = new HashSet<>();
-            addTrades(trades, seen, role, null);
-            for (BuildingType unlock : BuildingType.values()) {
-                addTrades(trades, seen, role, unlock);
+            for (TradeDisplayOffers.Entry entry : TradeDisplayOffers.build(role)) {
+                var offer = entry.offer();
+                List<ItemStack> inputs = new ArrayList<>();
+                inputs.add(offer.getDisplayedFirstBuyItem());
+                if (!offer.getDisplayedSecondBuyItem().isEmpty()) {
+                    inputs.add(offer.getDisplayedSecondBuyItem());
+                }
+                trades.add(new DisplayRecipe(inputs, offer.getSellItem().copy(),
+                        List.of(Text.translatable("jei.kingdomunique.role." + role), requirementText(entry.alternatives()))));
             }
         }
         registration.addRecipes(TRADES, trades);
@@ -97,27 +102,30 @@ public final class KingdomJeiPlugin implements IModPlugin {
                      "slaughter_blade", "destruction_pickaxe" -> path;
                 default -> path.startsWith("blueprint_") ? "blueprint" : "admin";
             };
-            registration.addItemStackInfo(new ItemStack(Registries.ITEM.get(id)),
-                    Text.translatable("jei.kingdomunique.obtain." + info));
+            registration.getIngredientManager().createTypedIngredient(VanillaTypes.ITEM_STACK,
+                    new ItemStack(Registries.ITEM.get(id))).ifPresent(ingredient ->
+                    registration.addRecipes(RecipeTypes.INFORMATION, List.of(new KingdomInformationRecipe(
+                            List.of(ingredient), "jei.kingdomunique.obtain." + info))));
         });
     }
 
-    private static void addTrades(List<DisplayRecipe> recipes, Set<String> seen, String role, BuildingType unlock) {
-        for (TradeOffer offer : KingdomTradeRegistry.buildOffers(role, type -> type == unlock)) {
-            String key = offer.getDisplayedFirstBuyItem().toString() + "|" + offer.getDisplayedSecondBuyItem()
-                    + "|" + offer.getSellItem();
-            if (!seen.add(key)) {
-                continue;
-            }
-            List<ItemStack> inputs = new ArrayList<>();
-            inputs.add(offer.getDisplayedFirstBuyItem());
-            if (!offer.getDisplayedSecondBuyItem().isEmpty()) {
-                inputs.add(offer.getDisplayedSecondBuyItem());
-            }
-            Text requirement = unlock == null ? Text.translatable("jei.kingdomunique.no_building")
-                    : Text.translatable("jei.kingdomunique.unlock", TradeRewardFactory.createBlueprintStack(unlock).getName());
-            recipes.add(new DisplayRecipe(inputs, offer.getSellItem().copy(),
-                    List.of(Text.translatable("jei.kingdomunique.role." + role), requirement)));
+    static Text requirementText(List<Set<BuildingType>> alternatives) {
+        if (alternatives.isEmpty()) {
+            throw new IllegalArgumentException("A trade must have at least one unlock alternative");
         }
+        if (alternatives.stream().anyMatch(Set::isEmpty)) {
+            return Text.translatable("jei.kingdomunique.no_building");
+        }
+        Text result = null;
+        for (Set<BuildingType> required : alternatives) {
+            Text conjunction = null;
+            for (BuildingType building : required.stream().sorted().toList()) {
+                Text name = Text.translatable("jei.kingdomunique.building." + building.name().toLowerCase(Locale.ROOT));
+                conjunction = conjunction == null ? name
+                        : Text.translatable("jei.kingdomunique.and", conjunction, name);
+            }
+            result = result == null ? conjunction : Text.translatable("jei.kingdomunique.or", result, conjunction);
+        }
+        return Text.translatable("jei.kingdomunique.unlock", result);
     }
 }
