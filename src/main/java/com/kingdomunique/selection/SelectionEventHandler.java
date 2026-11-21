@@ -135,13 +135,7 @@ public final class SelectionEventHandler {
     }
 
     private static void checkCitizens(ServerPlayerEntity player) {
-        int count = com.kingdomunique.kingdom.KingdomManager.getOrCreate(player).population();
-        if (count < 15) {
-            count = player.getServerWorld().getEntitiesByClass(
-                    net.minecraft.entity.passive.VillagerEntity.class,
-                    player.getBoundingBox().expand(256.0D),
-                    villager -> villager.isAlive()).size();
-        }
+        int count = RelicEffects.countCitizens(player);
         SelectionManager.onCitizenCountReached(player, count);
     }
 

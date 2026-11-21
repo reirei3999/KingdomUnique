@@ -113,7 +113,7 @@ public final class AbilityDescriptions {
                     "・建築士NPCの作業効率が2倍"
             };
             case "golden_scale" -> new String[]{
-                    "・1日ごとに国民数に応じたエメラルドと鉄を生成"
+                    "・1日ごとに周囲256ブロック以内の自身の登録国民数に応じたエメラルドと鉄を生成"
             };
             case "ward_stone" -> new String[]{
                     "・自身の半径128ブロック以内の敵対Mobの自然スポーンを無効",

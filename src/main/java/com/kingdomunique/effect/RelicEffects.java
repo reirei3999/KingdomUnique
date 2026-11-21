@@ -1,6 +1,7 @@
 package com.kingdomunique.effect;
 
 import com.kingdomunique.data.WorldUniqueData;
+import com.kingdomunique.entity.CitizenVillager;
 import com.kingdomunique.registry.RelicRegistry;
 import net.minecraft.entity.attribute.EntityAttributeInstance;
 import net.minecraft.entity.attribute.EntityAttributeModifier;
@@ -142,11 +143,11 @@ public final class RelicEffects {
         player.giveItemStack(EnchantedBookItem.forEnchantment(new EnchantmentLevelEntry(entry, level)));
     }
 
-    /** 暫定の国民数（近傍の村人）。本来の王国システムで置き換える。 */
-    private static int countCitizens(ServerPlayerEntity player) {
+    public static int countCitizens(ServerPlayerEntity player) {
         return player.getServerWorld().getEntitiesByClass(
                 net.minecraft.entity.passive.VillagerEntity.class,
                 player.getBoundingBox().expand(256.0D),
-                villager -> villager.isAlive()).size();
+                villager -> villager.isAlive() && villager instanceof CitizenVillager citizen
+                        && player.getUuidAsString().equals(citizen.ku$getOwnerUuid())).size();
     }
 }
