@@ -6,13 +6,6 @@ import net.minecraft.block.Block;
 import net.minecraft.block.BlockState;
 import net.minecraft.block.Blocks;
 import net.minecraft.server.world.ServerWorld;
-import net.minecraft.structure.StructurePlacementData;
-import net.minecraft.structure.StructureTemplate;
-import net.minecraft.structure.processor.BlockIgnoreStructureProcessor;
-import net.minecraft.structure.processor.JigsawReplacementStructureProcessor;
-import net.minecraft.util.BlockMirror;
-import net.minecraft.util.BlockRotation;
-import net.minecraft.util.Identifier;
 import net.minecraft.util.math.BlockBox;
 import net.minecraft.util.math.BlockPos;
 import net.minecraft.util.math.Direction;
@@ -56,11 +49,6 @@ public final class StructurePlacer {
             }
         }
         prepareSite(world, box);
-        Identifier template = villageTemplate(type);
-        if (template != null) {
-            placeVillageTemplate(world, template, box, facing);
-            return;
-        }
         int[] d = StructureRotationUtil.getBuildingDimensions(type);
         for (Placement p : localPlacements(type)) {
             world.setBlockState(
@@ -71,10 +59,13 @@ public final class StructurePlacer {
         }
     }
 
-    /** バニラテンプレートを使わない建物のローカル配置（下の段から順）。 */
+    /** 建物のローカル配置（下の段から順、同じ段では後から追加したものが優先）。 */
     public static List<Placement> localPlacements(BuildingType type) {
         List<Placement> list = new ArrayList<>();
         switch (type) {
+            case HOUSE -> list.addAll(HomeStructures.house());
+            case BARRACKS -> list.addAll(HomeStructures.barracks());
+            case BLACKSMITH -> list.addAll(HomeStructures.blacksmith());
             case TOWN_HALL -> TownHallBuilder.generate((pos, state, flags) -> list.add(new Placement(pos, state)));
             case WATCHTOWER -> watchtower(list);
             case GATE -> gate(list);
@@ -88,8 +79,6 @@ public final class StructurePlacer {
                 for (var p : AdditionalStructures.generatePlacements(type, BlockPos.ORIGIN)) {
                     list.add(new Placement(p.pos(), p.state()));
                 }
-            }
-            default -> {
             }
         }
         list.sort(Comparator.comparingInt(p -> p.local().getY()));
@@ -134,39 +123,6 @@ public final class StructurePlacer {
                 }
             }
         }
-    }
-
-    private static Identifier villageTemplate(BuildingType type) {
-        return switch (type) {
-            case HOUSE -> Identifier.ofVanilla("village/plains/houses/plains_small_house_1");
-            case BARRACKS -> Identifier.ofVanilla("village/plains/houses/plains_medium_house_1");
-            case BLACKSMITH -> Identifier.ofVanilla("village/plains/houses/plains_tool_smith_1");
-            default -> null;
-        };
-    }
-
-    /**
-     * バニラ村の家テンプレートを枠に合わせて配置する。テンプレートの入口は西（-X）向きなので、
-     * 南向き基準に直してから facing へ回転する。最下段は box.minY に置く。
-     */
-    private static void placeVillageTemplate(ServerWorld world, Identifier id, BlockBox box, Direction facing) {
-        StructureTemplate template = world.getStructureTemplateManager().getTemplate(id).orElse(null);
-        if (template == null) {
-            return;
-        }
-        BlockRotation rotation = BlockRotation.COUNTERCLOCKWISE_90
-                .rotate(StructureRotationUtil.getRotationFromSouth(facing));
-        StructurePlacementData data = new StructurePlacementData()
-                .setRotation(rotation)
-                .setMirror(BlockMirror.NONE)
-                .setIgnoreEntities(true)
-                .setInitializeMobs(false)
-                .addProcessor(JigsawReplacementStructureProcessor.INSTANCE)
-                .addProcessor(BlockIgnoreStructureProcessor.IGNORE_AIR_AND_STRUCTURE_BLOCKS);
-        BlockBox local = template.calculateBoundingBox(data, BlockPos.ORIGIN);
-        BlockPos pos = new BlockPos(box.getMinX() - local.getMinX(), box.getMinY(),
-                box.getMinZ() - local.getMinZ());
-        template.place(world, pos, pos, data, world.getRandom(), Block.NOTIFY_LISTENERS);
     }
 
     private static void put(List<Placement> list, int x, int y, int z, BlockState state) {
