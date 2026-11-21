@@ -9,7 +9,7 @@ import net.minecraft.entity.player.PlayerEntity;
 import java.util.EnumSet;
 import java.util.UUID;
 
-/** 味方化Mobが所有者に追従し、周囲の敵を自動でターゲットするGoal。 */
+/** 味方化Mobが戦闘中以外に所有者へ追従するGoal。 */
 public final class AlliedFollowGoal extends Goal {
 
     private final MobEntity mob;
@@ -61,7 +61,6 @@ public final class AlliedFollowGoal extends Goal {
         } else if (mob.getTarget() == null) {
             mob.getNavigation().stop();
         }
-
     }
 }
 

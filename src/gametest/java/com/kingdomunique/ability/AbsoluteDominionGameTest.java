@@ -86,6 +86,7 @@ public final class AbsoluteDominionGameTest {
             }
         }
         ZombieEntity ally = context.spawnEntity(EntityType.ZOMBIE, new BlockPos(1, 2, 1));
+        ally.setOnGround(true);
         AlliedMobManager.ally(ally, player(context.getWorld()));
         ZombieEntity trapped = context.spawnEntity(EntityType.ZOMBIE, new BlockPos(5, 2, 5));
         for (int x = 4; x <= 6; x++) {

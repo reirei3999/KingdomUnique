@@ -17,10 +17,10 @@ import java.util.List;
 import java.util.UUID;
 
 public final class WarehouseGameTest {
-    @GameTest(templateName = FabricGameTest.EMPTY_STRUCTURE)
+    @GameTest(templateName = FabricGameTest.EMPTY_STRUCTURE, batchId = "warehouse")
     public void starterVillageIncludesAKingdomWarehouse(TestContext context) {
         ServerWorld world = context.getWorld();
-        BlockPos center = context.getAbsolutePos(new BlockPos(40, 70, 40));
+        BlockPos center = context.getAbsolutePos(new BlockPos(2040, 70, 2040));
         for (int x = -40; x <= 40; x++) {
             for (int z = -40; z <= 40; z++) {
                 world.setBlockState(center.add(x, 0, z), Blocks.STONE.getDefaultState(), Block.NOTIFY_LISTENERS);
