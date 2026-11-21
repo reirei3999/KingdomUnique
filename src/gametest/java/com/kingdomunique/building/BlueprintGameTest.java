@@ -1,25 +1,35 @@
 package com.kingdomunique.building;
 
+import com.kingdomunique.kingdom.KingdomData;
+import com.kingdomunique.network.BuildingBoxesSyncPayload;
 import com.mojang.authlib.GameProfile;
+import io.netty.buffer.Unpooled;
 import net.fabricmc.fabric.api.gametest.v1.FabricGameTest;
 import net.minecraft.block.Blocks;
 import net.minecraft.block.entity.BlockEntity;
 import net.minecraft.item.ItemStack;
+import net.minecraft.item.ItemUsageContext;
 import net.minecraft.item.Items;
+import net.minecraft.network.RegistryByteBuf;
 import net.minecraft.network.packet.c2s.common.SyncedClientOptions;
+import net.minecraft.screen.ScreenHandler;
+import net.minecraft.screen.ScreenHandlerSyncHandler;
 import net.minecraft.server.network.ServerPlayerEntity;
 import net.minecraft.server.world.ServerWorld;
 import net.minecraft.test.GameTest;
 import net.minecraft.test.TestContext;
 import net.minecraft.text.Text;
+import net.minecraft.util.ActionResult;
 import net.minecraft.util.Hand;
 import net.minecraft.util.ItemActionResult;
+import net.minecraft.util.collection.DefaultedList;
 import net.minecraft.util.hit.BlockHitResult;
 import net.minecraft.util.math.BlockPos;
 import net.minecraft.util.math.Direction;
 import net.minecraft.util.math.Vec3d;
 
 import java.util.UUID;
+import java.util.concurrent.atomic.AtomicReference;
 
 public final class BlueprintGameTest {
     @GameTest(templateName = FabricGameTest.EMPTY_STRUCTURE)
@@ -67,6 +77,27 @@ public final class BlueprintGameTest {
             state.onUse(world, creative, hit(pos));
             assertCompleted(context, pos, creative);
         }
+        context.complete();
+    }
+
+    @GameTest(templateName = FabricGameTest.EMPTY_STRUCTURE)
+    public void creativeHouseCompletionDoesNotEmbedThePlayerInTheFoundation(TestContext context) {
+        ServerWorld world = context.getWorld();
+        BlockPos pos = context.getAbsolutePos(new BlockPos(0, 184, 0));
+        ServerPlayerEntity survival = player(world);
+        ServerPlayerEntity creative = player(world, true, survival.getUuid());
+        place(ModBlocks.HOUSE, world, pos, survival);
+        BlockPos feet = pos.east(2);
+        creative.setPosition(feet.getX() + 0.5, feet.getY(), feet.getZ() + 0.5);
+        context.assertTrue(world.isSpaceEmpty(creative), "The player must start clear of blocks");
+
+        world.getBlockState(pos).onUse(world, creative, hit(pos));
+
+        context.assertTrue(KingdomBuildingState.get(world).hasCompletedBuilding(creative.getUuid(), BuildingType.HOUSE),
+                "The house must complete");
+        context.assertTrue(world.getBlockState(feet).isOf(Blocks.COBBLESTONE),
+                "The house foundation must fill the player's former position");
+        context.assertTrue(world.isSpaceEmpty(creative), "Instant construction must not leave the player inside blocks");
         context.complete();
     }
 
@@ -130,6 +161,113 @@ public final class BlueprintGameTest {
         site = site.withReady(true);
         data.add(site);
         context.assertTrue(BuildingValidator.validate(world, site).isEmpty(), "A ready town hall must exclude itself from its limit");
+        context.complete();
+    }
+
+    @GameTest(templateName = FabricGameTest.EMPTY_STRUCTURE)
+    public void previewSyncReflectsEachKingdomsTownHallAndPalaceLimits(TestContext context) {
+        ServerWorld world = context.getWorld();
+        BlockPos pos = context.getAbsolutePos(new BlockPos(0, 216, 0));
+        UUID owner = UUID.randomUUID();
+        UUID otherOwner = UUID.randomUUID();
+        var buildings = KingdomBuildingState.get(world);
+        var kingdom = KingdomData.getOrCreate(world);
+        kingdom.put(owner, new KingdomData.KingdomInfo(pos.getX(), pos.getZ(), 30, 40, 0, false, 0,
+                false, 100, false, ""));
+
+        context.assertTrue(BuildingValidator.restrictedTypes(world, owner).contains(BuildingType.ROYAL_PALACE),
+                "A palace needs a completed town hall even when the population requirement is met");
+        buildings.add(owner, BuildingType.TOWN_HALL, pos, Direction.SOUTH,
+                StructureRotationUtil.computeBoundingBox(pos, BuildingType.TOWN_HALL, Direction.SOUTH), null);
+        context.assertFalse(BuildingValidator.restrictedTypes(world, owner).contains(BuildingType.ROYAL_PALACE),
+                "The first palace is available once the owner meets its requirements");
+
+        BlockPos palace = pos.up(25);
+        buildings.add(owner, BuildingType.ROYAL_PALACE, palace, Direction.SOUTH,
+                StructureRotationUtil.computeBoundingBox(palace, BuildingType.ROYAL_PALACE, Direction.SOUTH), null);
+        var payload = new BuildingBoxesSyncPayload(world.getRegistryKey().getValue(), java.util.List.of(),
+                BuildingValidator.restrictedTypes(world, owner));
+        var buffer = new RegistryByteBuf(Unpooled.buffer(), world.getRegistryManager());
+        try {
+            BuildingBoxesSyncPayload.TYPE.codec().encode(buffer, payload);
+            var snapshot = BuildingBoxesSyncPayload.TYPE.codec().decode(buffer);
+            for (BuildingType type : new BuildingType[]{BuildingType.TOWN_HALL, BuildingType.ROYAL_PALACE}) {
+                var second = new BuildData.BuildSite(pos.up(50), type, 0, false, owner, Direction.SOUTH);
+                context.assertTrue(BuildingValidator.validate(world, second).isPresent()
+                                && snapshot.restrictedTypes().contains(type),
+                        "Both the server and the synchronized preview must reject a second " + type);
+            }
+        } finally {
+            buffer.release();
+        }
+        context.assertFalse(BuildingValidator.restrictedTypes(world, otherOwner).contains(BuildingType.TOWN_HALL),
+                "One kingdom's town hall must not block another kingdom's first town hall");
+        context.complete();
+    }
+
+    @GameTest(templateName = FabricGameTest.EMPTY_STRUCTURE)
+    public void overLimitBlueprintItemsDoNotPlaceBlocksOrConsumeItems(TestContext context) {
+        ServerWorld world = context.getWorld();
+        BlockPos existing = context.getAbsolutePos(new BlockPos(0, 240, 0));
+        ServerPlayerEntity survival = player(world);
+        ServerPlayerEntity creative = player(world, true, survival.getUuid());
+        AtomicReference<ItemStack> syncedHotbarStack = new AtomicReference<>();
+        survival.currentScreenHandler.updateSyncHandler(new ScreenHandlerSyncHandler() {
+            @Override
+            public void updateState(ScreenHandler handler, DefaultedList<ItemStack> stacks, ItemStack cursor, int[] properties) {
+                int slot = handler.getSlotIndex(survival.getInventory(), survival.getInventory().selectedSlot).orElseThrow();
+                syncedHotbarStack.set(stacks.get(slot));
+            }
+
+            @Override
+            public void updateSlot(ScreenHandler handler, int slot, ItemStack stack) {
+            }
+
+            @Override
+            public void updateCursorStack(ScreenHandler handler, ItemStack stack) {
+            }
+
+            @Override
+            public void updateProperty(ScreenHandler handler, int property, int value) {
+            }
+        });
+        var buildings = KingdomBuildingState.get(world);
+        buildings.add(survival.getUuid(), BuildingType.TOWN_HALL, existing, Direction.SOUTH,
+                StructureRotationUtil.computeBoundingBox(existing, BuildingType.TOWN_HALL, Direction.SOUTH), null);
+        BuildData data = BuildData.getOrCreate(world);
+        data.add(new BuildData.BuildSite(existing.up(18), BuildingType.ROYAL_PALACE, 0, true,
+                survival.getUuid(), Direction.SOUTH));
+
+        BlockPos pos = existing.up(36);
+        world.setBlockState(pos.down(), Blocks.STONE.getDefaultState());
+        for (BlueprintBlock block : new BlueprintBlock[]{ModBlocks.TOWN_HALL, ModBlocks.ROYAL_PALACE}) {
+            for (ServerPlayerEntity placer : new ServerPlayerEntity[]{survival, creative}) {
+                ItemStack stack = new ItemStack(block, 2);
+                placer.setStackInHand(Hand.MAIN_HAND, stack);
+                if (placer == survival) {
+                    survival.currentScreenHandler.syncState();
+                    syncedHotbarStack.set(null);
+                }
+                var use = new ItemUsageContext(placer, Hand.MAIN_HAND, hit(pos.down()));
+                context.assertEquals(stack.useOnBlock(use), ActionResult.FAIL, "An over-limit blueprint must fail to place");
+                context.assertTrue(world.isAir(pos), "A refused placement must leave the destination empty");
+                context.assertTrue(data.sites().stream().noneMatch(site -> site.pos().equals(pos)),
+                        "A refused placement must not register a building site");
+                context.assertEquals(stack.getCount(), 2, "A refused placement must not consume the blueprint item");
+                if (placer == survival) {
+                    ItemStack synced = syncedHotbarStack.get();
+                    context.assertTrue(synced != null && ItemStack.areEqual(synced, stack),
+                            "A refused placement must resend the unchanged survival hotbar stack");
+                }
+            }
+        }
+
+        ServerPlayerEntity otherOwner = player(world);
+        ItemStack firstTownHall = new ItemStack(ModBlocks.TOWN_HALL, 2);
+        otherOwner.setStackInHand(Hand.MAIN_HAND, firstTownHall);
+        firstTownHall.useOnBlock(new ItemUsageContext(otherOwner, Hand.MAIN_HAND, hit(pos.down())));
+        context.assertTrue(world.getBlockState(pos).isOf(ModBlocks.TOWN_HALL), "Another owner must still be able to place their first town hall");
+        context.assertEquals(firstTownHall.getCount(), 1, "Successful survival placement must consume one item");
         context.complete();
     }
 
@@ -338,6 +476,11 @@ public final class BlueprintGameTest {
 
             @Override
             public void sendMessage(Text message, boolean overlay) {
+            }
+
+            @Override
+            public void requestTeleport(double x, double y, double z) {
+                setPosition(x, y, z);
             }
         };
     }
