@@ -50,6 +50,12 @@ public final class KingdomEventHandler {
 
         ServerPlayConnectionEvents.DISCONNECT.register((handler, server) ->
                 KingdomManager.clearPossession(handler.getPlayer()));
+        // 旧版の憑依や、拘束中のログアウトで「浮いたまま」保存されたプレイヤーを、参加時に落下できる状態へ戻す。
+        ServerPlayConnectionEvents.JOIN.register((handler, sender, server) -> {
+            ServerPlayerEntity player = handler.getPlayer();
+            player.removeCommandTag(com.kingdomunique.ability.AbilityPassives.GRAVITY_HELD_TAG);
+            player.setNoGravity(false);
+        });
 
         ServerLivingEntityEvents.AFTER_DEATH.register(KingdomEventHandler::onDeath);
     }
@@ -95,8 +101,12 @@ public final class KingdomEventHandler {
         }
     }
 
-    /** 国民死亡時に王へ呪いダメージ。 */
+    /** 国民死亡時に王へ呪いダメージ。英雄の死亡時は祭壇で復活できるよう記録する。 */
     private static void onDeath(LivingEntity entity, DamageSource source) {
+        if (entity instanceof HeroEntity hero && !entity.getWorld().isClient()) {
+            KingdomManager.onHeroDeath(hero);
+            return;
+        }
         if (!(entity instanceof VillagerEntity villager) || !(villager instanceof CitizenVillager citizen)) {
             return;
         }

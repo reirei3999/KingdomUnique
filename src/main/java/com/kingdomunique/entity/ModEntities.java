@@ -1,6 +1,7 @@
 package com.kingdomunique.entity;
 
 import com.kingdomunique.KingdomUniqueMod;
+import net.fabricmc.fabric.api.object.builder.v1.entity.FabricDefaultAttributeRegistry;
 import net.minecraft.entity.EntityType;
 import net.minecraft.entity.SpawnGroup;
 import net.minecraft.registry.Registries;
@@ -31,6 +32,8 @@ public final class ModEntities {
             return;
         }
         initialized = true;
+        // 属性を登録しないと HeroEntity の生成時に例外となり、英雄を召喚できない。
+        FabricDefaultAttributeRegistry.register(HERO, HeroEntity.createHeroAttributes());
         KingdomUniqueMod.LOGGER.info("[KingdomUnique] Registered hero entity.");
     }
 }

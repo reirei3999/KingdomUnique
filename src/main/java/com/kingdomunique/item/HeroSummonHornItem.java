@@ -22,12 +22,13 @@ public final class HeroSummonHornItem extends Item {
 
     @Override
     public TypedActionResult<ItemStack> use(World world, PlayerEntity user, Hand hand) {
-        if (!world.isClient()) {
-            if (user instanceof net.minecraft.server.network.ServerPlayerEntity player) {
-                KingdomManager.summonHero(player);
-            }
+        ItemStack stack = user.getStackInHand(hand);
+        if (!world.isClient() && user instanceof net.minecraft.server.network.ServerPlayerEntity player
+                && KingdomManager.summonHero(player) && !player.isCreative()) {
+            // 召喚に成功したら角笛は砕ける（召喚回数の上限とは別に、1本につき1回）。
+            stack.decrement(1);
         }
-        return TypedActionResult.success(user.getStackInHand(hand));
+        return TypedActionResult.success(stack);
     }
 
     @Override
@@ -39,5 +40,7 @@ public final class HeroSummonHornItem extends Item {
                 .formatted(Formatting.YELLOW));
         tooltip.add(Text.literal("  1王国につき1回まで（軍旗で2回まで拡張）")
                 .formatted(Formatting.AQUA));
+        tooltip.add(Text.literal("  召喚に成功すると角笛は砕ける")
+                .formatted(Formatting.GRAY));
     }
 }

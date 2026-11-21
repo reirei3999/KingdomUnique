@@ -19,6 +19,7 @@ import net.minecraft.entity.passive.VillagerEntity;
 import net.minecraft.item.Item;
 import net.minecraft.item.ItemStack;
 import net.minecraft.item.Items;
+import net.minecraft.nbt.NbtCompound;
 import net.minecraft.server.MinecraftServer;
 import net.minecraft.server.network.ServerPlayerEntity;
 import net.minecraft.server.world.ServerWorld;
@@ -222,19 +223,26 @@ public final class KingdomManager {
         owner.damage(owner.getDamageSources().magic(), curse);
     }
 
-    /** 英雄召喚（1王国1回、軍旗で2回まで）。 */
-    public static void summonHero(ServerPlayerEntity player) {
-        summonHero(player, null);
+    /** 祭壇で倒れた英雄を復活させるのに必要な経験レベル。 */
+    public static final int HERO_REVIVE_LEVEL_COST = 10;
+
+    /** 英雄召喚（1王国1回、軍旗で2回まで）。成功したら true。 */
+    public static boolean summonHero(ServerPlayerEntity player) {
+        return summonHero(player, null);
     }
 
-    /** 祭壇の核を起点に英雄を召喚する（null ならプレイヤー位置）。 */
-    public static void summonHero(ServerPlayerEntity player, net.minecraft.util.math.BlockPos summonPos) {
+    /** 祭壇の核を起点に英雄を召喚する（null ならプレイヤー位置）。成功したら true。 */
+    public static boolean summonHero(ServerPlayerEntity player, net.minecraft.util.math.BlockPos summonPos) {
         KingdomData data = KingdomData.getOrCreate(player.getServer().getWorld(World.OVERWORLD));
         KingdomData.KingdomInfo info = getOrCreate(player);
         int max = RelicEffects.has(player, com.kingdomunique.registry.RelicRegistry.BANNER) ? 2 : 1;
         if (info.heroSummonCount() >= max) {
             player.sendMessage(Text.literal("§c[英雄] この王国ではこれ以上召喚できません。"), false);
-            return;
+            if (FallenHeroData.getOrCreate(player.getServer().getWorld(World.OVERWORLD)).count(player.getUuid()) > 0) {
+                player.sendMessage(Text.literal("§e[英雄] 倒れた英雄は、祭壇のロードストーンを金のリンゴを持って右クリックすると復活できます（経験値"
+                        + HERO_REVIVE_LEVEL_COST + "レベル）。"), false);
+            }
+            return false;
         }
 
         HeroClass[] classes = HeroClass.values();
@@ -242,7 +250,7 @@ public final class KingdomManager {
         ServerWorld world = player.getServerWorld();
         HeroEntity hero = ModEntities.HERO.create(world);
         if (hero == null) {
-            return;
+            return false;
         }
         double x = summonPos != null ? summonPos.getX() + 0.5D
                 : player.getX() + player.getRotationVec(1.0F).x * 2.0D;
@@ -258,7 +266,7 @@ public final class KingdomManager {
         if (!world.spawnEntity(hero)) {
             // 召喚に失敗した場合は回数を消費しない。
             player.sendMessage(Text.literal("§c[英雄] 召喚に失敗しました。場所を変えて再度お試しください。"), false);
-            return;
+            return false;
         }
 
         world.setWeather(0, 200, true, true);
@@ -268,6 +276,73 @@ public final class KingdomManager {
 
         data.put(player.getUuid(), copy(info, info.population(), info.populationCap(), info.houses(),
                 true, info.heroSummonCount() + 1));
+        return true;
+    }
+
+    /** 英雄の死亡時、祭壇で同じ英雄を復活できるよう装備・能力値ごと保存する。 */
+    public static void onHeroDeath(HeroEntity hero) {
+        UUID owner = hero.getOwnerUuid();
+        if (owner == null || !(hero.getWorld() instanceof ServerWorld world)) {
+            return;
+        }
+        NbtCompound nbt = new NbtCompound();
+        hero.writeNbt(nbt);
+        for (String key : new String[]{"UUID", "Health", "DeathTime", "HurtTime", "Motion", "FallDistance", "Fire"}) {
+            nbt.remove(key);
+        }
+        FallenHeroData.getOrCreate(world.getServer().getWorld(World.OVERWORLD)).add(owner, nbt);
+        ServerPlayerEntity king = world.getServer().getPlayerManager().getPlayer(owner);
+        if (king != null) {
+            king.sendMessage(Text.literal("§c[英雄] " + hero.getHeroClass().getDisplayName()
+                    + " が倒れました。祭壇のロードストーンを金のリンゴを持って右クリックすると復活できます（経験値"
+                    + HERO_REVIVE_LEVEL_COST + "レベル）。"), false);
+        }
+    }
+
+    /**
+     * 祭壇で倒れた英雄を復活させる（金のリンゴ1個＋経験値10レベル、クリエイティブは無料）。
+     * 召喚回数は消費しない。成功したら true。
+     */
+    public static boolean reviveHero(ServerPlayerEntity player, net.minecraft.util.math.BlockPos altar,
+                                     net.minecraft.item.ItemStack offering) {
+        FallenHeroData fallen = FallenHeroData.getOrCreate(player.getServer().getWorld(World.OVERWORLD));
+        if (fallen.count(player.getUuid()) == 0) {
+            player.sendMessage(Text.literal("§7[祭壇] 復活を待つ英雄はいません。"), false);
+            return false;
+        }
+        boolean free = player.isCreative();
+        if (!free && player.experienceLevel < HERO_REVIVE_LEVEL_COST) {
+            player.sendMessage(Text.literal("§c[祭壇] 英雄の復活には経験値" + HERO_REVIVE_LEVEL_COST
+                    + "レベルが必要です（現在 " + player.experienceLevel + "）。"), false);
+            return false;
+        }
+        ServerWorld world = player.getServerWorld();
+        HeroEntity hero = ModEntities.HERO.create(world);
+        NbtCompound nbt = fallen.poll(player.getUuid());
+        if (hero == null || nbt == null) {
+            return false;
+        }
+        hero.readNbt(nbt);
+        hero.refreshPositionAndAngles(altar.getX() + 0.5D, altar.getY() + 0.5D, altar.getZ() + 1.5D,
+                player.getYaw(), 0.0F);
+        hero.setHealth(hero.getMaxHealth());
+        if (!world.spawnEntity(hero)) {
+            fallen.add(player.getUuid(), nbt);
+            player.sendMessage(Text.literal("§c[祭壇] 復活に失敗しました。"), false);
+            return false;
+        }
+        if (!free) {
+            offering.decrement(1);
+            player.addExperienceLevels(-HERO_REVIVE_LEVEL_COST);
+        }
+        world.spawnParticles(net.minecraft.particle.ParticleTypes.TOTEM_OF_UNDYING,
+                hero.getX(), hero.getY() + 1.0D, hero.getZ(), 60, 0.5D, 1.0D, 0.5D, 0.3D);
+        world.playSound(null, altar, net.minecraft.sound.SoundEvents.ITEM_TOTEM_USE,
+                net.minecraft.sound.SoundCategory.PLAYERS, 1.0F, 1.0F);
+        player.getServer().getPlayerManager().broadcast(
+                Text.literal("§6§l【英雄復活】§r " + player.getName().getString() + " の「"
+                        + hero.getHeroClass().getDisplayName() + "」が祭壇より蘇った！"), false);
+        return true;
     }
 
     /** Gキー／オーブによる刺客英雄への憑依切替。 */

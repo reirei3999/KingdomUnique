@@ -1,0 +1,18 @@
+{
+  "type": "minecraft:crafting_shaped",
+  "category": "misc",
+  "pattern": [
+    "AGA",
+    "GHG",
+    "AGA"
+  ],
+  "key": {
+    "A": { "item": "minecraft:amethyst_shard" },
+    "G": { "item": "minecraft:gold_ingot" },
+    "H": { "item": "minecraft:goat_horn" }
+  },
+  "result": {
+    "id": "kingdomunique:hero_summon_horn",
+    "count": 1
+  }
+}

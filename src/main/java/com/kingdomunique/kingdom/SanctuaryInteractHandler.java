@@ -2,6 +2,8 @@ package com.kingdomunique.kingdom;
 
 import net.fabricmc.fabric.api.event.player.UseBlockCallback;
 import net.minecraft.block.Blocks;
+import net.minecraft.item.ItemStack;
+import net.minecraft.item.Items;
 import net.minecraft.particle.ParticleTypes;
 import net.minecraft.server.network.ServerPlayerEntity;
 import net.minecraft.server.world.ServerWorld;
@@ -40,6 +42,13 @@ public final class SanctuaryInteractHandler {
             UUID owner = data.getOwner(pos);
             if (owner == null || !owner.equals(serverPlayer.getUuid())) {
                 serverPlayer.sendMessage(Text.literal("§c[祭壇] この王国の王だけが英雄を召喚できます。"), false);
+                return ActionResult.SUCCESS;
+            }
+
+            // 金のリンゴを捧げると、倒れた英雄を復活させる（召喚とは別枠）。
+            ItemStack held = serverPlayer.getStackInHand(hand);
+            if (held.isOf(Items.GOLDEN_APPLE)) {
+                KingdomManager.reviveHero(serverPlayer, pos, held);
                 return ActionResult.SUCCESS;
             }
 

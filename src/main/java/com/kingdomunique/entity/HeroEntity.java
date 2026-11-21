@@ -5,10 +5,17 @@ import net.minecraft.entity.EquipmentSlot;
 import net.minecraft.entity.LivingEntity;
 import net.minecraft.entity.attribute.DefaultAttributeContainer;
 import net.minecraft.entity.attribute.EntityAttributes;
+import net.minecraft.entity.ai.RangedAttackMob;
 import net.minecraft.entity.ai.goal.ActiveTargetGoal;
+import net.minecraft.entity.ai.goal.FleeEntityGoal;
 import net.minecraft.entity.ai.goal.Goal;
 import net.minecraft.entity.ai.goal.LookAtEntityGoal;
 import net.minecraft.entity.ai.goal.MeleeAttackGoal;
+import net.minecraft.entity.ai.goal.ProjectileAttackGoal;
+import net.minecraft.entity.projectile.PersistentProjectileEntity;
+import net.minecraft.entity.projectile.ProjectileUtil;
+import net.minecraft.item.Items;
+import net.minecraft.sound.SoundEvents;
 import net.minecraft.entity.mob.HostileEntity;
 import net.minecraft.entity.mob.MobEntity;
 import net.minecraft.entity.mob.PathAwareEntity;
@@ -24,7 +31,13 @@ import net.minecraft.world.World;
 import java.util.UUID;
 
 /** 王が1王国につき1回（軍旗で2回）召喚できる英雄NPC。 */
-public final class HeroEntity extends PathAwareEntity {
+public final class HeroEntity extends PathAwareEntity implements RangedAttackMob {
+
+    /** 弓手が敵との間に保とうとする距離（これより近づかれたら離れる）。 */
+    private static final float ARCHER_KEEP_DISTANCE = 6.0F;
+    private static final float ARCHER_RANGE = 16.0F;
+    private static final int ARCHER_SHOT_INTERVAL = 25;
+    private static final float ARROW_SPEED = 1.6F;
 
     private HeroClass heroClass = HeroClass.KNIGHT;
     private HeroMode mode = HeroMode.FOLLOW;
@@ -48,7 +61,36 @@ public final class HeroEntity extends PathAwareEntity {
 
     @Override
     protected void initGoals() {
-        this.goalSelector.add(1, new MeleeAttackGoal(this, 1.2D, false));
+        // 弓手：敵に近づかれたら距離を取り、離れた位置から弓で射る。その他のクラスは近接攻撃。
+        this.goalSelector.add(0, new FleeEntityGoal<>(this, HostileEntity.class, ARCHER_KEEP_DISTANCE, 1.1D, 1.35D,
+                hostile -> !com.kingdomunique.ability.AlliedMobManager.isAlly(hostile)) {
+            @Override
+            public boolean canStart() {
+                return isArcher() && super.canStart();
+            }
+        });
+        this.goalSelector.add(1, new ProjectileAttackGoal(this, 1.0D, ARCHER_SHOT_INTERVAL, ARCHER_RANGE) {
+            @Override
+            public boolean canStart() {
+                return isArcher() && super.canStart();
+            }
+
+            @Override
+            public boolean shouldContinue() {
+                return isArcher() && super.shouldContinue();
+            }
+        });
+        this.goalSelector.add(1, new MeleeAttackGoal(this, 1.2D, false) {
+            @Override
+            public boolean canStart() {
+                return !isArcher() && super.canStart();
+            }
+
+            @Override
+            public boolean shouldContinue() {
+                return !isArcher() && super.shouldContinue();
+            }
+        });
         this.goalSelector.add(2, new HeroFollowGoal());
         this.goalSelector.add(3, new LookAtEntityGoal(this, PlayerEntity.class, 8.0F));
         this.targetSelector.add(1, new ActiveTargetGoal<>(this, HostileEntity.class, true,
@@ -57,6 +99,27 @@ public final class HeroEntity extends PathAwareEntity {
 
     public HeroClass getHeroClass() {
         return heroClass;
+    }
+
+    private boolean isArcher() {
+        return heroClass == HeroClass.ARCHER;
+    }
+
+    /** 弓手の射撃：攻撃力の値がそのまま1発のダメージになるよう矢の威力を調整する。 */
+    @Override
+    public void shootAt(LivingEntity target, float pullProgress) {
+        ItemStack bow = this.getMainHandStack().isOf(Items.BOW) ? this.getMainHandStack() : new ItemStack(Items.BOW);
+        PersistentProjectileEntity arrow = ProjectileUtil.createArrowProjectile(
+                this, new ItemStack(Items.ARROW), pullProgress, bow);
+        double dx = target.getX() - this.getX();
+        double dy = target.getBodyY(0.3333D) - arrow.getY();
+        double dz = target.getZ() - this.getZ();
+        double horizontal = Math.sqrt(dx * dx + dz * dz);
+        arrow.setVelocity(dx, dy + horizontal * 0.2D, dz, ARROW_SPEED, 2.0F);
+        arrow.setDamage(this.getAttributeValue(EntityAttributes.GENERIC_ATTACK_DAMAGE) / ARROW_SPEED);
+        arrow.pickupType = PersistentProjectileEntity.PickupPermission.DISALLOWED;
+        this.playSound(SoundEvents.ENTITY_ARROW_SHOOT, 1.0F, 1.0F / (this.getRandom().nextFloat() * 0.4F + 0.8F));
+        this.getWorld().spawnEntity(arrow);
     }
 
     public void setHeroClass(HeroClass heroClass) {
