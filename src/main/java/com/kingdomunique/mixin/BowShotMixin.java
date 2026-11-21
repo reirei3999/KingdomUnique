@@ -14,12 +14,12 @@ import org.spongepowered.asm.mixin.injection.callback.CallbackInfo;
 @Mixin(BowItem.class)
 public abstract class BowShotMixin {
 
-    @Inject(method = "onStoppedUsing", at = @At("HEAD"))
+    @Inject(method = "onStoppedUsing", at = @At(value = "INVOKE", shift = At.Shift.AFTER,
+            target = "Lnet/minecraft/item/BowItem;shootAll(Lnet/minecraft/server/world/ServerWorld;"
+                    + "Lnet/minecraft/entity/LivingEntity;Lnet/minecraft/util/Hand;"
+                    + "Lnet/minecraft/item/ItemStack;Ljava/util/List;FFZLnet/minecraft/entity/LivingEntity;)V"))
     private void kingdomUnique$onBowShot(ItemStack stack, World world, LivingEntity user,
                                           int remainingUseTicks, CallbackInfo ci) {
-        if (remainingUseTicks != 0 || world.isClient()) {
-            return;
-        }
         if (user instanceof ServerPlayerEntity player) {
             com.kingdomunique.item.unique.UniqueWeaponTriggers.onBowShot(player);
         }

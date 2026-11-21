@@ -69,7 +69,7 @@ public final class SelectionResendHandler {
             return;
         }
 
-        WorldUniqueData data = WorldUniqueData.getOrCreate(world);
+        WorldUniqueData data = WorldUniqueData.getOrCreate(world.getServer().getOverworld());
         List<String> available = data.getAvailableIds(pending.optionIds());
         if (available.isEmpty()) {
             state.clearPending(player.getUuid());
