@@ -15,11 +15,9 @@ import net.minecraft.screen.slot.Slot;
 import net.minecraft.text.Text;
 import net.minecraft.util.math.MathHelper;
 import net.minecraft.village.TradeOffer;
-import net.minecraft.village.VillagerData;
 
 @Environment(EnvType.CLIENT)
 public final class CitizenMerchantScreen extends HandledScreen<CitizenMerchantScreenHandler> {
-    private static final String KEY = "screen.kingdomunique.citizen_trade";
     private static final int HEADER_HEIGHT = 48;
     private static final int LIST_X = 8;
     private static final int LIST_Y = 16;
@@ -64,7 +62,7 @@ public final class CitizenMerchantScreen extends HandledScreen<CitizenMerchantSc
             if (!stack.isEmpty()) {
                 context.drawItemTooltip(textRenderer, stack, mouseX, mouseY);
             } else if (offer.isDisabled()) {
-                context.drawTooltip(textRenderer, Text.translatable(KEY + ".sold_out"), mouseX, mouseY);
+                context.drawTooltip(textRenderer, Text.literal("在庫切れ"), mouseX, mouseY);
             }
         }
     }
@@ -74,7 +72,7 @@ public final class CitizenMerchantScreen extends HandledScreen<CitizenMerchantSc
         KuTheme.drawPanel(context, x, y - HEADER_HEIGHT, backgroundWidth, backgroundHeight + HEADER_HEIGHT, KuTheme.GOLD);
         context.fill(x + 1, y - 1, x + backgroundWidth - 1, y, KuTheme.BORDER);
         context.fill(x + 103, y, x + 104, y + backgroundHeight - 1, KuTheme.BORDER);
-        KuTheme.drawSlot(context, x + 107, y + LIST_Y, 163, 50);
+        KuTheme.drawSlot(context, x + 107, y + LIST_Y, 163, 46);
         for (Slot slot : handler.slots) {
             KuTheme.drawSlot(context, x + slot.x - 1, y + slot.y - 1, 18, 18);
         }
@@ -116,55 +114,62 @@ public final class CitizenMerchantScreen extends HandledScreen<CitizenMerchantSc
     protected void drawForeground(DrawContext context, int mouseX, int mouseY) {
         var info = handler.getCitizenInfo();
         context.drawText(textRenderer, title, 8, -40, KuTheme.PRIMARY, false);
-        drawLabel(context, Text.translatable(KEY + ".kingdom", info.kingdom()), 8, -20, 139);
-        drawLabel(context, Text.translatable(KEY + ".role", roleName(info.role())), 8, -9, 139);
-        Text profession = Text.translatable("entity.minecraft.villager." + info.profession());
-        drawLabel(context, info.level() == 0 ? profession
-                : Text.translatable(KEY + ".profession", profession, info.level()), 150, -39, 124);
-        drawLabel(context, Text.translatable(KEY + ".reputation", info.reputation()), 150, -20, 124);
-        drawProfessionProgress(context, info);
+        drawLabel(context, Text.literal("王国：" + info.kingdom()), 8, -21, 139);
+        drawLabel(context, Text.literal("役職：" + roleName(info.role())), 8, -9, 139);
+        Text profession = Text.literal("職業：").append(professionName(info.profession()));
+        if (info.level() != 0) {
+            profession = profession.copy().append("  Lv. " + info.level());
+            drawLabel(context, Text.literal("職業経験値：" + info.professionXp()), 150, -21, 124);
+        }
+        drawLabel(context, profession, 150, -39, 124);
+        drawLabel(context, Text.literal("村人からの評判：" + info.reputation()), 150, -9, 124);
 
-        context.drawText(textRenderer, Text.translatable(KEY + ".offers"), LIST_X, 4, KuTheme.PRIMARY, false);
-        context.drawText(textRenderer, Text.translatable(KEY + ".exchange"), 108, 4, KuTheme.PRIMARY, false);
-        context.drawText(textRenderer, playerInventoryTitle, 108, 72, KuTheme.PRIMARY, false);
+        context.drawText(textRenderer, "交易品", LIST_X, 4, KuTheme.PRIMARY, false);
+        context.drawText(textRenderer, "交換", 108, 4, KuTheme.PRIMARY, false);
+        context.drawText(textRenderer, "インベントリ", 108, 72, KuTheme.PRIMARY, false);
         context.drawCenteredTextWithShadow(textRenderer, (page + 1) + " / " + pageCount(), 54, 147, KuTheme.MUTED);
 
         var offers = handler.getRecipes();
         boolean hasSelection = selected >= 0 && selected < offers.size();
         boolean disabled = hasSelection && offers.get(selected).isDisabled();
-        Text status = !hasSelection ? Text.translatable(KEY + (offers.isEmpty() ? ".no_offers" : ".choose"))
-                : disabled ? Text.translatable(KEY + ".sold_out")
-                : Text.translatable(KEY + ".stock",
-                        offers.get(selected).getMaxUses() - offers.get(selected).getUses());
-        context.drawText(textRenderer, status, 112, 55, disabled ? KuTheme.DRAWBACK : KuTheme.MUTED, false);
+        String status = !hasSelection ? (offers.isEmpty() ? "交易品なし" : "交易品を選択")
+                : disabled ? "在庫切れ"
+                : "残り取引回数：" + (offers.get(selected).getMaxUses() - offers.get(selected).getUses());
+        context.drawText(textRenderer, status, 113, 22, disabled ? KuTheme.DRAWBACK : KuTheme.MUTED, false);
     }
 
     private void drawLabel(DrawContext context, Text label, int left, int top, int width) {
         context.drawText(textRenderer, KuButton.fitLabel(textRenderer, label, width), left, top, KuTheme.SECONDARY, false);
     }
 
-    private void drawProfessionProgress(DrawContext context, CitizenMerchantScreenHandler.CitizenInfo info) {
-        int level = info.level();
-        if (level == 0) {
-            return;
-        }
-        KuTheme.drawSlot(context, 150, -9, 124, 5);
-        int filled = 122;
-        if (VillagerData.canLevelUp(level)) {
-            int lower = VillagerData.getLowerLevelExperience(level);
-            int upper = VillagerData.getUpperLevelExperience(level);
-            filled = MathHelper.clamp(122 * (info.professionXp() - lower) / (upper - lower), 0, 122);
-        }
-        context.fill(151, -8, 151 + filled, -5, KuTheme.MERIT);
+    private static Text professionName(String profession) {
+        return switch (profession) {
+            case "armorer" -> Text.literal("防具鍛冶");
+            case "butcher" -> Text.literal("肉屋");
+            case "cartographer" -> Text.literal("製図家");
+            case "cleric" -> Text.literal("聖職者");
+            case "farmer" -> Text.literal("農民");
+            case "fisherman" -> Text.literal("釣り人");
+            case "fletcher" -> Text.literal("矢師");
+            case "leatherworker" -> Text.literal("革細工師");
+            case "librarian" -> Text.literal("司書");
+            case "mason" -> Text.literal("石工");
+            case "nitwit" -> Text.literal("無職");
+            case "none" -> Text.literal("無職");
+            case "shepherd" -> Text.literal("羊飼い");
+            case "toolsmith" -> Text.literal("道具鍛冶");
+            case "weaponsmith" -> Text.literal("武器鍛冶");
+            default -> Text.translatable("entity.minecraft.villager." + profession);
+        };
     }
 
-    private static Text roleName(String role) {
-        return Text.translatable(KEY + switch (role) {
-            case CitizenVillager.ROLE_FARMER -> ".farmer";
-            case CitizenVillager.ROLE_BUILDER -> ".builder";
-            case CitizenVillager.ROLE_SMITH -> ".smith";
-            default -> ".citizen";
-        });
+    private static String roleName(String role) {
+        return switch (role) {
+            case CitizenVillager.ROLE_FARMER -> "農民";
+            case CitizenVillager.ROLE_BUILDER -> "建築士";
+            case CitizenVillager.ROLE_SMITH -> "鍛冶屋";
+            default -> "一般国民";
+        };
     }
 
     private int pageCount() {

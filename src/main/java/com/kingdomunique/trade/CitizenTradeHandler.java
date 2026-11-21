@@ -64,7 +64,7 @@ public final class CitizenTradeHandler {
 
             @Override
             public Text getDisplayName() {
-                return Text.translatable("screen.kingdomunique.citizen_trade");
+                return Text.literal("王国民交易");
             }
 
             @Override
