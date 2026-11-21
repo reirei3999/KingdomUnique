@@ -119,6 +119,10 @@ public final class UniqueWeaponTriggers {
     private static boolean isClaimed(ServerPlayerEntity player, String id) {
         WorldUniqueData data = WorldUniqueData.getOrCreate(
                 player.getServer().getWorld(World.OVERWORLD));
+        // 村チェストに置かれたまま誰も拾っていない武器は、取得条件を満たした人が受け取れる。
+        if (UniqueWeaponManager.WORLD_OWNER.equals(data.getOwner(id))) {
+            return false;
+        }
         return data.isClaimed(id);
     }
 
@@ -130,7 +134,12 @@ public final class UniqueWeaponTriggers {
         }
         ServerWorld world = server.getWorld(World.OVERWORLD);
         WorldUniqueData data = WorldUniqueData.getOrCreate(world);
-        if (!data.claimId(player.getUuid(), id)) {
+        if (UniqueWeaponManager.WORLD_OWNER.equals(data.getOwner(id))) {
+            if (!data.transferId(UniqueWeaponManager.WORLD_OWNER, player.getUuid(), id)) {
+                return;
+            }
+            UniqueWeaponManager.removeFromVillageChests(world, id);
+        } else if (!data.claimId(player.getUuid(), id)) {
             return;
         }
 
