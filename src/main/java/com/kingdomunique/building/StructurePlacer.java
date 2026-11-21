@@ -79,13 +79,13 @@ public final class StructurePlacer {
             case WATCHTOWER -> list.addAll(DefenseStructures.watchtower());
             case GATE -> list.addAll(DefenseStructures.gate());
             case WALL -> list.addAll(DefenseStructures.wall());
-            case HERO_SANCTUARY -> list.addAll(CivicStructures.heroSanctuary());
+            case HERO_SANCTUARY -> list.addAll(GrandStructures.heroSanctuary());
             case GRANARY -> list.addAll(CivicStructures.granary());
             case INFIRMARY -> list.addAll(CivicStructures.infirmary());
             case MARKET -> list.addAll(CivicStructures.market());
             case ARSENAL -> list.addAll(CivicStructures.arsenal());
             case TRAINING_GROUND -> list.addAll(CivicStructures.trainingGround());
-            case ROYAL_PALACE -> list.addAll(CivicStructures.royalPalace());
+            case ROYAL_PALACE -> list.addAll(GrandStructures.royalPalace());
         }
         list.sort(Comparator.comparingInt(p -> p.local().getY()));
         return list;

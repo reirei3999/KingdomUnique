@@ -25,13 +25,13 @@ public final class StructureRotationUtil {
             case WATCHTOWER -> new int[]{5, 12, 5};
             case GATE -> new int[]{9, 7, 5};
             case WALL -> new int[]{7, 5, 3};
-            case HERO_SANCTUARY -> new int[]{9, 7, 9};
+            case HERO_SANCTUARY -> new int[]{17, 13, 17};
             case GRANARY -> new int[]{9, 7, 9};
             case INFIRMARY -> new int[]{9, 7, 7};
             case MARKET -> new int[]{9, 6, 7};
             case ARSENAL -> new int[]{9, 6, 7};
             case TRAINING_GROUND -> new int[]{11, 4, 11};
-            case ROYAL_PALACE -> new int[]{13, 14, 15};
+            case ROYAL_PALACE -> new int[]{19, 16, 19};
         };
     }
 
