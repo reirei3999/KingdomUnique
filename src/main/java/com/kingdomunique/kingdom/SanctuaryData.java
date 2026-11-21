@@ -67,6 +67,12 @@ public final class SanctuaryData extends PersistentState {
         markDirty();
     }
 
+    public void unregister(BlockPos core) {
+        if (cores.remove(core) != null) {
+            markDirty();
+        }
+    }
+
     public boolean isSanctuary(BlockPos core) {
         return cores.containsKey(core);
     }
