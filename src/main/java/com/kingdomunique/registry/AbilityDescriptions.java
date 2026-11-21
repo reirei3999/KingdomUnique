@@ -50,7 +50,8 @@ public final class AbilityDescriptions {
         return switch (id) {
             case UniqueContentRegistry.DIVINE_SMITH -> new String[]{
                     "・金床で同じアイテム同士を合成すると無限強化（+1、稀に+2/+3）",
-                    "・完成品は攻撃力・攻撃速度・採掘速度・耐久が 1.1^n 倍",
+                    "・強化品の基本性能・耐久は 1.1^n 倍、ツール採掘速度は 2×1.1^n 倍",
+                    "・製作時の採掘速度ボーナスが付いたツールは、従来のボーナス込み速度からさらに2倍",
                     "・Vキーで採掘範囲を 1x1 / 3x3（最大）に切り替え"
             };
             case UniqueContentRegistry.TRICKERY -> new String[]{
@@ -65,7 +66,7 @@ public final class AbilityDescriptions {
             };
             case UniqueContentRegistry.SITE_SUPERVISOR -> new String[]{
                     "・ブロック／エンティティのリーチが+3",
-                    "・建築コスト30%OFF・時間30%短縮・採掘速度向上"
+                    "・建築コスト30%OFF・時間30%短縮・採掘速度3倍"
             };
             case UniqueContentRegistry.CONQUEROR -> new String[]{
                     "・与ダメージが1.3倍（近接・遠距離ともに有効）",
@@ -143,11 +144,11 @@ public final class AbilityDescriptions {
                     "・空腹の減少3倍、空腹0で猛毒"
             };
             case "glass_cannon" -> new String[]{
-                    "・攻撃力・採掘速度2.5倍",
+                    "・攻撃力2.5倍・採掘速度5倍",
                     "・最大HPが10に固定される"
             };
             case "crown_of_solitude" -> new String[]{
-                    "・攻撃力・防御力・採掘速度1.5倍、移動速度1.2倍",
+                    "・攻撃力・防御力1.5倍、採掘速度3倍、移動速度1.2倍",
                     "・味方や随伴者を連れられない"
             };
             case "chaos_dice" -> new String[]{
@@ -167,7 +168,7 @@ public final class AbilityDescriptions {
                     "・明所では防御力が半減する"
             };
             case "pickaxe_of_destruction" -> new String[]{
-                    "・専用ツルハシでどんなブロックも一瞬で破壊",
+                    "・採掘速度402倍、専用ツルハシでどんなブロックも一瞬で破壊",
                     "・破壊したブロックのドロップは消滅"
             };
             default -> new String[]{"世界で唯一の力。所持しているだけで効果が発動します。"};

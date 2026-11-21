@@ -62,7 +62,7 @@ public final class AbilityPassives {
         apply(player, EntityAttributes.PLAYER_ENTITY_INTERACTION_RANGE, SITE_ENTITY_REACH,
                 abilities.contains(UniqueContentRegistry.SITE_SUPERVISOR), 3.0D, EntityAttributeModifier.Operation.ADD_VALUE);
         apply(player, EntityAttributes.PLAYER_BLOCK_BREAK_SPEED, SITE_BREAK_SPEED,
-                abilities.contains(UniqueContentRegistry.SITE_SUPERVISOR), 0.5D, EntityAttributeModifier.Operation.ADD_MULTIPLIED_TOTAL);
+                abilities.contains(UniqueContentRegistry.SITE_SUPERVISOR), 2.0D, EntityAttributeModifier.Operation.ADD_MULTIPLIED_TOTAL);
     }
 
     private static void apply(ServerPlayerEntity player, RegistryEntry<net.minecraft.entity.attribute.EntityAttribute> attribute,

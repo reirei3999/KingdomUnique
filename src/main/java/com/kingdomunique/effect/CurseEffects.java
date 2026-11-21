@@ -56,15 +56,17 @@ public final class CurseEffects {
 
         multiply(player, EntityAttributes.GENERIC_ATTACK_DAMAGE, BERSERKER_DAMAGE, berserker, 0.6D);
         multiply(player, EntityAttributes.GENERIC_ATTACK_DAMAGE, GLASS_DAMAGE, glass, 1.5D);
-        multiply(player, EntityAttributes.PLAYER_MINING_EFFICIENCY, GLASS_MINING, glass, 1.5D);
+        multiply(player, EntityAttributes.PLAYER_MINING_EFFICIENCY, GLASS_MINING, false, 0.0D);
+        multiply(player, EntityAttributes.PLAYER_BLOCK_BREAK_SPEED, GLASS_MINING, glass, 4.0D);
         multiply(player, EntityAttributes.GENERIC_ATTACK_DAMAGE, SOLITUDE_DAMAGE, solitude, 0.5D);
         multiply(player, EntityAttributes.GENERIC_MOVEMENT_SPEED, SOLITUDE_SPEED, solitude, 0.2D);
         multiply(player, EntityAttributes.GENERIC_ARMOR, SOLITUDE_ARMOR, solitude, 0.5D);
-        multiply(player, EntityAttributes.PLAYER_MINING_EFFICIENCY, SOLITUDE_MINING, solitude, 0.5D);
+        multiply(player, EntityAttributes.PLAYER_MINING_EFFICIENCY, SOLITUDE_MINING, false, 0.0D);
+        multiply(player, EntityAttributes.PLAYER_BLOCK_BREAK_SPEED, SOLITUDE_MINING, solitude, 2.0D);
         multiply(player, EntityAttributes.GENERIC_MOVEMENT_SPEED, SHACKLES_SPEED, shackles, -0.2D);
         multiply(player, EntityAttributes.GENERIC_FALL_DAMAGE_MULTIPLIER, SHACKLES_DAMAGE, false, 0.0D);
         add(player, EntityAttributes.GENERIC_KNOCKBACK_RESISTANCE, SHACKLES_KNOCKBACK, shackles, 1.0D);
-        multiply(player, EntityAttributes.PLAYER_BLOCK_BREAK_SPEED, DESTRUCTION_MINING, destruction, 200.0D);
+        multiply(player, EntityAttributes.PLAYER_BLOCK_BREAK_SPEED, DESTRUCTION_MINING, destruction, 401.0D);
 
         EntityAttributeInstance health = player.getAttributeInstance(EntityAttributes.GENERIC_MAX_HEALTH);
         if (health != null && glass) {
