@@ -17,10 +17,14 @@ public abstract class BowShotMixin {
     @Inject(method = "onStoppedUsing", at = @At("HEAD"))
     private void kingdomUnique$onBowShot(ItemStack stack, World world, LivingEntity user,
                                           int remainingUseTicks, CallbackInfo ci) {
-        if (remainingUseTicks != 0 || world.isClient()) {
+        if (world.isClient() || !(user instanceof ServerPlayerEntity player)) {
             return;
         }
-        if (user instanceof ServerPlayerEntity player) {
+        // remainingUseTicks は「使用上限(72000)からの残り」なので 0 にはならない。
+        // バニラと同じく、引き絞り 0.1 以上かつ矢を持っている（またはクリエイティブ）ときだけ「放った」とみなす。
+        int usedTicks = ((BowItem) (Object) this).getMaxUseTime(stack, user) - remainingUseTicks;
+        boolean hasArrow = player.isCreative() || !player.getProjectileType(stack).isEmpty();
+        if (BowItem.getPullProgress(usedTicks) >= 0.1F && hasArrow) {
             com.kingdomunique.item.unique.UniqueWeaponTriggers.onBowShot(player);
         }
     }

@@ -58,16 +58,8 @@ public final class UniqueWeaponManager {
                 if (!contains(player, id)) {
                     continue;
                 }
-                UUID owner = data.getOwner(id);
-                boolean transferred;
-                if (WORLD_OWNER.equals(owner)) {
-                    transferred = data.transferId(WORLD_OWNER, player.getUuid(), id);
-                } else if (owner == null) {
-                    // 旧データやチェスト配置前に拾った場合: 所有情報を修復する。
-                    transferred = data.claimId(player.getUuid(), id);
-                } else {
-                    transferred = false;
-                }
+                // 旧版で村のチェストに配布された武器を拾った場合など、所有者未登録なら所持者を持ち主にする。
+                boolean transferred = data.getOwner(id) == null && data.claimId(player.getUuid(), id);
                 if (transferred && ANNOUNCED.add(player.getUuid() + "|" + id)) {
                     player.sendMessage(Text.literal("§6[ユニーク武器] " + id + " を手に入れた！"), false);
                 }
@@ -129,36 +121,16 @@ public final class UniqueWeaponManager {
         return false;
     }
 
-    /** ステップ1の10村のチェストへ未取得の武器を1本ずつ配置する。 */
-    public static void distributeToVillages(ServerWorld world) {
+    /**
+     * ユニーク武器は取得条件でのみ入手する。旧版が村のチェストへ配布した際に
+     * 「ワールド所有」として予約した武器を解放し、取得条件を再び有効にする。
+     */
+    public static void releaseWorldOwnedWeapons(ServerWorld world) {
         WorldUniqueData data = WorldUniqueData.getOrCreate(world);
-        int index = 0;
-        for (com.kingdomunique.data.WorldUniqueData.VillageSite site : data.getVillageSites()) {
-            if (index >= UniqueWeapons.ALL_IDS.length) {
-                break;
+        for (String id : UniqueWeapons.ALL_IDS) {
+            if (WORLD_OWNER.equals(data.getOwner(id))) {
+                data.releaseId(WORLD_OWNER, id);
             }
-            String id = UniqueWeapons.ALL_IDS[index++];
-            if (data.isClaimed(id)) {
-                continue;
-            }
-            BlockPos base = new BlockPos(site.x(),
-                    world.getTopY(net.minecraft.world.Heightmap.Type.WORLD_SURFACE, site.x(), site.z()) + 1,
-                    site.z());
-            BlockPos chestPos = base.add(2, 0, 2);
-            net.minecraft.inventory.Inventory inventory = null;
-            if (world.getBlockEntity(chestPos) instanceof net.minecraft.inventory.Inventory found) {
-                inventory = found;
-            } else {
-                world.setBlockState(chestPos, net.minecraft.block.Blocks.CHEST.getDefaultState());
-                if (world.getBlockEntity(chestPos) instanceof net.minecraft.inventory.Inventory created) {
-                    inventory = created;
-                }
-            }
-            if (inventory == null) {
-                continue;
-            }
-            inventory.setStack(0, new ItemStack(uniqueStack(id).getItem()));
-            data.claimId(WORLD_OWNER, id);
         }
     }
 

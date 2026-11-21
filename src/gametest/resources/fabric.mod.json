@@ -8,6 +8,7 @@
       "com.kingdomunique.ability.AbsoluteDominionGameTest",
       "com.kingdomunique.ability.GravityControlGameTest",
       "com.kingdomunique.building.BlueprintGameTest",
+      "com.kingdomunique.item.unique.ApolloBowGameTest",
       "com.kingdomunique.kingdom.HeroGameTest",
       "com.kingdomunique.selection.SelectionGameTest",
       "com.kingdomunique.soldier.SoldierOrderGameTest",

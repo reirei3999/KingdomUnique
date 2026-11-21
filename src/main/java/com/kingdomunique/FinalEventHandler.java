@@ -27,7 +27,7 @@ public final class FinalEventHandler {
     public static void register() {
         ServerWorldEvents.LOAD.register((server, world) -> {
             if (world.getRegistryKey() == World.OVERWORLD) {
-                UniqueWeaponManager.distributeToVillages(world);
+                UniqueWeaponManager.releaseWorldOwnedWeapons(world);
             }
         });
 
