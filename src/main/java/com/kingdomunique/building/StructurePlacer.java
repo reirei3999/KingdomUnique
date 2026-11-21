@@ -118,7 +118,8 @@ public final class StructurePlacer {
                 for (int y = box.getMaxY(); y > box.getMinY(); y--) {
                     BlockPos pos = new BlockPos(x, y, z);
                     if (!world.getBlockState(pos).isAir()) {
-                        world.setBlockState(pos, air, Block.NOTIFY_LISTENERS);
+                        // 枠外の隣接ブロック（ベッドの片側など）を連鎖で壊さないよう形状更新を止める。
+                        world.setBlockState(pos, air, Block.NOTIFY_LISTENERS | Block.FORCE_STATE);
                     }
                 }
                 for (int y = box.getMinY(); y > box.getMinY() - SUPPORT_DEPTH; y--) {
