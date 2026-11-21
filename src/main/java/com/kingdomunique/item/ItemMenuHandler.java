@@ -77,7 +77,7 @@ public final class ItemMenuHandler {
                             int have = be.countOf(entry.getKey());
                             lines.add(entry.getKey().getName().getString() + " " + have + "/" + needed);
                         }
-                        lines.add("状態: 資材待ち");
+                        lines.add(be.hasAllMaterials(type, multiplier) ? "状態: 資材投入済み（未着工）" : "状態: 資材待ち");
                         int estimate = (int) Math.max(20L,
                                 type.getBaseBuildTicks() * multiplier);
                         lines.add("予想建築時間: " + String.format("%.1f", estimate / 20.0F) + "秒");
