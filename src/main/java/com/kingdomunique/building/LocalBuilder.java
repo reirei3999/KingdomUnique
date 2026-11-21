@@ -132,4 +132,30 @@ final class LocalBuilder {
             }
         }
     }
+
+    /** Z 方向に棟が走る切妻屋根（妻面が正面と背面）。gableRoof を90度回したもの。 */
+    void gableRoofZ(int xWest, int xEast, int zBack, int zFront, int wallTop,
+                    Block stair, Block ridgeSlab, BlockState gable) {
+        int xLow = xWest - 1;
+        int xHigh = xEast + 1;
+        for (int k = 0; xLow + k <= xHigh - k; k++) {
+            int y = wallTop + k;
+            int west = xLow + k;
+            int east = xHigh - k;
+            for (int z = zBack - 1; z <= zFront + 1; z++) {
+                if (west == east) {
+                    set(west, y, z, slab(ridgeSlab, SlabType.BOTTOM));
+                } else {
+                    set(west, y, z, stairs(stair, Direction.EAST));
+                    set(east, y, z, stairs(stair, Direction.WEST));
+                }
+            }
+            if (k > 0) {
+                for (int x = west + 1; x < east; x++) {
+                    set(x, y, zBack, gable);
+                    set(x, y, zFront, gable);
+                }
+            }
+        }
+    }
 }

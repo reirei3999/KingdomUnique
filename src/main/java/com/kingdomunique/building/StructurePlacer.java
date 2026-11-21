@@ -1,6 +1,5 @@
 package com.kingdomunique.building;
 
-import com.kingdomunique.world.HeroSanctuaryBuilder;
 import com.kingdomunique.world.TownHallBuilder;
 import net.minecraft.block.Block;
 import net.minecraft.block.BlockState;
@@ -80,16 +79,13 @@ public final class StructurePlacer {
             case WATCHTOWER -> list.addAll(DefenseStructures.watchtower());
             case GATE -> list.addAll(DefenseStructures.gate());
             case WALL -> list.addAll(DefenseStructures.wall());
-            case HERO_SANCTUARY -> {
-                for (var p : HeroSanctuaryBuilder.generatePlacements(BlockPos.ORIGIN)) {
-                    list.add(new Placement(p.pos(), p.state()));
-                }
-            }
-            case GRANARY, INFIRMARY, MARKET, ARSENAL, TRAINING_GROUND, ROYAL_PALACE -> {
-                for (var p : AdditionalStructures.generatePlacements(type, BlockPos.ORIGIN)) {
-                    list.add(new Placement(p.pos(), p.state()));
-                }
-            }
+            case HERO_SANCTUARY -> list.addAll(CivicStructures.heroSanctuary());
+            case GRANARY -> list.addAll(CivicStructures.granary());
+            case INFIRMARY -> list.addAll(CivicStructures.infirmary());
+            case MARKET -> list.addAll(CivicStructures.market());
+            case ARSENAL -> list.addAll(CivicStructures.arsenal());
+            case TRAINING_GROUND -> list.addAll(CivicStructures.trainingGround());
+            case ROYAL_PALACE -> list.addAll(CivicStructures.royalPalace());
         }
         list.sort(Comparator.comparingInt(p -> p.local().getY()));
         return list;
