@@ -57,6 +57,7 @@ public class KingdomUniqueMod implements ModInitializer {
         com.kingdomunique.item.ItemMenuHandler.register();
         com.kingdomunique.command.ModCommands.register();
         SelectionEventHandler.register();
+        com.kingdomunique.selection.SelectionResendHandler.register();
         com.kingdomunique.status.StatusManager.register();
 
         // ステップ5: 国民・英雄エンティティと王国イベントを登録する。
