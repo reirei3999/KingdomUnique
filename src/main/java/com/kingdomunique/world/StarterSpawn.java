@@ -13,6 +13,7 @@ import net.minecraft.server.world.ServerWorld;
 import net.minecraft.text.Text;
 import net.minecraft.util.math.BlockPos;
 import net.minecraft.util.math.ChunkPos;
+import net.minecraft.world.ForcedChunkState;
 import net.minecraft.world.Heightmap;
 import net.minecraft.world.World;
 
@@ -57,11 +58,13 @@ public final class StarterSpawn {
 
     private static void keepVillageLoaded(ServerWorld world, BlockPos spawn) {
         int radius = VillageBuilder.MAX_VILLAGE_RADIUS + SPAWN_SEARCH_RADIUS;
-        var forcedChunks = world.getForcedChunks();
+        ForcedChunkState forcedChunks = world.getPersistentStateManager().getOrCreate(
+                ForcedChunkState.getPersistentStateType(), ForcedChunkState.CHUNKS_KEY);
         for (int x = (spawn.getX() - radius) >> 4; x <= (spawn.getX() + radius) >> 4; x++) {
             for (int z = (spawn.getZ() - radius) >> 4; z <= (spawn.getZ() + radius) >> 4; z++) {
-                if (!forcedChunks.contains(ChunkPos.toLong(x, z))) {
-                    world.setChunkForced(x, z, true);
+                if (forcedChunks.getChunks().add(ChunkPos.toLong(x, z))) {
+                    forcedChunks.markDirty();
+                    world.getChunkManager().setChunkForced(new ChunkPos(x, z), true);
                 }
             }
         }

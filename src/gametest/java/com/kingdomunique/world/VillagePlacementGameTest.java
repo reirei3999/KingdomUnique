@@ -27,7 +27,10 @@ public final class VillagePlacementGameTest {
     @GameTest(templateName = FabricGameTest.EMPTY_STRUCTURE, batchId = "starter_village")
     public void registeringKingdomVillageForceLoadsItsChunks(TestContext context) {
         ServerWorld world = context.getWorld();
-        BlockPos spawn = context.getAbsolutePos(new BlockPos(15, 0, 15));
+        BlockPos spawn = context.getAbsolutePos(new BlockPos(527, 0, 527));
+        ChunkPos farCorner = new ChunkPos(spawn.add(104, 0, 104));
+        context.assertTrue(world.getChunkManager().getWorldChunk(farCorner.x, farCorner.z) == null,
+                "The village's far corner must start unloaded");
         UUID owner = UUID.randomUUID();
         KingdomData data = new KingdomData();
         var before = new LongOpenHashSet(world.getForcedChunks());
@@ -44,6 +47,8 @@ public final class VillagePlacementGameTest {
             context.assertTrue(data.get(owner).villageGenerated(), "The kingdom village must be recorded");
             context.assertTrue(world.getForcedChunks().equals(expected),
                     "All chunks out to the starter village's outer generation bounds must be forced");
+            context.assertTrue(world.getChunkManager().getWorldChunk(farCorner.x, farCorner.z) == null,
+                    "Registering forced chunks must not load them synchronously");
         } finally {
             var added = new LongOpenHashSet(world.getForcedChunks());
             added.removeAll(before);
