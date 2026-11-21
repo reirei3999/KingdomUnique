@@ -60,6 +60,7 @@ import java.util.Optional;
 public final class VillageBuilder {
 
     public static final int VILLAGER_COUNT = 6;
+    static final int MAX_VILLAGE_RADIUS = 96;
     private static final int RADIUS = 16;
     private static final int HOUSE_RADIUS = 2;
 
@@ -133,8 +134,9 @@ public final class VillageBuilder {
                     return false;
                 }
             }
-            BlockBox box = new BlockBox(center.getX() - 96, world.getBottomY(), center.getZ() - 96,
-                    center.getX() + 96, world.getTopY(), center.getZ() + 96);
+            BlockBox box = new BlockBox(center.getX() - MAX_VILLAGE_RADIUS, world.getBottomY(),
+                    center.getZ() - MAX_VILLAGE_RADIUS, center.getX() + MAX_VILLAGE_RADIUS,
+                    world.getTopY(), center.getZ() + MAX_VILLAGE_RADIUS);
             for (StructurePiece piece : placed) {
                 piece.generate(world, world.getStructureAccessor(), generator,
                         world.getRandom(), box, new ChunkPos(center), center);
