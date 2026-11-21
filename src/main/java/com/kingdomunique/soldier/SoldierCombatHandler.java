@@ -26,6 +26,8 @@ import java.util.List;
 /** 兵士が装備した武器（強化段階・遺物効果込み）で戦闘するAI。 */
 public final class SoldierCombatHandler {
 
+    private static final java.util.Set<VillagerEntity> SWEEPING = new java.util.HashSet<>();
+
     private SoldierCombatHandler() {
     }
 
@@ -97,7 +99,7 @@ public final class SoldierCombatHandler {
     }
 
     /** 強化段階（1.1^N）が反映された AttributeModifiers から攻撃力を算出する。 */
-    private static float calculateWeaponDamage(ItemStack weapon) {
+    public static float calculateWeaponDamage(ItemStack weapon) {
         if (weapon.isEmpty()) {
             return 2.0f;
         }
@@ -144,14 +146,18 @@ public final class SoldierCombatHandler {
         }
         boolean slaughter = weapon.isOf(com.kingdomunique.item.ModItems.SLAUGHTER_BLADE)
                 || weapon.getName().getString().contains("殺戮の宝剣");
-        if (!slaughter) {
+        if (!slaughter || !SWEEPING.add(soldier)) {
             return;
         }
-        soldier.heal(Math.max(1.0f, damageDealt * 0.25f));
-        ServerWorld world = (ServerWorld) soldier.getWorld();
-        for (HostileEntity extra : world.getEntitiesByClass(HostileEntity.class,
-                new Box(target.getBlockPos()).expand(3.0D), e -> e != target && e.isAlive())) {
-            extra.damage(world.getDamageSources().mobAttack(soldier), damageDealt * 0.5f);
+        try {
+            soldier.heal(Math.max(1.0f, damageDealt * 0.25f));
+            ServerWorld world = (ServerWorld) soldier.getWorld();
+            for (HostileEntity extra : world.getEntitiesByClass(HostileEntity.class,
+                    new Box(target.getBlockPos()).expand(3.0D), e -> e != target && e.isAlive())) {
+                extra.damage(world.getDamageSources().mobAttack(soldier), damageDealt * 0.5f);
+            }
+        } finally {
+            SWEEPING.remove(soldier);
         }
     }
 

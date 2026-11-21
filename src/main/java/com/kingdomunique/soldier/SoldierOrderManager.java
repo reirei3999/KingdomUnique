@@ -6,6 +6,7 @@ import com.kingdomunique.war.KingdomWarTargetHelper;
 import net.fabricmc.fabric.api.networking.v1.ServerPlayNetworking;
 import net.minecraft.entity.Entity;
 import net.minecraft.entity.LivingEntity;
+import net.minecraft.entity.ai.brain.MemoryModuleType;
 import net.minecraft.entity.passive.VillagerEntity;
 import net.minecraft.particle.ParticleTypes;
 import net.minecraft.server.network.ServerPlayerEntity;
@@ -48,7 +49,7 @@ public final class SoldierOrderManager {
         });
     }
 
-    private static void handleOrder(ServerPlayerEntity king, SoldierOrderPayload payload) {
+    static void handleOrder(ServerPlayerEntity king, SoldierOrderPayload payload) {
         ServerWorld world = king.getServerWorld();
         List<VillagerEntity> targets = new ArrayList<>();
 
@@ -110,18 +111,25 @@ public final class SoldierOrderManager {
     /** 視界（14マス・canSee、至近5マスは気配）制限付きの敵索敵。 */
     public static LivingEntity findVisibleEnemyInSight(ServerWorld world, VillagerEntity soldier,
                                                        double maxSightRange) {
-        LivingEntity candidate = KingdomWarTargetHelper.findBestTarget(world, soldier, maxSightRange);
-        if (candidate == null) {
-            return null;
+        return KingdomWarTargetHelper.findBestTarget(world, soldier, maxSightRange, candidate -> {
+            double distSq = soldier.squaredDistanceTo(candidate);
+            return distSq <= maxSightRange * maxSightRange && (distSq <= 25.0D || soldier.canSee(candidate));
+        });
+    }
+
+    public static void waitAtHoldPosition(VillagerEntity soldier) {
+        if (soldier.getTarget() != null || STANCES.get(soldier.getUuid()) != OrderStance.HOLD) {
+            return;
         }
-        double distSq = soldier.squaredDistanceTo(candidate);
-        if (distSq > maxSightRange * maxSightRange) {
-            return null;
+        BlockPos hold = MOVE_ORDERS.get(soldier.getUuid());
+        if (hold != null && isAtHoldPosition(soldier, hold)) {
+            soldier.getBrain().forget(MemoryModuleType.WALK_TARGET);
+            soldier.getNavigation().stop();
         }
-        if (distSq <= 25.0D || soldier.canSee(candidate)) {
-            return candidate;
-        }
-        return null;
+    }
+
+    private static boolean isAtHoldPosition(VillagerEntity soldier, BlockPos hold) {
+        return soldier.getBlockPos().getSquaredDistance(hold) <= 6.25D;
     }
 
     /** 敵が見えていないときの移動命令・王追従・防衛の移動制御。 */
@@ -130,7 +138,7 @@ public final class SoldierOrderManager {
         OrderStance stance = STANCES.getOrDefault(id, OrderStance.FREE);
         if (stance == OrderStance.HOLD) {
             BlockPos hold = MOVE_ORDERS.get(id);
-            if (hold != null && soldier.getBlockPos().getSquaredDistance(hold) > 6.25D) {
+            if (hold != null && !isAtHoldPosition(soldier, hold)) {
                 soldier.getNavigation().startMovingTo(hold.getX() + 0.5D, hold.getY(),
                         hold.getZ() + 0.5D, 1.05D);
             }

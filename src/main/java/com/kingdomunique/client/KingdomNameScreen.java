@@ -1,15 +1,15 @@
 package com.kingdomunique.client;
 
+import com.kingdomunique.client.ui.KuTheme;
+import com.kingdomunique.client.ui.KuButton;
 import com.kingdomunique.network.SetKingdomNamePayload;
 import net.fabricmc.api.EnvType;
 import net.fabricmc.api.Environment;
 import net.fabricmc.fabric.api.client.networking.v1.ClientPlayNetworking;
 import net.minecraft.client.gui.DrawContext;
 import net.minecraft.client.gui.screen.Screen;
-import net.minecraft.client.gui.widget.ButtonWidget;
 import net.minecraft.client.gui.widget.TextFieldWidget;
 import net.minecraft.text.Text;
-import net.minecraft.util.Formatting;
 
 /** 建国時に国名を決める入力画面。 */
 @Environment(EnvType.CLIENT)
@@ -26,13 +26,15 @@ public final class KingdomNameScreen extends Screen {
         int cx = this.width / 2;
         int cy = this.height / 2;
         nameField = new TextFieldWidget(this.textRenderer,
-                cx - 110, cy - 30, 220, 20, Text.literal("国名"));
+                cx - 106, cy - 24, 212, 16, Text.literal("国名"));
         nameField.setMaxLength(24);
+        nameField.setDrawsBackground(false);
+        nameField.setEditableColor(KuTheme.PRIMARY);
         nameField.setText("新王国");
         nameField.setFocused(true);
         this.addDrawableChild(nameField);
 
-        this.addDrawableChild(ButtonWidget.builder(Text.literal("決定"), button -> decide())
+        this.addDrawableChild(KuButton.themed(Text.literal("決定"), button -> decide()).accent(KuTheme.GOLD)
                 .dimensions(cx - 110, cy + 10, 105, 20).build());
     }
 
@@ -56,15 +58,24 @@ public final class KingdomNameScreen extends Screen {
 
     @Override
     public void render(DrawContext context, int mouseX, int mouseY, float delta) {
-        this.renderBackground(context, mouseX, mouseY, delta);
+        super.render(context, mouseX, mouseY, delta);
         int cx = this.width / 2;
         int cy = this.height / 2;
-        context.drawCenteredTextWithShadow(this.textRenderer, this.title,
-                cx, cy - 60, 0xFFFFD700);
+        KuTheme.drawTitle(context, textRenderer, title, cx, cy - 60);
         context.drawCenteredTextWithShadow(this.textRenderer,
                 Text.literal("この王国の名前を入力してください（名札に表示されます）"),
-                cx, cy - 44, 0xFFFFFFFF);
-        super.render(context, mouseX, mouseY, delta);
+                cx, cy - 44, KuTheme.PRIMARY);
+    }
+
+    @Override
+    public void renderBackground(DrawContext context, int mouseX, int mouseY, float delta) {
+        context.fill(0, 0, width, height, KuTheme.BACKDROP);
+        int w = Math.min(400, width - 24);
+        KuTheme.drawPanel(context, (width - w) / 2, height / 2 - 70, w, 120, KuTheme.GOLD);
+        KuTheme.drawSlot(context, width / 2 - 110, height / 2 - 30, 220, 20);
+        if (nameField != null && nameField.isFocused()) {
+            KuTheme.drawBorder(context, width / 2 - 110, height / 2 - 30, 220, 20, KuTheme.GOLD);
+        }
     }
 
     @Override

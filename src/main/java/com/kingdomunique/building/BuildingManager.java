@@ -245,17 +245,17 @@ public final class BuildingManager {
         net.minecraft.util.math.Direction facing = site.facing();
         net.minecraft.util.math.BlockBox box = StructureRotationUtil.computeBoundingBox(site.pos(), site.type(), facing);
         net.minecraft.util.math.BlockPos core = site.type() == BuildingType.HERO_SANCTUARY
-                ? StructureRotationUtil.transformPos(site.pos(), 4, 1, 4, 9, 9, facing) : null;
+                ? sanctuaryCore(site.pos(), facing) : null;
         KingdomBuildingState.get(world).add(owner.getUuid(), site.type(), site.pos(), facing, box, core);
         BuildingEffectHandler.onCompleted(world, owner.getUuid(), site.type(), site.pos());
         CompletedBuildingsData.getOrCreate(world).add(site.pos(), site.type(), owner.getUuid());
-        DefenseData.register(world, site.pos(), site.type(), owner.getUuid());
+        DefenseData.register(world, site.pos(), site.type(), owner.getUuid(), facing);
         if (site.type() == BuildingType.TOWN_HALL) {
             KingdomManager.markTownHall(owner, site.pos());
             com.kingdomunique.kingdom.PolicyManager.sendPolicyOffer(owner);
         } else if (site.type() == BuildingType.HERO_SANCTUARY) {
             net.minecraft.util.math.BlockPos sanctuaryCore = core != null ? core
-                    : site.pos().add(com.kingdomunique.world.HeroSanctuaryBuilder.CORE_OFFSET);
+                    : sanctuaryCore(site.pos(), net.minecraft.util.math.Direction.SOUTH);
             com.kingdomunique.kingdom.SanctuaryData.getOrCreate(world)
                     .register(sanctuaryCore, owner.getUuid());
             owner.sendMessage(Text.literal("§6[英雄召喚の祭壇] 完成！中央のロードストーンを右クリックして英雄を召喚できます。"), false);
@@ -270,6 +270,7 @@ public final class BuildingManager {
         data.sites().remove(site);
         data.markDirty();
         releaseBuilder(world, site);
+        com.kingdomunique.status.StatusManager.syncBuildingBoxesToWorld(world);
         return true;
     }
     /** チャンク未ロード・高度範囲外での配置を防ぐ（Gemini 提示のバグ③対策）。 */
@@ -317,5 +318,12 @@ public final class BuildingManager {
                     villager.getX(), villager.getBodyY(0.8D), villager.getZ(),
                     2, 0.3D, 0.3D, 0.3D, 0.0D);
         }
+    }
+
+    private static net.minecraft.util.math.BlockPos sanctuaryCore(net.minecraft.util.math.BlockPos origin,
+                                                                  net.minecraft.util.math.Direction facing) {
+        net.minecraft.util.math.BlockPos c = com.kingdomunique.world.HeroSanctuaryBuilder.CORE_OFFSET;
+        int[] d = StructureRotationUtil.getBuildingDimensions(BuildingType.HERO_SANCTUARY);
+        return StructureRotationUtil.transformPos(origin, c.getX(), c.getY(), c.getZ(), d[0], d[2], facing);
     }
 }

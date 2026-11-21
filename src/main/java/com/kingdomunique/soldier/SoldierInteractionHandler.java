@@ -3,7 +3,10 @@ package com.kingdomunique.soldier;
 import com.kingdomunique.entity.CitizenVillager;
 import net.fabricmc.fabric.api.event.player.UseEntityCallback;
 import net.minecraft.entity.passive.VillagerEntity;
-import net.minecraft.screen.SimpleNamedScreenHandlerFactory;
+import net.fabricmc.fabric.api.screenhandler.v1.ExtendedScreenHandlerFactory;
+import net.minecraft.entity.player.PlayerEntity;
+import net.minecraft.entity.player.PlayerInventory;
+import net.minecraft.screen.ScreenHandler;
 import net.minecraft.server.network.ServerPlayerEntity;
 import net.minecraft.text.Text;
 import net.minecraft.util.ActionResult;
@@ -34,11 +37,22 @@ public final class SoldierInteractionHandler {
                 return ActionResult.FAIL;
             }
 
-            int hp = (int) Math.ceil(villager.getHealth());
-            int maxHp = (int) Math.ceil(villager.getMaxHealth());
-            serverPlayer.openHandledScreen(new SimpleNamedScreenHandlerFactory(
-                    (syncId, inv, p) -> new SoldierEquipmentScreenHandler(syncId, inv, villager),
-                    Text.literal("§b[王国兵士 装備編成] §8(HP " + hp + "/" + maxHp + ")")));
+            serverPlayer.openHandledScreen(new ExtendedScreenHandlerFactory<Integer>() {
+                @Override
+                public Integer getScreenOpeningData(ServerPlayerEntity player) {
+                    return villager.getId();
+                }
+
+                @Override
+                public Text getDisplayName() {
+                    return Text.literal("王国兵士 装備編成");
+                }
+
+                @Override
+                public ScreenHandler createMenu(int syncId, PlayerInventory inventory, PlayerEntity player) {
+                    return new SoldierEquipmentScreenHandler(syncId, inventory, villager);
+                }
+            });
             return ActionResult.SUCCESS;
         });
     }

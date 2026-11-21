@@ -77,7 +77,7 @@ public final class ItemMenuHandler {
                             int have = be.countOf(entry.getKey());
                             lines.add(entry.getKey().getName().getString() + " " + have + "/" + needed);
                         }
-                        lines.add("状態: 資材待ち");
+                        lines.add(be.hasAllMaterials(type, multiplier) ? "状態: 資材投入済み（未着工）" : "状態: 資材待ち");
                         int estimate = (int) Math.max(20L,
                                 type.getBaseBuildTicks() * multiplier);
                         lines.add("予想建築時間: " + String.format("%.1f", estimate / 20.0F) + "秒");
@@ -197,8 +197,9 @@ public final class ItemMenuHandler {
         if (stack.getCount() <= 0) {
             stack.setCount(1);
         }
+        String itemName = stack.getName().getString();
         // 管理者メニューからは所有者に関係なく付与する（排他リストは変更しない）。
         player.giveItemStack(stack);
-        player.sendMessage(Text.literal("§6[KingdomUnique] " + stack.getName().getString() + " を入手しました。"), false);
+        player.sendMessage(Text.literal("§6[KingdomUnique] " + itemName + " を入手しました。"), false);
     }
 }

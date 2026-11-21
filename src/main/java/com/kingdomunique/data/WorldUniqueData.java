@@ -48,6 +48,9 @@ public class WorldUniqueData extends PersistentState {
     private final List<VillageSite> villageSites = new ArrayList<>();
     private boolean initialized = false;
 
+    /** 黄金の天秤: プレイヤーUUID -> 最後に収益を受け取った日。 */
+    private final Map<UUID, Long> goldenScalePayoutDays = new HashMap<>();
+
     public WorldUniqueData() {
     }
 
@@ -86,6 +89,15 @@ public class WorldUniqueData extends PersistentState {
             villageSites.add(new VillageSite(site.getInt("x"), site.getInt("z")));
         }
         initialized = nbt.getBoolean("initialized");
+
+        NbtCompound payoutsNbt = nbt.getCompound("golden_scale_payouts");
+        for (String key : payoutsNbt.getKeys()) {
+            try {
+                goldenScalePayoutDays.put(UUID.fromString(key), payoutsNbt.getLong(key));
+            } catch (IllegalArgumentException ignored) {
+                // 壊れたキーは無視する。
+            }
+        }
     }
 
     public static WorldUniqueData getOrCreate(ServerWorld world) {
@@ -115,6 +127,12 @@ public class WorldUniqueData extends PersistentState {
         }
         nbt.put("village_sites", sitesNbt);
         nbt.putBoolean("initialized", initialized);
+
+        NbtCompound payoutsNbt = new NbtCompound();
+        for (Map.Entry<UUID, Long> entry : goldenScalePayoutDays.entrySet()) {
+            payoutsNbt.putLong(entry.getKey().toString(), entry.getValue());
+        }
+        nbt.put("golden_scale_payouts", payoutsNbt);
         return nbt;
     }
 
@@ -232,6 +250,17 @@ public class WorldUniqueData extends PersistentState {
         villageSites.clear();
         villageSites.addAll(sites);
         markDirty();
+    }
+
+    /** 黄金の天秤の収益をその日に未受領なら受領済みにして true を返す。 */
+    public boolean claimGoldenScalePayout(UUID playerUuid, long day) {
+        Long last = goldenScalePayoutDays.get(playerUuid);
+        if (last != null && last == day) {
+            return false;
+        }
+        goldenScalePayoutDays.put(playerUuid, day);
+        markDirty();
+        return true;
     }
 
     public record VillageSite(int x, int z) {

@@ -54,7 +54,7 @@ public final class KingdomTradeRegistry {
         return offers;
     }
 
-    private static UUID resolveOwner(VillagerEntity villager, ServerPlayerEntity player) {
+    static UUID resolveOwner(VillagerEntity villager, ServerPlayerEntity player) {
         if (villager instanceof CitizenVillager citizen) {
             String owner = citizen.ku$getOwnerUuid();
             if (owner != null && !owner.isEmpty()) {

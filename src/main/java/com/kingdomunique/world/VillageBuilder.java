@@ -22,6 +22,7 @@ import net.minecraft.world.gen.noise.NoiseConfig;
 import net.minecraft.world.gen.structure.DimensionPadding;
 import net.minecraft.world.gen.structure.Structure;
 import net.minecraft.structure.StructureLiquidSettings;
+import net.minecraft.structure.PoolStructurePiece;
 import net.minecraft.structure.StructurePiece;
 import net.minecraft.util.math.BlockBox;
 import net.minecraft.util.math.ChunkPos;
@@ -38,6 +39,7 @@ import net.minecraft.util.math.BlockPos;
 import net.minecraft.util.math.Direction;
 import net.minecraft.world.Heightmap;
 
+import java.util.ArrayList;
 import java.util.List;
 import java.util.Optional;
 
@@ -73,6 +75,10 @@ public final class VillageBuilder {
 
     /** バイオームに応じたバニラ村のジグソー生成。 */
     public static boolean buildVillage(ServerWorld world, BlockPos center) {
+        return buildVillage(world, center, List.of());
+    }
+
+    private static boolean buildVillage(ServerWorld world, BlockPos center, List<BlockBox> reserved) {
         Identifier poolId = selectVillagePoolByBiome(world, center);
         Registry<StructurePool> registry =
                 world.getRegistryManager().get(RegistryKeys.TEMPLATE_POOL);
@@ -100,13 +106,34 @@ public final class VillageBuilder {
             if (position.isEmpty()) {
                 return false;
             }
+            List<StructurePiece> pieces = position.get().generate().toList().pieces();
+            List<StructurePiece> placed = new ArrayList<>();
+            for (StructurePiece piece : pieces) {
+                BlockBox bounds = piece.getBoundingBox();
+                boolean fits = reserved.stream().noneMatch(area -> area.intersectsXZ(
+                        bounds.getMinX(), bounds.getMinZ(), bounds.getMaxX(), bounds.getMaxZ()));
+                if (fits && piece instanceof PoolStructurePiece pool
+                        && pool.getPoolElement().getProjection() == StructurePool.Projection.RIGID) {
+                    BlockPos plot = VillageTerrain.plot(world, bounds.getMinX() - 1, bounds.getMinZ() - 1,
+                            bounds.getBlockCountX() + 2, bounds.getBlockCountZ() + 2);
+                    fits = plot != null;
+                    if (fits) {
+                        pool.translate(0, plot.getY() - bounds.getMinY() - pool.getGroundLevelDelta(), 0);
+                    }
+                }
+                if (fits) {
+                    placed.add(piece);
+                } else if (placed.isEmpty()) {
+                    return false;
+                }
+            }
             BlockBox box = new BlockBox(center.getX() - 96, world.getBottomY(), center.getZ() - 96,
                     center.getX() + 96, world.getTopY(), center.getZ() + 96);
-            for (StructurePiece piece : position.get().generate().toList().pieces()) {
+            for (StructurePiece piece : placed) {
                 piece.generate(world, world.getStructureAccessor(), generator,
                         world.getRandom(), box, new ChunkPos(center), center);
             }
-            return true;
+            return !placed.isEmpty();
         } catch (Throwable t) {
             com.kingdomunique.KingdomUniqueMod.LOGGER.error(
                     "[KingdomUnique] Jigsaw village generation failed.", t);
@@ -146,49 +173,80 @@ public final class VillageBuilder {
     public static void generateStarterVillage(ServerWorld world, int centerX, int centerZ,
                                               java.util.UUID owner) {
         forceLoadChunks(world, centerX, centerZ);
-        int baseY = world.getTopY(Heightmap.Type.WORLD_SURFACE, centerX, centerZ) + 1;
+        int baseY = surfaceY(world, centerX, centerZ);
+        BlockPos hallOrigin = TownHallBuilder.findVillageOrigin(world, centerX, centerZ);
+        List<BlockBox> reserved = new ArrayList<>();
+        if (hallOrigin != null) {
+            reserved.add(TownHallBuilder.villageFootprint(hallOrigin));
+        }
 
-        // バニラのジグソー生成（バイオーム別の村プール）を最優先で試す。
-        boolean jigsaw = buildVillage(world, new BlockPos(centerX, baseY, centerZ));
+        boolean jigsaw = buildVillage(world, new BlockPos(centerX, baseY, centerZ), reserved);
         if (jigsaw) {
-            // バニラ村の広場北側に王国の集会所（タウンホール）を配置する。
-            BlockPos hallOrigin = new BlockPos(centerX - 5, baseY, centerZ - 14);
-            TownHallBuilder.buildTownHall(world, hallOrigin);
-            // 初期村人はホール内に集合させる（人口は王国システムで管理）。
-            ensureVillagers(world, centerX, baseY, centerZ, owner, hallOrigin);
             com.kingdomunique.KingdomUniqueMod.LOGGER.info("[KingdomUnique] Generated jigsaw village at ({}, {}).",
                     centerX, centerZ);
-            return;
+        } else {
+            com.kingdomunique.KingdomUniqueMod.LOGGER.warn("[KingdomUnique] Jigsaw village failed at ({}, {}); using templates.",
+                    centerX, centerZ);
+            buildTemplateVillage(world, centerX, centerZ, reserved);
         }
-        com.kingdomunique.KingdomUniqueMod.LOGGER.warn("[KingdomUnique] Jigsaw village failed at ({}, {}); using templates.",
-                centerX, centerZ);
+        if (hallOrigin != null) {
+            TownHallBuilder.buildVillageTownHall(world, hallOrigin);
+        }
+        ensureVillagers(world, centerX, baseY, centerZ, owner, hallOrigin);
+    }
 
+    private static void buildTemplateVillage(ServerWorld world, int centerX, int centerZ,
+                                             List<BlockBox> reserved) {
         StructureTemplateManager manager = world.getStructureTemplateManager();
+        boolean well = placeVillageTemplate(manager, world, WELL, centerX, centerZ, reserved);
 
-        // 中心の井戸（テンプレートの基準点は床面）。
-        placeTemplate(manager, world, WELL, centerX, centerZ);
-
-        // 家々を円状に配置。テンプレート実サイズから必要チャンクをロードし、
-        // 地表〜上空をクリアした上で基礎を埋め立てる。
         int placed = 0;
         for (int i = 0; i < HOUSE_TEMPLATES.length; i++) {
             double angle = (i * 2.0D * Math.PI / HOUSE_TEMPLATES.length) + Math.PI / 4.0D;
             int hx = centerX + (int) Math.round(Math.cos(angle) * 10.0D);
             int hz = centerZ + (int) Math.round(Math.sin(angle) * 10.0D);
-            if (placeTemplate(manager, world,
-                    Identifier.of("minecraft", HOUSE_TEMPLATES[i]), hx, hz)) {
+            if (placeVillageTemplate(manager, world,
+                    Identifier.of("minecraft", HOUSE_TEMPLATES[i]), hx, hz, reserved)) {
                 placed++;
             }
         }
 
-        // テンプレートが全く読めない環境では従来の直接配置で村を保証する。
-        if (placed == 0) {
-            legacyVillage(world, centerX, baseY, centerZ);
-        } else {
-            // 初期村では役職ブロックを生成しない（村人の役職が上書きされるため）。
-            buildFarm(world, centerX - 9, baseY, centerZ + 9);
+        if (!well) {
+            BlockPos plot = reservePlot(world, centerX - 1, centerZ - 1, 3, 3, reserved);
+            if (plot != null) {
+                buildWell(world, plot.getX() + 1, plot.getY() - 1, plot.getZ() + 1);
+            }
         }
-        ensureVillagers(world, centerX, baseY, centerZ, owner);
+        if (placed == 0) {
+            buildLegacyHouse(world, centerX - 8, centerZ - 8, Blocks.RED_BED, reserved);
+            buildLegacyHouse(world, centerX + 8, centerZ - 8, Blocks.BLUE_BED, reserved);
+            buildLegacyHouse(world, centerX, centerZ + 8, Blocks.GREEN_BED, reserved);
+        }
+        BlockPos farm = reservePlot(world, centerX - 12, centerZ + 9, 7, 5, reserved);
+        if (farm != null) {
+            buildFarm(world, farm.getX() + 3, farm.getY() - 1, farm.getZ());
+        }
+    }
+
+    private static boolean placeVillageTemplate(StructureTemplateManager manager, ServerWorld world,
+                                                Identifier id, int x, int z, List<BlockBox> reserved) {
+        StructureTemplate template = manager.getTemplate(id).orElse(null);
+        if (template == null) {
+            return false;
+        }
+        var size = template.getSize();
+        BlockPos plot = reservePlot(world, x - size.getX() / 2 - 1, z - size.getZ() / 2 - 1,
+                size.getX() + 2, size.getZ() + 2, reserved);
+        return plot != null && placeTemplate(world, template, plot.add(1, -1, 1));
+    }
+
+    private static BlockPos reservePlot(ServerWorld world, int x, int z, int width, int depth,
+                                        List<BlockBox> reserved) {
+        BlockPos plot = VillageTerrain.findPlot(world, x, z, width, depth, 12, reserved);
+        if (plot != null) {
+            reserved.add(VillageTerrain.footprint(plot, width, depth));
+        }
+        return plot;
     }
 
     /**
@@ -237,13 +295,16 @@ public final class VillageBuilder {
             }
         }
 
+        return placeTemplate(world, template, new BlockPos(centerX - halfX, groundY, centerZ - halfZ));
+    }
+
+    private static boolean placeTemplate(ServerWorld world, StructureTemplate template, BlockPos pos) {
         StructurePlacementData data = new StructurePlacementData()
                 .setRotation(BlockRotation.NONE)
                 .setMirror(BlockMirror.NONE)
                 .setIgnoreEntities(true)
                 .setInitializeMobs(false)
                 .setUpdateNeighbors(true);
-        BlockPos pos = new BlockPos(centerX - halfX, groundY, centerZ - halfZ);
         return template.place(world, pos, BlockPos.ORIGIN, data, world.getRandom(), Block.NOTIFY_ALL);
     }
 
@@ -251,20 +312,6 @@ public final class VillageBuilder {
     public static boolean placeTemplate(ServerWorld world, Identifier id, int centerX, int centerZ) {
         return placeTemplate(world.getStructureTemplateManager(), world, id, centerX, centerZ);
     }
-    /** 旧方式の基礎整地（フォールバック用）。 */
-    private static void prepareFoundation(ServerWorld world, int x, int y, int z) {
-        for (int dx = -5; dx <= 5; dx++) {
-            for (int dz = -5; dz <= 5; dz++) {
-                BlockPos p = new BlockPos(x + dx, y, z + dz);
-                for (int h = 1; h <= 8; h++) {
-                    world.setBlockState(p.up(h), Blocks.AIR.getDefaultState());
-                }
-                world.setBlockState(p.down(1), Blocks.DIRT.getDefaultState());
-                world.setBlockState(p, Blocks.GRASS_BLOCK.getDefaultState());
-            }
-        }
-    }
-
     /** 村の範囲を含むチャンクを確実にロード／生成する。 */
     private static void forceLoadChunks(ServerWorld world, int centerX, int centerZ) {
         int minCX = (centerX - RADIUS - 16) >> 4;
@@ -278,28 +325,12 @@ public final class VillageBuilder {
         }
     }
 
-    /** テンプレートが無い場合の旧方式（直接ブロック配置）。 */
-    private static void legacyVillage(ServerWorld world, int centerX, int baseY, int centerZ) {
-        flatten(world, centerX, baseY, centerZ);
-        buildWell(world, centerX, baseY, centerZ);
-        buildHouse(world, centerX - 8, baseY, centerZ - 8, Blocks.RED_BED);
-        buildHouse(world, centerX + 8, baseY, centerZ - 8, Blocks.BLUE_BED);
-        buildHouse(world, centerX, baseY, centerZ + 8, Blocks.GREEN_BED);
-        buildFarm(world, centerX - 8, baseY, centerZ + 8);
-    }
-
-    private static void flatten(ServerWorld world, int centerX, int y, int centerZ) {
-        for (int dx = -RADIUS; dx <= RADIUS; dx++) {
-            for (int dz = -RADIUS; dz <= RADIUS; dz++) {
-                BlockPos p = new BlockPos(centerX + dx, y, centerZ + dz);
-                for (int h = 1; h <= 10; h++) {
-                    world.setBlockState(p.up(h), Blocks.AIR.getDefaultState());
-                }
-                for (int h = 2; h >= 1; h--) {
-                    world.setBlockState(p.down(h), Blocks.DIRT.getDefaultState());
-                }
-                world.setBlockState(p, Blocks.GRASS_BLOCK.getDefaultState());
-            }
+    private static void buildLegacyHouse(ServerWorld world, int x, int z, Block bed,
+                                         List<BlockBox> reserved) {
+        int size = HOUSE_RADIUS * 2 + 1;
+        BlockPos plot = reservePlot(world, x - HOUSE_RADIUS, z - HOUSE_RADIUS, size, size + 1, reserved);
+        if (plot != null) {
+            buildHouse(world, plot.getX() + HOUSE_RADIUS, plot.getY() - 1, plot.getZ() + HOUSE_RADIUS, bed);
         }
     }
 
@@ -429,7 +460,7 @@ public final class VillageBuilder {
             } else {
                 vx = x + 2.5D + Math.cos(angle) * 2.5D;
                 vz = z + 2.5D + Math.sin(angle) * 2.5D;
-                groundY = y + 1;
+                groundY = surfaceY(world, (int) Math.floor(vx), (int) Math.floor(vz));
             }
             BlockPos safe = findSafeGround(world, (int) Math.floor(vx), (int) Math.floor(vz), groundY);
             villager.refreshPositionAndAngles(
@@ -464,6 +495,10 @@ public final class VillageBuilder {
             villager.setPersistent();
             index++;
         }
+    }
+
+    private static int surfaceY(ServerWorld world, int x, int z) {
+        return world.getTopY(Heightmap.Type.MOTION_BLOCKING_NO_LEAVES, x, z);
     }
 
     /** 村人の足元／頭上が空で、下が固体の安全な位置を探す。 */

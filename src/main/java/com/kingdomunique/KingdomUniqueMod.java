@@ -67,6 +67,7 @@ public class KingdomUniqueMod implements ModInitializer {
         com.kingdomunique.kingdom.VillagerEnlistHandler.register();
         com.kingdomunique.kingdom.PopulationManager.register();
         com.kingdomunique.trade.CitizenTradeHandler.register();
+        com.kingdomunique.soldier.SoldierScreenHandlers.initialize();
         com.kingdomunique.soldier.SoldierInteractionHandler.register();
         com.kingdomunique.soldier.SoldierCombatHandler.register();
         com.kingdomunique.soldier.SoldierOrderManager.register();

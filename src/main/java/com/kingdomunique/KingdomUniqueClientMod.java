@@ -1,8 +1,13 @@
 package com.kingdomunique;
 
 import com.kingdomunique.client.BlueprintClientOverlay;
+import com.kingdomunique.client.CitizenMerchantScreen;
 import com.kingdomunique.client.KeyBindings;
 import com.kingdomunique.client.SelectionClient;
+import com.kingdomunique.client.SoldierEquipmentScreen;
+import com.kingdomunique.soldier.SoldierScreenHandlers;
+import com.kingdomunique.trade.CitizenMerchantScreenHandler;
+import net.minecraft.client.gui.screen.ingame.HandledScreens;
 import com.kingdomunique.client.render.HeroEntityRenderer;
 import com.kingdomunique.component.ModDataComponents;
 import com.kingdomunique.entity.ModEntities;
@@ -17,6 +22,8 @@ public class KingdomUniqueClientMod implements ClientModInitializer {
     public void onInitializeClient() {
         // カスタムコンポーネントのネットワークコーデックをクライアント側でも登録する。
         ModDataComponents.initialize();
+        HandledScreens.register(SoldierScreenHandlers.EQUIPMENT, SoldierEquipmentScreen::new);
+        HandledScreens.register(CitizenMerchantScreenHandler.TYPE, CitizenMerchantScreen::new);
 
         // 能力発動キー(R) / モード切替キー(V) を登録する。
         KeyBindings.initialize();

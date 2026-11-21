@@ -16,6 +16,7 @@ import net.minecraft.util.Identifier;
 import net.minecraft.util.math.BlockPos;
 import net.minecraft.world.World;
 
+import java.util.List;
 import java.util.Map;
 import java.util.UUID;
 import java.util.concurrent.ThreadLocalRandom;
@@ -44,22 +45,24 @@ public final class AbilityPassives {
 
     /** プレイヤーの保持能力に応じて属性補正を再適用する。 */
     public static void applyAttributes(ServerPlayerEntity player) {
-        String ability = UniqueContentRegistry.getAbility(player);
+        applyAttributes(player, UniqueContentRegistry.getAbilities(player));
+    }
 
+    private static void applyAttributes(ServerPlayerEntity player, List<String> abilities) {
         apply(player, EntityAttributes.GENERIC_ATTACK_DAMAGE, CONQUEROR_DAMAGE,
-                UniqueContentRegistry.CONQUEROR.equals(ability), 0.3D, EntityAttributeModifier.Operation.ADD_MULTIPLIED_TOTAL);
+                abilities.contains(UniqueContentRegistry.CONQUEROR), 0.3D, EntityAttributeModifier.Operation.ADD_MULTIPLIED_TOTAL);
         apply(player, EntityAttributes.GENERIC_KNOCKBACK_RESISTANCE, CONQUEROR_KNOCKBACK,
-                UniqueContentRegistry.CONQUEROR.equals(ability), 1.0D, EntityAttributeModifier.Operation.ADD_VALUE);
+                abilities.contains(UniqueContentRegistry.CONQUEROR), 1.0D, EntityAttributeModifier.Operation.ADD_VALUE);
         apply(player, EntityAttributes.GENERIC_MOVEMENT_SPEED, GALE_SPEED,
-                UniqueContentRegistry.GALE.equals(ability), 0.2D, EntityAttributeModifier.Operation.ADD_MULTIPLIED_TOTAL);
+                abilities.contains(UniqueContentRegistry.GALE), 0.2D, EntityAttributeModifier.Operation.ADD_MULTIPLIED_TOTAL);
         apply(player, EntityAttributes.GENERIC_FALL_DAMAGE_MULTIPLIER, GALE_FALL,
-                UniqueContentRegistry.GALE.equals(ability), -0.8D, EntityAttributeModifier.Operation.ADD_MULTIPLIED_TOTAL);
+                abilities.contains(UniqueContentRegistry.GALE), -0.8D, EntityAttributeModifier.Operation.ADD_MULTIPLIED_TOTAL);
         apply(player, EntityAttributes.PLAYER_BLOCK_INTERACTION_RANGE, SITE_BLOCK_REACH,
-                UniqueContentRegistry.SITE_SUPERVISOR.equals(ability), 3.0D, EntityAttributeModifier.Operation.ADD_VALUE);
+                abilities.contains(UniqueContentRegistry.SITE_SUPERVISOR), 3.0D, EntityAttributeModifier.Operation.ADD_VALUE);
         apply(player, EntityAttributes.PLAYER_ENTITY_INTERACTION_RANGE, SITE_ENTITY_REACH,
-                UniqueContentRegistry.SITE_SUPERVISOR.equals(ability), 3.0D, EntityAttributeModifier.Operation.ADD_VALUE);
+                abilities.contains(UniqueContentRegistry.SITE_SUPERVISOR), 3.0D, EntityAttributeModifier.Operation.ADD_VALUE);
         apply(player, EntityAttributes.PLAYER_BLOCK_BREAK_SPEED, SITE_BREAK_SPEED,
-                UniqueContentRegistry.SITE_SUPERVISOR.equals(ability), 0.5D, EntityAttributeModifier.Operation.ADD_MULTIPLIED_TOTAL);
+                abilities.contains(UniqueContentRegistry.SITE_SUPERVISOR), 0.5D, EntityAttributeModifier.Operation.ADD_MULTIPLIED_TOTAL);
     }
 
     private static void apply(ServerPlayerEntity player, RegistryEntry<net.minecraft.entity.attribute.EntityAttribute> attribute,
@@ -80,22 +83,17 @@ public final class AbilityPassives {
         tickCounter++;
 
         for (ServerPlayerEntity player : server.getPlayerManager().getPlayerList()) {
-            applyAttributes(player);
-            String ability = UniqueContentRegistry.getAbility(player);
+            List<String> abilities = UniqueContentRegistry.getAbilities(player);
+            applyAttributes(player, abilities);
 
-            if (UniqueContentRegistry.INDOMITABLE.equals(ability)) {
+            if (abilities.contains(UniqueContentRegistry.INDOMITABLE)) {
                 tickIndomitable(player);
             }
-            if (UniqueContentRegistry.GRAVITY_CONTROL.equals(ability)) {
+            if (abilities.contains(UniqueContentRegistry.GRAVITY_CONTROL)) {
                 tickGravity(player);
             }
-        }
-
-        if (tickCounter % 20L == 0L) {
-            for (ServerPlayerEntity player : server.getPlayerManager().getPlayerList()) {
-                if (UniqueContentRegistry.FERTILITY.equals(UniqueContentRegistry.getAbility(player))) {
-                    tickFertility(player);
-                }
+            if (tickCounter % 20L == 0L && abilities.contains(UniqueContentRegistry.FERTILITY)) {
+                tickFertility(player);
             }
         }
     }
