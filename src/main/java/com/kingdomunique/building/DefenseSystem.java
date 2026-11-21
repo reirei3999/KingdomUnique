@@ -134,8 +134,9 @@ public final class DefenseSystem {
         }
         DefenseData data = DefenseData.getOrCreate(world);
         data.setGateOpen(gate.pos(), friendlyNearby);
-        setLeaves(world, gate, friendlyNearby ? Blocks.AIR.getDefaultState()
-                : Blocks.IRON_BLOCK.getDefaultState());
+        net.minecraft.block.BlockState closed = gate.facing() == null ? Blocks.IRON_BLOCK.getDefaultState()
+                : StructurePlacer.GATE_LEAF_CLOSED;
+        setLeaves(world, gate, friendlyNearby ? Blocks.AIR.getDefaultState() : closed);
     }
 
     private static void setLeaves(ServerWorld world, DefenseData.DefenseSite gate,

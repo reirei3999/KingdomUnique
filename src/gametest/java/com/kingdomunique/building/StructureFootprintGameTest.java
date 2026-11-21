@@ -72,7 +72,7 @@ public final class StructureFootprintGameTest {
         }
         if (type == BuildingType.GATE) {
             for (BlockPos leaf : StructurePlacer.gateLeafPositions(origin, facing)) {
-                context.assertTrue(world.getBlockState(leaf).isOf(Blocks.IRON_BLOCK),
+                context.assertTrue(world.getBlockState(leaf).isOf(StructurePlacer.GATE_LEAF_CLOSED.getBlock()),
                         "Gate leaf missing at " + leaf + " facing " + facing);
             }
         }

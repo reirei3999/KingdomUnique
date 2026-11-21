@@ -26,6 +26,8 @@ public final class StructurePlacer {
     public static final int GATE_LEAF_MAX_X = 5;
     public static final int GATE_LEAF_HEIGHT = 3;
     public static final int GATE_LEAF_Z = 2;
+    /** 閉じた門の落とし格子。 */
+    public static final BlockState GATE_LEAF_CLOSED = Blocks.IRON_BARS.getDefaultState();
 
     private static final int SUPPORT_DEPTH = 8;
 
@@ -75,9 +77,9 @@ public final class StructurePlacer {
             case BARRACKS -> list.addAll(HomeStructures.barracks());
             case BLACKSMITH -> list.addAll(HomeStructures.blacksmith());
             case TOWN_HALL -> TownHallBuilder.generate((pos, state, flags) -> list.add(new Placement(pos, state)));
-            case WATCHTOWER -> watchtower(list);
-            case GATE -> gate(list);
-            case WALL -> wall(list);
+            case WATCHTOWER -> list.addAll(DefenseStructures.watchtower());
+            case GATE -> list.addAll(DefenseStructures.gate());
+            case WALL -> list.addAll(DefenseStructures.wall());
             case HERO_SANCTUARY -> {
                 for (var p : HeroSanctuaryBuilder.generatePlacements(BlockPos.ORIGIN)) {
                     list.add(new Placement(p.pos(), p.state()));
@@ -138,54 +140,4 @@ public final class StructurePlacer {
     }
 
     /** 国境監視塔（5x5 枠の中央 3x3）：石レンガの柱と木の見張り台。 */
-    private static void watchtower(List<Placement> l) {
-        for (int x = 1; x <= 3; x++) {
-            for (int z = 1; z <= 3; z++) {
-                put(l, x, -1, z, Blocks.COBBLESTONE.getDefaultState());
-                put(l, x, 7, z, Blocks.OAK_PLANKS.getDefaultState());
-                put(l, x, 9, z, Blocks.STONE_BRICKS.getDefaultState());
-                boolean corner = (x == 1 || x == 3) && (z == 1 || z == 3);
-                if (corner) {
-                    for (int y = 0; y <= 6; y++) {
-                        put(l, x, y, z, Blocks.STONE_BRICKS.getDefaultState());
-                    }
-                }
-                if (x != 2 || z != 2) {
-                    put(l, x, 8, z, Blocks.OAK_PLANKS.getDefaultState());
-                }
-            }
-        }
-        put(l, 2, 8, 2, Blocks.LANTERN.getDefaultState());
-    }
-
-    /** 国の門（9x5 枠の中央の列）：中央の門扉は DefenseSystem が開閉する。 */
-    private static void gate(List<Placement> l) {
-        int z = GATE_LEAF_Z;
-        for (int x = GATE_LEAF_MIN_X - 1; x <= GATE_LEAF_MAX_X + 1; x++) {
-            put(l, x, -1, z, Blocks.COBBLESTONE.getDefaultState());
-            put(l, x, 4, z, Blocks.STONE_BRICKS.getDefaultState());
-        }
-        for (int y = 0; y <= 3; y++) {
-            put(l, GATE_LEAF_MIN_X - 1, y, z, Blocks.STONE_BRICKS.getDefaultState());
-            put(l, GATE_LEAF_MAX_X + 1, y, z, Blocks.STONE_BRICKS.getDefaultState());
-        }
-        for (int x = GATE_LEAF_MIN_X; x <= GATE_LEAF_MAX_X; x++) {
-            for (int y = 0; y < GATE_LEAF_HEIGHT; y++) {
-                put(l, x, y, z, Blocks.IRON_BLOCK.getDefaultState());
-            }
-        }
-    }
-
-    /** 防壁（7x3 枠の中央の列）：幅5・高さ5の石レンガモジュール。 */
-    private static void wall(List<Placement> l) {
-        for (int x = 1; x <= 5; x++) {
-            put(l, x, -1, 1, Blocks.COBBLESTONE.getDefaultState());
-            for (int y = 0; y <= 4; y++) {
-                put(l, x, y, 1, Blocks.STONE_BRICKS.getDefaultState());
-            }
-            if (x % 2 == 1) {
-                put(l, x, 5, 1, Blocks.STONE_BRICK_WALL.getDefaultState());
-            }
-        }
-    }
 }
