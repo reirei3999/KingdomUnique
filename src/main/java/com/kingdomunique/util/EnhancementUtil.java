@@ -87,6 +87,17 @@ public final class EnhancementUtil {
      * @return 条件を満たさない場合は null（バニラの金床処理に委譲する）
      */
     public static EnhancementResult tryEnhance(ItemStack left, ItemStack right, PlayerEntity player) {
+        return tryEnhance(left, right, player, true);
+    }
+
+    /**
+     * 2つのスロットから強化結果を生成する。
+     *
+     * @param rollBonus true なら神匠の確率抽選を行う。false なら +1 固定の仮プレビュー
+     *                  （リセマラ防止のため updateResult 側では確率を振らない）。
+     */
+    public static EnhancementResult tryEnhance(ItemStack left, ItemStack right, PlayerEntity player,
+                                               boolean rollBonus) {
         if (!isEnhanceable(left) || !isEnhanceable(right)) {
             return null;
         }
@@ -99,7 +110,7 @@ public final class EnhancementUtil {
             return null;
         }
 
-        int increment = player instanceof ServerPlayerEntity serverPlayer
+        int increment = rollBonus && player instanceof ServerPlayerEntity serverPlayer
                 ? computeIncrement(serverPlayer)
                 : 1;
         int targetLevel = currentLevel + increment;
@@ -162,8 +173,11 @@ public final class EnhancementUtil {
         }
 
         // 強化後も名前が斜体にならないように明示的にスタイルを上書きする。
+        // Gemini 修正: 既存の「 +数字」を剥がしてから新しい段階を1つだけ付ける
+        // （「+5 +6 +7」のように末尾が増殖するバグを防ぐ）。
         Text existingName = result.get(DataComponentTypes.CUSTOM_NAME);
         String plainName = existingName == null ? "" : existingName.getString();
+        plainName = plainName.replaceAll("(?:\\s*\\+\\d+)+$", "").trim();
         String title = "";
         if (plainName.startsWith("[神域] ")) {
             title = "[神域] ";
@@ -190,8 +204,8 @@ public final class EnhancementUtil {
         return result;
     }
 
-    /** 神匠ボーナスを含めた上昇段階数を返す。 */
-    private static int computeIncrement(ServerPlayerEntity player) {
+    /** 神匠ボーナスを含めた上昇段階数を返す（取り出し時に確定させるため公開）。 */
+    public static int computeIncrement(ServerPlayerEntity player) {
         if (!hasDivineSmith(player)) {
             return 1;
         }
