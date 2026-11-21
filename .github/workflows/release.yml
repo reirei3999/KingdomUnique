@@ -1,0 +1,100 @@
+name: Release mod
+
+on:
+  push:
+    branches: [main]
+  workflow_dispatch:
+
+permissions:
+  contents: write
+  pull-requests: read
+
+concurrency:
+  group: release-${{ github.sha }}
+
+jobs:
+  release:
+    if: github.ref == 'refs/heads/main'
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Check for an owner-merged version bump
+        id: version
+        shell: bash
+        env:
+          BEFORE: ${{ github.event.before }}
+          GH_TOKEN: ${{ github.token }}
+          REPOSITORY_OWNER: ${{ github.repository_owner }}
+        run: |
+          read_version() {
+            sed -n 's/^mod_version=\([^[:space:]]*\)[[:space:]]*$/\1/p'
+          }
+
+          version=$(read_version < gradle.properties)
+          if [[ ! "$version" =~ ^[0-9][0-9A-Za-z.+-]*$ ]]; then
+            echo 'Invalid or missing mod_version in gradle.properties.' >&2
+            exit 1
+          fi
+
+          if [[ "$GITHUB_EVENT_NAME" == workflow_dispatch ]]; then
+            BEFORE=$(git rev-parse HEAD^1)
+          elif [[ "$BEFORE" =~ ^0+$ ]]; then
+            echo 'No previous main commit to compare.'
+            exit 0
+          fi
+
+          previous_properties=$(git show "$BEFORE:gradle.properties")
+          if [[ "$version" == "$(read_version <<< "$previous_properties")" ]]; then
+            echo "mod_version is unchanged ($version)."
+            exit 0
+          fi
+
+          tag="v$version"
+          git check-ref-format "refs/tags/$tag"
+          existing_tag=$(git ls-remote --refs origin "refs/tags/$tag")
+          if [[ -n "$existing_tag" ]]; then
+            echo "Tag $tag already exists."
+            exit 0
+          fi
+
+          pull_requests=$(gh api --paginate "repos/$GITHUB_REPOSITORY/commits/$GITHUB_SHA/pulls" --jq \
+            ".[] | select(.merged_at != null and .base.ref == \"main\" and .merge_commit_sha == \"$GITHUB_SHA\") | .number")
+          while IFS= read -r pr; do
+            [[ -n "$pr" ]] || continue
+            merged_by=$(gh api "repos/$GITHUB_REPOSITORY/pulls/$pr" --jq '.merged_by.login')
+            if [[ "${merged_by,,}" == "${REPOSITORY_OWNER,,}" ]]; then
+              echo "version=$version" >> "$GITHUB_OUTPUT"
+              echo "tag=$tag" >> "$GITHUB_OUTPUT"
+              exit 0
+            fi
+          done <<< "$pull_requests"
+
+          echo 'This commit is not from a pull request merged into main by the repository owner.'
+
+      - uses: actions/setup-java@v4
+        if: steps.version.outputs.tag != ''
+        with:
+          distribution: temurin
+          java-version: '21'
+
+      - uses: gradle/actions/setup-gradle@v4
+        if: steps.version.outputs.tag != ''
+
+      - name: Build remapped mod JAR
+        if: steps.version.outputs.tag != ''
+        run: bash gradlew build
+
+      - name: Publish GitHub release
+        if: steps.version.outputs.tag != ''
+        shell: bash
+        env:
+          GH_TOKEN: ${{ github.token }}
+          TAG: ${{ steps.version.outputs.tag }}
+          VERSION: ${{ steps.version.outputs.version }}
+        run: |
+          jar="build/libs/kingdomunique-$VERSION.jar"
+          test -f "$jar"
+          gh release create "$TAG" "$jar" --target "$GITHUB_SHA" --generate-notes
