@@ -101,6 +101,7 @@ public final class StructurePlacer {
             case GRANARY, INFIRMARY, MARKET, ARSENAL -> 6;
             case TRAINING_GROUND -> 7;
             case ROYAL_PALACE -> 9;
+            case WAREHOUSE -> 4;
         };
     }
 

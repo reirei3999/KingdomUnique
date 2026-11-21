@@ -133,6 +133,12 @@ public final class VillageBuilder {
                 piece.generate(world, world.getStructureAccessor(), generator,
                         world.getRandom(), box, new ChunkPos(center), center);
             }
+            // 後から建てる倉庫などがジグソー村の建物と重ならないよう、配置済みの範囲を予約する。
+            if (reserved instanceof ArrayList<BlockBox> mutable) {
+                for (StructurePiece piece : placed) {
+                    mutable.add(piece.getBoundingBox());
+                }
+            }
             return !placed.isEmpty();
         } catch (Throwable t) {
             com.kingdomunique.KingdomUniqueMod.LOGGER.error(
@@ -192,7 +198,27 @@ public final class VillageBuilder {
         if (hallOrigin != null) {
             TownHallBuilder.buildVillageTownHall(world, hallOrigin);
         }
+        if (owner != null) {
+            buildStarterWarehouse(world, centerX, centerZ, owner, reserved);
+        }
         ensureVillagers(world, centerX, baseY, centerZ, owner, hallOrigin);
+    }
+
+    /** 初期村の空き地に王国倉庫を建てる（東・西・南の順に空きを探す）。 */
+    private static void buildStarterWarehouse(ServerWorld world, int centerX, int centerZ,
+                                              java.util.UUID owner, List<BlockBox> reserved) {
+        int size = WarehouseBuilder.SIZE;
+        int[][] candidates = {{centerX + 8, centerZ - 3}, {centerX - 8 - size, centerZ - 3},
+                {centerX - 3, centerZ + 8}};
+        for (int[] candidate : candidates) {
+            BlockPos plot = reservePlot(world, candidate[0], candidate[1], size, size, reserved);
+            if (plot != null) {
+                WarehouseBuilder.build(world, plot, owner);
+                return;
+            }
+        }
+        com.kingdomunique.KingdomUniqueMod.LOGGER.warn(
+                "[KingdomUnique] No room for the starter warehouse at ({}, {}).", centerX, centerZ);
     }
 
     private static void buildTemplateVillage(ServerWorld world, int centerX, int centerZ,

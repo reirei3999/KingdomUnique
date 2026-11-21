@@ -29,6 +29,7 @@ public final class StructureRotationUtil {
             case ARSENAL -> new int[]{9, 6, 7};
             case TRAINING_GROUND -> new int[]{11, 4, 11};
             case ROYAL_PALACE -> new int[]{13, 8, 15};
+            case WAREHOUSE -> new int[]{7, 5, 7};
         };
     }
 

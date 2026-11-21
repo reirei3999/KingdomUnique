@@ -28,6 +28,7 @@ public final class TradeRewardFactory {
             case ARSENAL -> ModBlocks.ARSENAL;
             case TRAINING_GROUND -> ModBlocks.TRAINING_GROUND;
             case ROYAL_PALACE -> ModBlocks.ROYAL_PALACE;
+            case WAREHOUSE -> throw new IllegalArgumentException("王国倉庫は初期村専用のため設計図はありません");
         };
         return new ItemStack(block);
     }

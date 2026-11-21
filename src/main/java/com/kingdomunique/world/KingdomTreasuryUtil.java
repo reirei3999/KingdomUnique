@@ -30,7 +30,7 @@ public final class KingdomTreasuryUtil {
                 continue;
             }
             if (b.type != BuildingType.TOWN_HALL && b.type != BuildingType.GRANARY
-                    && b.type != BuildingType.MARKET) {
+                    && b.type != BuildingType.MARKET && b.type != BuildingType.WAREHOUSE) {
                 continue;
             }
             BlockBox box = b.boundingBox;
