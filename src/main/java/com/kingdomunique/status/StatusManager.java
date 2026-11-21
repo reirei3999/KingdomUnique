@@ -3,6 +3,7 @@ package com.kingdomunique.status;
 import com.kingdomunique.ability.AbilityState;
 import com.kingdomunique.ability.PlayerAbilityState;
 import com.kingdomunique.building.BuildData;
+import com.kingdomunique.building.BuildingValidator;
 import com.kingdomunique.building.KingdomBuildingState;
 import com.kingdomunique.building.StructureRotationUtil;
 import com.kingdomunique.data.WorldUniqueData;
@@ -32,6 +33,7 @@ public final class StatusManager {
     }
 
     public static void register() {
+        BuildingBoxesSyncPayload.initialize();
         ServerPlayNetworking.registerGlobalReceiver(RequestStatusPayload.ID,
                 (payload, context) -> sendStatus(context.player(), true));
         ServerTickEvents.END_SERVER_TICK.register(StatusManager::onTick);
@@ -68,13 +70,12 @@ public final class StatusManager {
         }
         // 建築物の占有範囲・王国人口は1秒ごとに同期（プレビュー判定とHUD表示用）。
         if (tick % 20L == 0L) {
+            for (ServerWorld world : server.getWorlds()) {
+                syncBuildingBoxesToWorld(world);
+            }
             ServerWorld overworld = server.getWorld(World.OVERWORLD);
             if (overworld != null) {
-                BuildingBoxesSyncPayload payload = createBuildingBoxesPayload(overworld);
                 for (ServerPlayerEntity player : server.getPlayerManager().getPlayerList()) {
-                    if (ServerPlayNetworking.canSend(player, BuildingBoxesSyncPayload.ID)) {
-                        ServerPlayNetworking.send(player, payload);
-                    }
                     syncPopulationToPlayer(player, overworld);
                 }
             }
@@ -109,16 +110,17 @@ public final class StatusManager {
         if (world == null) {
             return;
         }
-        BuildingBoxesSyncPayload payload = createBuildingBoxesPayload(world);
+        List<BlockBox> boxes = collectBuildingBoxes(world);
         for (ServerPlayerEntity player : world.getPlayers()) {
             if (ServerPlayNetworking.canSend(player, BuildingBoxesSyncPayload.ID)) {
-                ServerPlayNetworking.send(player, payload);
+                ServerPlayNetworking.send(player, new BuildingBoxesSyncPayload(world.getRegistryKey().getValue(),
+                        boxes, BuildingValidator.restrictedTypes(world, player.getUuid())));
             }
         }
     }
 
     /** 完成済み＋建築中の BlockBox を収集してパケットを作る。 */
-    private static BuildingBoxesSyncPayload createBuildingBoxesPayload(ServerWorld world) {
+    private static List<BlockBox> collectBuildingBoxes(ServerWorld world) {
         List<BlockBox> boxes = new ArrayList<>();
         for (KingdomBuildingState.CompletedBuilding entry : KingdomBuildingState.get(world).entries()) {
             boxes.add(entry.boundingBox);
@@ -126,7 +128,7 @@ public final class StatusManager {
         for (BuildData.BuildSite site : BuildData.getOrCreate(world).sites()) {
             boxes.add(StructureRotationUtil.computeBoundingBox(site.pos(), site.type(), site.facing()));
         }
-        return new BuildingBoxesSyncPayload(boxes);
+        return boxes;
     }
 
     public static void sendStatus(ServerPlayerEntity player, boolean openScreen) {

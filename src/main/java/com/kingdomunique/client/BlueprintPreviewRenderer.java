@@ -3,6 +3,7 @@ package com.kingdomunique.client;
 import com.kingdomunique.building.BlueprintBlock;
 import com.kingdomunique.building.BuildingType;
 import com.kingdomunique.building.StructureRotationUtil;
+import com.kingdomunique.network.BuildingBoxesSyncPayload;
 import net.fabricmc.api.EnvType;
 import net.fabricmc.api.Environment;
 import net.fabricmc.fabric.api.client.event.lifecycle.v1.ClientTickEvents;
@@ -75,8 +76,10 @@ public final class BlueprintPreviewRenderer {
                 && box.getMaxY() < world.getTopY()
                 && world.isChunkLoaded(box.getMinX() >> 4, box.getMinZ() >> 4)
                 && world.isChunkLoaded(box.getMaxX() >> 4, box.getMaxZ() >> 4);
-        boolean overlapping = ClientBuildingBoxCache.intersectsExistingBuilding(box);
-        boolean isValid = inBuildLimit && !overlapping;
+        BuildingBoxesSyncPayload snapshot = ClientBuildingBoxCache.snapshot(world);
+        boolean overlapping = snapshot != null && ClientBuildingBoxCache.intersectsExistingBuilding(snapshot, box);
+        boolean restricted = snapshot != null && snapshot.restrictedTypes().contains(type);
+        boolean isValid = inBuildLimit && snapshot != null && !overlapping && !restricted;
 
         DustParticleEffect frameColor = isValid ? VALID_PARTICLE : INVALID_PARTICLE;
         renderBoundingBoxParticles(world, box, frameColor);
@@ -84,8 +87,10 @@ public final class BlueprintPreviewRenderer {
 
         int width = box.getMaxX() - box.getMinX() + 1;
         int depth = box.getMaxZ() - box.getMinZ() + 1;
-        String statusText = overlapping ? "§c[既存建築と重複]"
-                : (isValid ? "§a[建築可能]" : "§c[高度/範囲外]");
+        String statusText = !inBuildLimit ? "§c[高度/範囲外]"
+                : snapshot == null ? "§7[判定待ち]"
+                : restricted ? "§c[王国の建築条件を満たしていません]"
+                : overlapping ? "§c[既存建築と重複]" : "§a[建築可能]";
         player.sendMessage(Text.literal(statusText + " §f" + type.getDisplayName()
                 + " §7(" + width + "x" + depth + " / 入口: " + formatDirectionJa(entranceFacing) + ")"), true);
     }

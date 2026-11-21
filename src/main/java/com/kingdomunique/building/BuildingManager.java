@@ -270,6 +270,7 @@ public final class BuildingManager {
         data.sites().remove(site);
         data.markDirty();
         releaseBuilder(world, site);
+        com.kingdomunique.status.StatusManager.syncBuildingBoxesToWorld(world);
         return true;
     }
     /** チャンク未ロード・高度範囲外での配置を防ぐ（Gemini 提示のバグ③対策）。 */

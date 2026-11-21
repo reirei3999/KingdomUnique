@@ -1,11 +1,15 @@
 package com.kingdomunique.building;
 
+import com.kingdomunique.kingdom.KingdomData;
+import com.kingdomunique.network.BuildingBoxesSyncPayload;
 import com.mojang.authlib.GameProfile;
+import io.netty.buffer.Unpooled;
 import net.fabricmc.fabric.api.gametest.v1.FabricGameTest;
 import net.minecraft.block.Blocks;
 import net.minecraft.block.entity.BlockEntity;
 import net.minecraft.item.ItemStack;
 import net.minecraft.item.Items;
+import net.minecraft.network.RegistryByteBuf;
 import net.minecraft.network.packet.c2s.common.SyncedClientOptions;
 import net.minecraft.server.network.ServerPlayerEntity;
 import net.minecraft.server.world.ServerWorld;
@@ -71,6 +75,27 @@ public final class BlueprintGameTest {
     }
 
     @GameTest(templateName = FabricGameTest.EMPTY_STRUCTURE)
+    public void creativeHouseCompletionDoesNotEmbedThePlayerInTheFoundation(TestContext context) {
+        ServerWorld world = context.getWorld();
+        BlockPos pos = context.getAbsolutePos(new BlockPos(0, 184, 0));
+        ServerPlayerEntity survival = player(world);
+        ServerPlayerEntity creative = player(world, true, survival.getUuid());
+        place(ModBlocks.HOUSE, world, pos, survival);
+        BlockPos feet = pos.east(2);
+        creative.setPosition(feet.getX() + 0.5, feet.getY(), feet.getZ() + 0.5);
+        context.assertTrue(world.isSpaceEmpty(creative), "The player must start clear of blocks");
+
+        world.getBlockState(pos).onUse(world, creative, hit(pos));
+
+        context.assertTrue(KingdomBuildingState.get(world).hasCompletedBuilding(creative.getUuid(), BuildingType.HOUSE),
+                "The house must complete");
+        context.assertTrue(world.getBlockState(feet).isOf(Blocks.COBBLESTONE),
+                "The house foundation must fill the player's former position");
+        context.assertTrue(world.isSpaceEmpty(creative), "Instant construction must not leave the player inside blocks");
+        context.complete();
+    }
+
+    @GameTest(templateName = FabricGameTest.EMPTY_STRUCTURE)
     public void creativeNonOwnerCannotCompleteExistingSites(TestContext context) {
         ServerWorld world = context.getWorld();
         ServerPlayerEntity owner = player(world);
@@ -130,6 +155,47 @@ public final class BlueprintGameTest {
         site = site.withReady(true);
         data.add(site);
         context.assertTrue(BuildingValidator.validate(world, site).isEmpty(), "A ready town hall must exclude itself from its limit");
+        context.complete();
+    }
+
+    @GameTest(templateName = FabricGameTest.EMPTY_STRUCTURE)
+    public void previewSyncReflectsEachKingdomsTownHallAndPalaceLimits(TestContext context) {
+        ServerWorld world = context.getWorld();
+        BlockPos pos = context.getAbsolutePos(new BlockPos(0, 216, 0));
+        UUID owner = UUID.randomUUID();
+        UUID otherOwner = UUID.randomUUID();
+        var buildings = KingdomBuildingState.get(world);
+        var kingdom = KingdomData.getOrCreate(world);
+        kingdom.put(owner, new KingdomData.KingdomInfo(pos.getX(), pos.getZ(), 30, 40, 0, false, 0,
+                false, 100, false, ""));
+
+        context.assertTrue(BuildingValidator.restrictedTypes(world, owner).contains(BuildingType.ROYAL_PALACE),
+                "A palace needs a completed town hall even when the population requirement is met");
+        buildings.add(owner, BuildingType.TOWN_HALL, pos, Direction.SOUTH,
+                StructureRotationUtil.computeBoundingBox(pos, BuildingType.TOWN_HALL, Direction.SOUTH), null);
+        context.assertFalse(BuildingValidator.restrictedTypes(world, owner).contains(BuildingType.ROYAL_PALACE),
+                "The first palace is available once the owner meets its requirements");
+
+        BlockPos palace = pos.up(25);
+        buildings.add(owner, BuildingType.ROYAL_PALACE, palace, Direction.SOUTH,
+                StructureRotationUtil.computeBoundingBox(palace, BuildingType.ROYAL_PALACE, Direction.SOUTH), null);
+        var payload = new BuildingBoxesSyncPayload(world.getRegistryKey().getValue(), java.util.List.of(),
+                BuildingValidator.restrictedTypes(world, owner));
+        var buffer = new RegistryByteBuf(Unpooled.buffer(), world.getRegistryManager());
+        try {
+            BuildingBoxesSyncPayload.TYPE.codec().encode(buffer, payload);
+            var snapshot = BuildingBoxesSyncPayload.TYPE.codec().decode(buffer);
+            for (BuildingType type : new BuildingType[]{BuildingType.TOWN_HALL, BuildingType.ROYAL_PALACE}) {
+                var second = new BuildData.BuildSite(pos.up(50), type, 0, false, owner, Direction.SOUTH);
+                context.assertTrue(BuildingValidator.validate(world, second).isPresent()
+                                && snapshot.restrictedTypes().contains(type),
+                        "Both the server and the synchronized preview must reject a second " + type);
+            }
+        } finally {
+            buffer.release();
+        }
+        context.assertFalse(BuildingValidator.restrictedTypes(world, otherOwner).contains(BuildingType.TOWN_HALL),
+                "One kingdom's town hall must not block another kingdom's first town hall");
         context.complete();
     }
 
@@ -338,6 +404,11 @@ public final class BlueprintGameTest {
 
             @Override
             public void sendMessage(Text message, boolean overlay) {
+            }
+
+            @Override
+            public void requestTeleport(double x, double y, double z) {
+                setPosition(x, y, z);
             }
         };
     }

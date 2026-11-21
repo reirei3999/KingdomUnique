@@ -111,18 +111,10 @@ public final class SoldierOrderManager {
     /** 視界（14マス・canSee、至近5マスは気配）制限付きの敵索敵。 */
     public static LivingEntity findVisibleEnemyInSight(ServerWorld world, VillagerEntity soldier,
                                                        double maxSightRange) {
-        LivingEntity candidate = KingdomWarTargetHelper.findBestTarget(world, soldier, maxSightRange);
-        if (candidate == null) {
-            return null;
-        }
-        double distSq = soldier.squaredDistanceTo(candidate);
-        if (distSq > maxSightRange * maxSightRange) {
-            return null;
-        }
-        if (distSq <= 25.0D || soldier.canSee(candidate)) {
-            return candidate;
-        }
-        return null;
+        return KingdomWarTargetHelper.findBestTarget(world, soldier, maxSightRange, candidate -> {
+            double distSq = soldier.squaredDistanceTo(candidate);
+            return distSq <= maxSightRange * maxSightRange && (distSq <= 25.0D || soldier.canSee(candidate));
+        });
     }
 
     public static void waitAtHoldPosition(VillagerEntity soldier) {

@@ -13,6 +13,7 @@ import net.minecraft.text.Text;
 import net.minecraft.util.ActionResult;
 import net.minecraft.util.Hand;
 import net.minecraft.util.hit.BlockHitResult;
+import net.minecraft.util.math.Box;
 import net.minecraft.util.math.BlockPos;
 import net.minecraft.world.BlockView;
 import net.minecraft.world.World;
@@ -136,7 +137,17 @@ public final class BlueprintBlock extends Block implements BlockEntityProvider {
             player.sendMessage(error.get(), false);
             return true;
         }
-        BuildingManager.completeNow(world, site, player);
+        Box playerBox = player.getBoundingBox();
+        boolean wasClear = !world.getBlockCollisions(player, playerBox).iterator().hasNext();
+        if (BuildingManager.completeNow(world, site, player) && wasClear
+                && world.getBlockCollisions(player, playerBox).iterator().hasNext()) {
+            for (int y = player.getBlockY() + 1; y + playerBox.getLengthY() <= world.getTopY(); y++) {
+                if (world.isSpaceEmpty(player, playerBox.offset(0, y - player.getY(), 0))) {
+                    player.requestTeleport(player.getX(), y, player.getZ());
+                    break;
+                }
+            }
+        }
         return true;
     }
 
@@ -160,6 +171,7 @@ public final class BlueprintBlock extends Block implements BlockEntityProvider {
 
         data.remove(site);
         data.add(site.withReady(true));
+        com.kingdomunique.status.StatusManager.syncBuildingBoxesToWorld(world);
         serverPlayer.sendMessage(Text.literal("§6[設計図] 資材が揃いました。建築士が作業を開始します。"), false);
     }
 
