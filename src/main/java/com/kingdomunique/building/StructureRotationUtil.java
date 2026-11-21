@@ -18,9 +18,9 @@ public final class StructureRotationUtil {
      */
     public static int[] getBuildingDimensions(BuildingType type) {
         return switch (type) {
-            case HOUSE -> new int[]{7, 5, 7};
-            case BARRACKS -> new int[]{11, 6, 13};
-            case BLACKSMITH -> new int[]{12, 4, 9};
+            case HOUSE -> new int[]{9, 8, 9};
+            case BARRACKS -> new int[]{11, 9, 11};
+            case BLACKSMITH -> new int[]{11, 6, 9};
             case TOWN_HALL -> new int[]{11, 13, 15};
             case WATCHTOWER -> new int[]{5, 12, 5};
             case GATE -> new int[]{9, 7, 5};
