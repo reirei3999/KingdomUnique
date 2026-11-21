@@ -80,16 +80,13 @@ public final class BuildingValidator {
 
     private static Optional<Text> kingdomRestriction(ServerWorld world, UUID owner, BuildingType type,
                                                      boolean excludeReadySite) {
-        KingdomBuildingState state = KingdomBuildingState.get(world);
-        if ((type == BuildingType.HERO_SANCTUARY || type == BuildingType.TOWN_HALL
-                || type == BuildingType.ROYAL_PALACE)
-                && state.countBuildings(world, owner, type) - (excludeReadySite ? 1 : 0) >= 1) {
-            return Optional.of(Text.literal("§c[建築不可] " + type.getDisplayName()
-                    + " は1王国につき1つまでです。"));
+        Optional<Text> limit = buildingLimit(world, owner, type, excludeReadySite);
+        if (limit.isPresent()) {
+            return limit;
         }
 
         if (type == BuildingType.ROYAL_PALACE) {
-            if (!state.hasCompletedBuilding(owner, BuildingType.TOWN_HALL)) {
+            if (!KingdomBuildingState.get(world).hasCompletedBuilding(owner, BuildingType.TOWN_HALL)) {
                 return Optional.of(Text.literal("§c[建築不可] 王宮を建てるには先に王城・役場を完成させる必要があります。"));
             }
             ServerWorld overworld = world.getServer().getWorld(World.OVERWORLD);
@@ -105,6 +102,16 @@ public final class BuildingValidator {
                 return Optional.of(Text.literal(
                         "§c[建築不可] 王宮の建設には国民30人以上が必要です（現在: " + population + "人）。"));
             }
+        }
+        return Optional.empty();
+    }
+
+    static Optional<Text> buildingLimit(ServerWorld world, UUID owner, BuildingType type, boolean excludeReadySite) {
+        if ((type == BuildingType.HERO_SANCTUARY || type == BuildingType.TOWN_HALL
+                || type == BuildingType.ROYAL_PALACE)
+                && KingdomBuildingState.get(world).countBuildings(world, owner, type) - (excludeReadySite ? 1 : 0) >= 1) {
+            return Optional.of(Text.literal("§c[建築不可] " + type.getDisplayName()
+                    + " は1王国につき1つまでです。"));
         }
         return Optional.empty();
     }

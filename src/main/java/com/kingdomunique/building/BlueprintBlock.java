@@ -6,6 +6,7 @@ import net.minecraft.block.BlockState;
 import net.minecraft.block.entity.BlockEntity;
 import net.minecraft.entity.LivingEntity;
 import net.minecraft.entity.player.PlayerEntity;
+import net.minecraft.item.ItemPlacementContext;
 import net.minecraft.item.ItemStack;
 import net.minecraft.server.network.ServerPlayerEntity;
 import net.minecraft.server.world.ServerWorld;
@@ -43,6 +44,19 @@ public final class BlueprintBlock extends Block implements BlockEntityProvider {
     @Override
     public float calcBlockBreakingDelta(BlockState state, PlayerEntity player, BlockView world, BlockPos pos) {
         return 1.0F;
+    }
+
+    @Override
+    public BlockState getPlacementState(ItemPlacementContext context) {
+        if (context.getWorld() instanceof ServerWorld world
+                && context.getPlayer() instanceof ServerPlayerEntity player) {
+            Optional<Text> error = BuildingValidator.buildingLimit(world, player.getUuid(), type, false);
+            if (error.isPresent()) {
+                player.sendMessage(error.get(), false);
+                return null;
+            }
+        }
+        return super.getPlacementState(context);
     }
 
     @Override

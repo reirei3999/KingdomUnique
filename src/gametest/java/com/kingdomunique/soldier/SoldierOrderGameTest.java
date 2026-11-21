@@ -120,7 +120,9 @@ public final class SoldierOrderGameTest {
         context.assertTrue(soldier.canSee(visible), "The farther enemy must be visible");
         context.assertEquals(SoldierOrderManager.findVisibleEnemyInSight(context.getWorld(), soldier, 14),
                 visible, "A nearer hidden enemy must not block acquisition of a visible target");
+        visible.setPosition(soldier.getX() + 1.5D, soldier.getY(), soldier.getZ());
         visible.setTarget(soldier);
+        visible.tryAttack(soldier);
         context.runAtTick(85, () -> {
             context.assertTrue(soldier.getHealth() < soldier.getMaxHealth(), "The active enemy must damage the soldier");
             context.assertTrue(visible.getHealth() < visible.getMaxHealth(), "The soldier must fight the active enemy");

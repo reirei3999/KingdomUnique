@@ -8,6 +8,7 @@ import net.fabricmc.fabric.api.gametest.v1.FabricGameTest;
 import net.minecraft.block.Blocks;
 import net.minecraft.block.entity.BlockEntity;
 import net.minecraft.item.ItemStack;
+import net.minecraft.item.ItemUsageContext;
 import net.minecraft.item.Items;
 import net.minecraft.network.RegistryByteBuf;
 import net.minecraft.network.packet.c2s.common.SyncedClientOptions;
@@ -16,6 +17,7 @@ import net.minecraft.server.world.ServerWorld;
 import net.minecraft.test.GameTest;
 import net.minecraft.test.TestContext;
 import net.minecraft.text.Text;
+import net.minecraft.util.ActionResult;
 import net.minecraft.util.Hand;
 import net.minecraft.util.ItemActionResult;
 import net.minecraft.util.hit.BlockHitResult;
@@ -196,6 +198,43 @@ public final class BlueprintGameTest {
         }
         context.assertFalse(BuildingValidator.restrictedTypes(world, otherOwner).contains(BuildingType.TOWN_HALL),
                 "One kingdom's town hall must not block another kingdom's first town hall");
+        context.complete();
+    }
+
+    @GameTest(templateName = FabricGameTest.EMPTY_STRUCTURE)
+    public void overLimitBlueprintItemsDoNotPlaceBlocksOrConsumeItems(TestContext context) {
+        ServerWorld world = context.getWorld();
+        BlockPos existing = context.getAbsolutePos(new BlockPos(0, 240, 0));
+        ServerPlayerEntity survival = player(world);
+        ServerPlayerEntity creative = player(world, true, survival.getUuid());
+        var buildings = KingdomBuildingState.get(world);
+        buildings.add(survival.getUuid(), BuildingType.TOWN_HALL, existing, Direction.SOUTH,
+                StructureRotationUtil.computeBoundingBox(existing, BuildingType.TOWN_HALL, Direction.SOUTH), null);
+        BuildData data = BuildData.getOrCreate(world);
+        data.add(new BuildData.BuildSite(existing.up(18), BuildingType.ROYAL_PALACE, 0, true,
+                survival.getUuid(), Direction.SOUTH));
+
+        BlockPos pos = existing.up(36);
+        world.setBlockState(pos.down(), Blocks.STONE.getDefaultState());
+        for (BlueprintBlock block : new BlueprintBlock[]{ModBlocks.TOWN_HALL, ModBlocks.ROYAL_PALACE}) {
+            for (ServerPlayerEntity placer : new ServerPlayerEntity[]{survival, creative}) {
+                ItemStack stack = new ItemStack(block, 2);
+                placer.setStackInHand(Hand.MAIN_HAND, stack);
+                var use = new ItemUsageContext(placer, Hand.MAIN_HAND, hit(pos.down()));
+                context.assertEquals(stack.useOnBlock(use), ActionResult.FAIL, "An over-limit blueprint must fail to place");
+                context.assertTrue(world.isAir(pos), "A refused placement must leave the destination empty");
+                context.assertTrue(data.sites().stream().noneMatch(site -> site.pos().equals(pos)),
+                        "A refused placement must not register a building site");
+                context.assertEquals(stack.getCount(), 2, "A refused placement must not consume the blueprint item");
+            }
+        }
+
+        ServerPlayerEntity otherOwner = player(world);
+        ItemStack firstTownHall = new ItemStack(ModBlocks.TOWN_HALL, 2);
+        otherOwner.setStackInHand(Hand.MAIN_HAND, firstTownHall);
+        firstTownHall.useOnBlock(new ItemUsageContext(otherOwner, Hand.MAIN_HAND, hit(pos.down())));
+        context.assertTrue(world.getBlockState(pos).isOf(ModBlocks.TOWN_HALL), "Another owner must still be able to place their first town hall");
+        context.assertEquals(firstTownHall.getCount(), 1, "Successful survival placement must consume one item");
         context.complete();
     }
 
