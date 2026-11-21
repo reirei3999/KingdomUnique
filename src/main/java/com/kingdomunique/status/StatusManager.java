@@ -132,7 +132,10 @@ public final class StatusManager {
                 player.getServer().getWorld(World.OVERWORLD));
         List<String> owned = new ArrayList<>(data.getClaimedIds(player.getUuid()));
 
-        String abilityId = UniqueContentRegistry.getAbility(player);
+        String abilityId = UniqueContentRegistry.getActiveAbility(player);
+        if (abilityId == null) {
+            abilityId = UniqueContentRegistry.getAbility(player);
+        }
         PlayerAbilityState state = AbilityState.get(player.getUuid());
         long now = player.getServerWorld().getTime();
         int cooldown = 0;
