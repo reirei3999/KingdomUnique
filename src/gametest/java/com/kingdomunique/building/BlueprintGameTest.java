@@ -12,6 +12,7 @@ import net.minecraft.test.GameTest;
 import net.minecraft.test.TestContext;
 import net.minecraft.text.Text;
 import net.minecraft.util.Hand;
+import net.minecraft.util.ItemActionResult;
 import net.minecraft.util.hit.BlockHitResult;
 import net.minecraft.util.math.BlockPos;
 import net.minecraft.util.math.Direction;
@@ -65,7 +66,10 @@ public final class BlueprintGameTest {
         context.assertTrue(blueprint.hasAllMaterials(block.getType(), 1.0), "A blocked start must not consume materials");
 
         world.removeBlock(obstacle, false);
-        block.onUse(block.getDefaultState(), world, pos, player, hit(pos));
+        var state = world.getBlockState(pos);
+        context.assertEquals(state.onUseWithItem(ItemStack.EMPTY, world, player, Hand.MAIN_HAND, hit(pos)),
+                ItemActionResult.PASS_TO_DEFAULT_BLOCK_INTERACTION, "Empty-hand clicks must reach the retry handler");
+        state.onUse(world, player, hit(pos));
         context.assertTrue(blueprint.isReady() && site(world, pos).ready(),
                 "A funded blueprint must retry without another deposit once the overlap is gone");
         context.complete();

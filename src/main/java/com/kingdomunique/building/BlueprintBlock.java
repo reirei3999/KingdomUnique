@@ -63,7 +63,7 @@ public final class BlueprintBlock extends Block implements BlockEntityProvider {
     public net.minecraft.util.ItemActionResult onUseWithItem(ItemStack stack, BlockState state, World world,
                                                              BlockPos pos, PlayerEntity player, Hand hand,
                                                              BlockHitResult hit) {
-        if (world.isClient() || !(player instanceof ServerPlayerEntity serverPlayer)) {
+        if (stack.isEmpty() || world.isClient() || !(player instanceof ServerPlayerEntity serverPlayer)) {
             return net.minecraft.util.ItemActionResult.PASS_TO_DEFAULT_BLOCK_INTERACTION;
         }
         if (!(world.getBlockEntity(pos) instanceof BlueprintBlockEntity be)) {
