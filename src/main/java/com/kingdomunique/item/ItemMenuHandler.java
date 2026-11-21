@@ -4,6 +4,7 @@ import com.kingdomunique.component.ModDataComponents;
 import com.kingdomunique.data.WorldUniqueData;
 import com.kingdomunique.network.OpenItemMenuPayload;
 import com.kingdomunique.network.RequestItemPayload;
+import com.kingdomunique.network.ItemGrantResultPayload;
 import net.fabricmc.fabric.api.networking.v1.ServerPlayNetworking;
 import net.minecraft.item.ItemStack;
 import net.minecraft.server.MinecraftServer;
@@ -23,6 +24,7 @@ public final class ItemMenuHandler {
     }
 
     public static void register() {
+        var resultType = ItemGrantResultPayload.TYPE;
         ServerPlayNetworking.registerGlobalReceiver(
                 com.kingdomunique.network.RequestOpenItemMenuPayload.ID, (payload, context) -> {
                     ServerPlayerEntity player = context.player();
@@ -89,7 +91,7 @@ public final class ItemMenuHandler {
         ServerPlayNetworking.registerGlobalReceiver(RequestItemPayload.ID, (payload, context) -> {
             ServerPlayerEntity player = context.player();
             if (!isAdmin(player)) {
-                player.sendMessage(Text.literal("§c[KingdomUnique] このメニューは管理者のみ使用できます。"), false);
+                reject(player, payload.itemId(), "管理者のみ使用できます。管理者に権限を確認してください。");
                 return;
             }
             give(player, payload.itemId());
@@ -191,15 +193,36 @@ public final class ItemMenuHandler {
     private static void give(ServerPlayerEntity player, String id) {
         ItemStack stack = ItemCatalog.create(id);
         if (stack.isEmpty() || stack.getItem() == net.minecraft.item.Items.AIR) {
-            player.sendMessage(Text.literal("§c[KingdomUnique] 指定されたアイテムは存在しません: " + id), false);
+            reject(player, id, "アイテムが見つかりません。メニューを開き直してください。");
             return;
         }
         if (stack.getCount() <= 0) {
             stack.setCount(1);
         }
-        String itemName = stack.getName().getString();
+        String itemName = ItemCatalog.entries().stream().filter(entry -> entry.id().equals(id))
+                .findFirst().orElseThrow().label();
+        int quantity = stack.getCount();
+        int capacity = 0;
+        for (ItemStack slot : player.getInventory().main) {
+            if (slot.isEmpty()) {
+                capacity += stack.getMaxCount();
+            } else if (ItemStack.areItemsAndComponentsEqual(slot, stack)) {
+                capacity += Math.max(0, slot.getMaxCount() - slot.getCount());
+            }
+        }
+        if (capacity < quantity) {
+            reject(player, id, "所持品がいっぱいです。空きを作ってからもう一度クリック");
+            return;
+        }
         // 管理者メニューからは所有者に関係なく付与する（排他リストは変更しない）。
-        player.giveItemStack(stack);
-        player.sendMessage(Text.literal("§6[KingdomUnique] " + itemName + " を入手しました。"), false);
+        player.getInventory().insertStack(stack);
+        player.currentScreenHandler.sendContentUpdates();
+        ServerPlayNetworking.send(player, new ItemGrantResultPayload(id, true, itemName, quantity, ""));
+        player.sendMessage(Text.literal("[KingdomUnique] " + itemName + " ×" + quantity + " を入手"), false);
+    }
+
+    private static void reject(ServerPlayerEntity player, String id, String reason) {
+        ServerPlayNetworking.send(player, new ItemGrantResultPayload(id, false, "", 0, reason));
+        player.sendMessage(Text.literal("[KingdomUnique] " + reason), false);
     }
 }
