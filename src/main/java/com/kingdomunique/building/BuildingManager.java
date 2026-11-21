@@ -249,7 +249,7 @@ public final class BuildingManager {
         KingdomBuildingState.get(world).add(owner.getUuid(), site.type(), site.pos(), facing, box, core);
         BuildingEffectHandler.onCompleted(world, owner.getUuid(), site.type(), site.pos());
         CompletedBuildingsData.getOrCreate(world).add(site.pos(), site.type(), owner.getUuid());
-        DefenseData.register(world, site.pos(), site.type(), owner.getUuid());
+        DefenseData.register(world, site.pos(), site.type(), owner.getUuid(), facing);
         if (site.type() == BuildingType.TOWN_HALL) {
             KingdomManager.markTownHall(owner, site.pos());
             com.kingdomunique.kingdom.PolicyManager.sendPolicyOffer(owner);

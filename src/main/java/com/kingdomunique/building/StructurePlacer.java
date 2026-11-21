@@ -1,259 +1,226 @@
 package com.kingdomunique.building;
 
+import com.kingdomunique.world.HeroSanctuaryBuilder;
+import com.kingdomunique.world.TownHallBuilder;
+import net.minecraft.block.Block;
+import net.minecraft.block.BlockState;
 import net.minecraft.block.Blocks;
 import net.minecraft.server.world.ServerWorld;
+import net.minecraft.structure.StructurePlacementData;
+import net.minecraft.structure.StructureTemplate;
+import net.minecraft.structure.processor.BlockIgnoreStructureProcessor;
+import net.minecraft.structure.processor.JigsawReplacementStructureProcessor;
+import net.minecraft.util.BlockMirror;
+import net.minecraft.util.BlockRotation;
+import net.minecraft.util.Identifier;
+import net.minecraft.util.math.BlockBox;
 import net.minecraft.util.math.BlockPos;
+import net.minecraft.util.math.Direction;
 
-/** 完了時に設計図ブロックを中心として立体構造物を配置する。 */
+import java.util.ArrayList;
+import java.util.Comparator;
+import java.util.List;
+
+/**
+ * 完了時に設計図の構造物を配置する。
+ * すべての建物は origin を北西角とするプレビュー枠
+ * ({@link StructureRotationUtil#computeBoundingBox}) の内側にだけ建ち、正面を facing に向ける。
+ */
 public final class StructurePlacer {
+
+    /** 門扉（閉じているときのブロック）のローカル位置：x=3..5, y=0..2, z=2。 */
+    public static final int GATE_LEAF_MIN_X = 3;
+    public static final int GATE_LEAF_MAX_X = 5;
+    public static final int GATE_LEAF_HEIGHT = 3;
+    public static final int GATE_LEAF_Z = 2;
+
+    private static final int SUPPORT_DEPTH = 8;
 
     private StructurePlacer() {
     }
 
-    public static void place(ServerWorld world, BlockPos center, BuildingType type) {
-        place(world, center, type, net.minecraft.util.math.Direction.SOUTH);
+    /** ローカル座標（正面 = +Z）でのブロック配置。 */
+    public record Placement(BlockPos local, BlockState state) {
+    }
+
+    public static void place(ServerWorld world, BlockPos origin, BuildingType type) {
+        place(world, origin, type, Direction.SOUTH);
     }
 
     /** 建物の正面を facing に向けて配置する。 */
-    public static void place(ServerWorld world, BlockPos center, BuildingType type,
-                             net.minecraft.util.math.Direction facing) {
-        // 王城は専用の中世ファンタジー風ビルダーで生成する（origin = 北西の角）。
-        if (type == BuildingType.TOWN_HALL) {
-            for (int cx = (center.getX() - 16) >> 4; cx <= (center.getX() + 16) >> 4; cx++) {
-                for (int cz = (center.getZ() - 16) >> 4; cz <= (center.getZ() + 16) >> 4; cz++) {
-                    world.getChunk(cx, cz);
-                }
-            }
-            com.kingdomunique.world.TownHallBuilder.buildTownHall(world, center);
-            return;
-        }
-        // 通常建築はバニラの村テンプレートを主体にする。
-        if (type == BuildingType.HOUSE || type == BuildingType.BARRACKS
-                || type == BuildingType.BLACKSMITH) {
-            placeVanillaVillageBuilding(world, center, type);
-            return;
-        }
-        int r = radius(type) + 4;
-        // 構造物がまたがる全チャンクを確実にロードする。
-        for (int cx = (center.getX() - r) >> 4; cx <= (center.getX() + r) >> 4; cx++) {
-            for (int cz = (center.getZ() - r) >> 4; cz <= (center.getZ() + r) >> 4; cz++) {
+    public static void place(ServerWorld world, BlockPos origin, BuildingType type, Direction facing) {
+        BlockBox box = StructureRotationUtil.computeBoundingBox(origin, type, facing);
+        for (int cx = box.getMinX() >> 4; cx <= box.getMaxX() >> 4; cx++) {
+            for (int cz = box.getMinZ() >> 4; cz <= box.getMaxZ() >> 4; cz++) {
                 world.getChunk(cx, cz);
             }
         }
-        clear(world, center, radius(type));
-        foundation(world, center, radius(type));
+        prepareSite(world, box);
+        Identifier template = villageTemplate(type);
+        if (template != null) {
+            placeVillageTemplate(world, template, box, facing);
+            return;
+        }
+        int[] d = StructureRotationUtil.getBuildingDimensions(type);
+        for (Placement p : localPlacements(type)) {
+            world.setBlockState(
+                    StructureRotationUtil.transformPos(origin, p.local().getX(), p.local().getY(),
+                            p.local().getZ(), d[0], d[2], facing),
+                    StructureRotationUtil.transformState(p.state(), facing),
+                    Block.NOTIFY_LISTENERS);
+        }
+    }
+
+    /** バニラテンプレートを使わない建物のローカル配置（下の段から順）。 */
+    public static List<Placement> localPlacements(BuildingType type) {
+        List<Placement> list = new ArrayList<>();
         switch (type) {
-            case HOUSE -> house(world, center);
-            case BARRACKS -> barracks(world, center);
-            case BLACKSMITH -> blacksmith(world, center);
-            case TOWN_HALL -> townHall(world, center);
-            case WATCHTOWER -> watchtower(world, center);
-            case GATE -> gate(world, center);
-            case WALL -> wall(world, center);
+            case TOWN_HALL -> TownHallBuilder.generate((pos, state, flags) -> list.add(new Placement(pos, state)));
+            case WATCHTOWER -> watchtower(list);
+            case GATE -> gate(list);
+            case WALL -> wall(list);
             case HERO_SANCTUARY -> {
-                int[] d = StructureRotationUtil.getBuildingDimensions(type);
-                for (var p : com.kingdomunique.world.HeroSanctuaryBuilder.generatePlacements(center)) {
-                    world.setBlockState(
-                            StructureRotationUtil.transformPos(center,
-                                    p.pos().getX() - center.getX(), p.pos().getY() - center.getY(),
-                                    p.pos().getZ() - center.getZ(), d[0], d[2], facing),
-                            StructureRotationUtil.transformState(p.state(), facing),
-                            net.minecraft.block.Block.NOTIFY_LISTENERS);
+                for (var p : HeroSanctuaryBuilder.generatePlacements(BlockPos.ORIGIN)) {
+                    list.add(new Placement(p.pos(), p.state()));
                 }
             }
             case GRANARY, INFIRMARY, MARKET, ARSENAL, TRAINING_GROUND, ROYAL_PALACE -> {
-                int[] d = StructureRotationUtil.getBuildingDimensions(type);
-                for (var p : AdditionalStructures.generatePlacements(type, center)) {
-                    world.setBlockState(
-                            StructureRotationUtil.transformPos(center,
-                                    p.pos().getX() - center.getX(), p.pos().getY() - center.getY(),
-                                    p.pos().getZ() - center.getZ(), d[0], d[2], facing),
-                            StructureRotationUtil.transformState(p.state(), facing),
-                            net.minecraft.block.Block.NOTIFY_LISTENERS);
+                for (var p : AdditionalStructures.generatePlacements(type, BlockPos.ORIGIN)) {
+                    list.add(new Placement(p.pos(), p.state()));
                 }
             }
+            default -> {
+            }
         }
+        list.sort(Comparator.comparingInt(p -> p.local().getY()));
+        return list;
     }
 
-    /** 建築種別に対応するバニラ村の家テンプレートを配置する。 */
-    private static void placeVanillaVillageBuilding(ServerWorld world, BlockPos center,
-                                                    BuildingType type) {
-        String path = switch (type) {
-            case HOUSE -> "village/plains/houses/plains_small_house_1";
-            case BARRACKS -> "village/plains/houses/plains_medium_house_1";
-            case BLACKSMITH -> "village/plains/houses/plains_tool_smith_1";
-            default -> "village/plains/houses/plains_small_house_1";
-        };
-        com.kingdomunique.world.VillageBuilder.placeTemplate(world,
-                net.minecraft.util.Identifier.of("minecraft", path),
-                center.getX(), center.getZ());
-    }
-    private static int radius(BuildingType type) {
-        return switch (type) {
-            case HOUSE -> 4;
-            case BARRACKS -> 6;
-            case BLACKSMITH -> 5;
-            case TOWN_HALL -> 8;
-            case WATCHTOWER -> 5;
-            case GATE -> 4;
-            case WALL -> 5;
-            case HERO_SANCTUARY -> 6;
-            case GRANARY, INFIRMARY, MARKET, ARSENAL -> 6;
-            case TRAINING_GROUND -> 7;
-            case ROYAL_PALACE -> 9;
-        };
+    /** 閉じた門扉のワールド座標。 */
+    public static List<BlockPos> gateLeafPositions(BlockPos origin, Direction facing) {
+        int[] d = StructureRotationUtil.getBuildingDimensions(BuildingType.GATE);
+        List<BlockPos> leaves = new ArrayList<>();
+        for (int x = GATE_LEAF_MIN_X; x <= GATE_LEAF_MAX_X; x++) {
+            for (int y = 0; y < GATE_LEAF_HEIGHT; y++) {
+                leaves.add(StructureRotationUtil.transformPos(origin, x, y, GATE_LEAF_Z, d[0], d[2], facing));
+            }
+        }
+        return leaves;
     }
 
-    private static void clear(ServerWorld world, BlockPos center, int radius) {
-        for (int dx = -radius; dx <= radius; dx++) {
-            for (int dz = -radius; dz <= radius; dz++) {
-                for (int y = -2; y < 14; y++) {
-                    BlockPos pos = center.add(dx, y, dz);
+    /**
+     * 枠内の地上部分を空にし、床の段（box.minY）とその下の空洞・水を土と丸石で埋める。
+     * 枠の外には一切手を付けない（下方向の支えのみ枠の真下に入れる）。
+     */
+    private static void prepareSite(ServerWorld world, BlockBox box) {
+        BlockState air = Blocks.AIR.getDefaultState();
+        for (int x = box.getMinX(); x <= box.getMaxX(); x++) {
+            for (int z = box.getMinZ(); z <= box.getMaxZ(); z++) {
+                for (int y = box.getMaxY(); y > box.getMinY(); y--) {
+                    BlockPos pos = new BlockPos(x, y, z);
                     if (!world.getBlockState(pos).isAir()) {
-                        world.setBlockState(pos, Blocks.AIR.getDefaultState());
+                        // 枠外の隣接ブロック（ベッドの片側など）を連鎖で壊さないよう形状更新を止める。
+                        world.setBlockState(pos, air, Block.NOTIFY_LISTENERS | Block.FORCE_STATE);
                     }
                 }
-            }
-        }
-    }
-
-    /** 建物下端（center.y-1）から下へ自然な土／丸石の基礎を埋める。 */
-    private static void foundation(ServerWorld world, BlockPos center, int radius) {
-        for (int dx = -radius; dx <= radius; dx++) {
-            for (int dz = -radius; dz <= radius; dz++) {
-                for (int y = center.getY() - 6; y < center.getY() - 1; y++) {
-                    BlockPos pos = new BlockPos(center.getX() + dx, y, center.getZ() + dz);
-                    world.setBlockState(pos, y < center.getY() - 2
-                            ? Blocks.COBBLESTONE.getDefaultState() : Blocks.DIRT.getDefaultState());
+                for (int y = box.getMinY(); y > box.getMinY() - SUPPORT_DEPTH; y--) {
+                    BlockPos pos = new BlockPos(x, y, z);
+                    BlockState state = world.getBlockState(pos);
+                    if (!state.isReplaceable()) {
+                        break;
+                    }
+                    world.setBlockState(pos, (y == box.getMinY() ? Blocks.DIRT : Blocks.COBBLESTONE)
+                            .getDefaultState(), Block.NOTIFY_LISTENERS);
                 }
             }
         }
     }
 
-    private static void wallBox(ServerWorld world, BlockPos origin, int radiusX, int radiusZ,
-                                int height, net.minecraft.block.BlockState wall,
-                                net.minecraft.block.BlockState floor) {
-        for (int y = -1; y <= height; y++) {
-            for (int dx = -radiusX; dx <= radiusX; dx++) {
-                for (int dz = -radiusZ; dz <= radiusZ; dz++) {
-                    boolean edge = Math.abs(dx) == radiusX || Math.abs(dz) == radiusZ;
-                    if (y == -1) {
-                        world.setBlockState(origin.add(dx, y, dz), floor);
-                    } else if (y == height) {
-                        world.setBlockState(origin.add(dx, y, dz), wall);
-                    } else if (edge) {
-                        boolean doorway = y <= 1 && dx == 0 && dz == radiusZ;
-                        world.setBlockState(origin.add(dx, y, dz),
-                                doorway ? Blocks.AIR.getDefaultState() : wall);
+    private static Identifier villageTemplate(BuildingType type) {
+        return switch (type) {
+            case HOUSE -> Identifier.ofVanilla("village/plains/houses/plains_small_house_1");
+            case BARRACKS -> Identifier.ofVanilla("village/plains/houses/plains_medium_house_1");
+            case BLACKSMITH -> Identifier.ofVanilla("village/plains/houses/plains_tool_smith_1");
+            default -> null;
+        };
+    }
+
+    /**
+     * バニラ村の家テンプレートを枠に合わせて配置する。テンプレートの入口は西（-X）向きなので、
+     * 南向き基準に直してから facing へ回転する。最下段は box.minY に置く。
+     */
+    private static void placeVillageTemplate(ServerWorld world, Identifier id, BlockBox box, Direction facing) {
+        StructureTemplate template = world.getStructureTemplateManager().getTemplate(id).orElse(null);
+        if (template == null) {
+            return;
+        }
+        BlockRotation rotation = BlockRotation.COUNTERCLOCKWISE_90
+                .rotate(StructureRotationUtil.getRotationFromSouth(facing));
+        StructurePlacementData data = new StructurePlacementData()
+                .setRotation(rotation)
+                .setMirror(BlockMirror.NONE)
+                .setIgnoreEntities(true)
+                .setInitializeMobs(false)
+                .addProcessor(JigsawReplacementStructureProcessor.INSTANCE)
+                .addProcessor(BlockIgnoreStructureProcessor.IGNORE_AIR_AND_STRUCTURE_BLOCKS);
+        BlockBox local = template.calculateBoundingBox(data, BlockPos.ORIGIN);
+        BlockPos pos = new BlockPos(box.getMinX() - local.getMinX(), box.getMinY(),
+                box.getMinZ() - local.getMinZ());
+        template.place(world, pos, pos, data, world.getRandom(), Block.NOTIFY_LISTENERS);
+    }
+
+    private static void put(List<Placement> list, int x, int y, int z, BlockState state) {
+        list.add(new Placement(new BlockPos(x, y, z), state));
+    }
+
+    /** 国境監視塔（5x5 枠の中央 3x3）：石レンガの柱と木の見張り台。 */
+    private static void watchtower(List<Placement> l) {
+        for (int x = 1; x <= 3; x++) {
+            for (int z = 1; z <= 3; z++) {
+                put(l, x, -1, z, Blocks.COBBLESTONE.getDefaultState());
+                put(l, x, 7, z, Blocks.OAK_PLANKS.getDefaultState());
+                put(l, x, 9, z, Blocks.STONE_BRICKS.getDefaultState());
+                boolean corner = (x == 1 || x == 3) && (z == 1 || z == 3);
+                if (corner) {
+                    for (int y = 0; y <= 6; y++) {
+                        put(l, x, y, z, Blocks.STONE_BRICKS.getDefaultState());
                     }
                 }
-            }
-        }
-    }
-
-    private static void house(ServerWorld world, BlockPos center) {
-        wallBox(world, center, 3, 3, 3, Blocks.OAK_PLANKS.getDefaultState(),
-                Blocks.COBBLESTONE.getDefaultState());
-        world.setBlockState(center.add(0, 3, 0), Blocks.OAK_STAIRS.getDefaultState());
-        for (int dx = -2; dx <= 2; dx++) {
-            for (int dz = -2; dz <= 2; dz++) {
-                world.setBlockState(center.add(dx, 4, dz), Blocks.OAK_STAIRS.getDefaultState());
-            }
-        }
-        world.setBlockState(center.add(0, 1, 0), Blocks.BELL.getDefaultState());
-    }
-
-    private static void barracks(ServerWorld world, BlockPos center) {
-        wallBox(world, center, 5, 5, 4, Blocks.STONE_BRICKS.getDefaultState(),
-                Blocks.COBBLESTONE.getDefaultState());
-        for (int dx = -4; dx <= 4; dx++) {
-            for (int dz = -4; dz <= 4; dz++) {
-                world.setBlockState(center.add(dx, 5, dz), Blocks.IRON_BLOCK.getDefaultState());
-            }
-        }
-        for (int x = -3; x <= 3; x += 3) {
-            world.setBlockState(center.add(x, 1, 0), Blocks.CHEST.getDefaultState());
-        }
-    }
-
-    private static void blacksmith(ServerWorld world, BlockPos center) {
-        wallBox(world, center, 4, 4, 3, Blocks.BRICKS.getDefaultState(),
-                Blocks.COBBLESTONE.getDefaultState());
-        world.setBlockState(center.add(0, 1, 0), Blocks.FURNACE.getDefaultState());
-        world.setBlockState(center.add(2, 1, 0), Blocks.ANVIL.getDefaultState());
-        for (int dx = -3; dx <= 3; dx++) {
-            for (int dz = -3; dz <= 3; dz++) {
-                world.setBlockState(center.add(dx, 4, dz), Blocks.COBBLESTONE.getDefaultState());
-            }
-        }
-    }
-
-    private static void townHall(ServerWorld world, BlockPos center) {
-        wallBox(world, center, 7, 7, 5, Blocks.STONE_BRICKS.getDefaultState(),
-                Blocks.COBBLESTONE.getDefaultState());
-        for (int dx = -6; dx <= 6; dx++) {
-            for (int dz = -6; dz <= 6; dz++) {
-                world.setBlockState(center.add(dx, 6, dz), Blocks.GOLD_BLOCK.getDefaultState());
-            }
-        }
-        world.setBlockState(center.add(0, 7, 0), Blocks.BEACON.getDefaultState());
-        for (int x = -5; x <= 5; x += 5) {
-            for (int z = -5; z <= 5; z += 5) {
-                world.setBlockState(center.add(x, 6, z), Blocks.LANTERN.getDefaultState());
-            }
-        }
-    }
-
-    /** 門扉（閉じているときのブロック）の相対位置定義。 */
-    public static final int GATE_LEAF_HALF_WIDTH = 1;
-    public static final int GATE_LEAF_HEIGHT = 3;
-
-    /** 国境監視塔：石レンガの柱と木の見張り台。 */
-    private static void watchtower(ServerWorld world, BlockPos center) {
-        for (int dx = -1; dx <= 1; dx++) {
-            for (int dz = -1; dz <= 1; dz++) {
-                world.setBlockState(center.add(dx, -1, dz), Blocks.COBBLESTONE.getDefaultState());
-                world.setBlockState(center.add(dx, 7, dz), Blocks.OAK_PLANKS.getDefaultState());
-                world.setBlockState(center.add(dx, 9, dz), Blocks.STONE_BRICKS.getDefaultState());
-                boolean corner = Math.abs(dx) == 1 && Math.abs(dz) == 1;
-                for (int y = 0; y <= 6; y++) {
-                    world.setBlockState(center.add(dx, y, dz),
-                            corner ? Blocks.STONE_BRICKS.getDefaultState() : Blocks.AIR.getDefaultState());
-                }
-                if (Math.abs(dx) == 1 || Math.abs(dz) == 1) {
-                    world.setBlockState(center.add(dx, 8, dz), Blocks.OAK_PLANKS.getDefaultState());
+                if (x != 2 || z != 2) {
+                    put(l, x, 8, z, Blocks.OAK_PLANKS.getDefaultState());
                 }
             }
         }
-        world.setBlockState(center.add(0, 8, 0), Blocks.LANTERN.getDefaultState());
+        put(l, 2, 8, 2, Blocks.LANTERN.getDefaultState());
     }
 
-    /** 国の門：中央の門扉は DefensesSystem が開閉する。 */
-    private static void gate(ServerWorld world, BlockPos center) {
-        for (int dx = -2; dx <= 2; dx++) {
-            world.setBlockState(center.add(dx, -1, 0), Blocks.COBBLESTONE.getDefaultState());
-            world.setBlockState(center.add(dx, 4, 0), Blocks.STONE_BRICKS.getDefaultState());
+    /** 国の門（9x5 枠の中央の列）：中央の門扉は DefenseSystem が開閉する。 */
+    private static void gate(List<Placement> l) {
+        int z = GATE_LEAF_Z;
+        for (int x = GATE_LEAF_MIN_X - 1; x <= GATE_LEAF_MAX_X + 1; x++) {
+            put(l, x, -1, z, Blocks.COBBLESTONE.getDefaultState());
+            put(l, x, 4, z, Blocks.STONE_BRICKS.getDefaultState());
         }
         for (int y = 0; y <= 3; y++) {
-            world.setBlockState(center.add(-2, y, 0), Blocks.STONE_BRICKS.getDefaultState());
-            world.setBlockState(center.add(2, y, 0), Blocks.STONE_BRICKS.getDefaultState());
+            put(l, GATE_LEAF_MIN_X - 1, y, z, Blocks.STONE_BRICKS.getDefaultState());
+            put(l, GATE_LEAF_MAX_X + 1, y, z, Blocks.STONE_BRICKS.getDefaultState());
         }
-        for (int dx = -1; dx <= 1; dx++) {
+        for (int x = GATE_LEAF_MIN_X; x <= GATE_LEAF_MAX_X; x++) {
             for (int y = 0; y < GATE_LEAF_HEIGHT; y++) {
-                world.setBlockState(center.add(dx, y, 0), Blocks.IRON_BLOCK.getDefaultState());
+                put(l, x, y, z, Blocks.IRON_BLOCK.getDefaultState());
             }
         }
     }
 
-    /** 防壁：幅5・高さ5の石レンガモジュール。 */
-    private static void wall(ServerWorld world, BlockPos center) {
-        for (int dx = -2; dx <= 2; dx++) {
-            world.setBlockState(center.add(dx, -1, 0), Blocks.COBBLESTONE.getDefaultState());
+    /** 防壁（7x3 枠の中央の列）：幅5・高さ5の石レンガモジュール。 */
+    private static void wall(List<Placement> l) {
+        for (int x = 1; x <= 5; x++) {
+            put(l, x, -1, 1, Blocks.COBBLESTONE.getDefaultState());
             for (int y = 0; y <= 4; y++) {
-                world.setBlockState(center.add(dx, y, 0), Blocks.STONE_BRICKS.getDefaultState());
+                put(l, x, y, 1, Blocks.STONE_BRICKS.getDefaultState());
             }
-            if (dx % 2 == 0) {
-                world.setBlockState(center.add(dx, 5, 0), Blocks.STONE_BRICK_WALL.getDefaultState());
+            if (x % 2 == 1) {
+                put(l, x, 5, 1, Blocks.STONE_BRICK_WALL.getDefaultState());
             }
         }
     }

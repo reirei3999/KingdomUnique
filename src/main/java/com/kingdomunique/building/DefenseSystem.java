@@ -113,7 +113,8 @@ public final class DefenseSystem {
     /** 国の門：王・国民・英雄・同盟プレイヤーが近づけば開き、離れれば閉じる。 */
     private static void tickGate(ServerWorld world, DefenseData.DefenseSite gate,
                                  DiplomacyData diplomacy) {
-        BlockPos center = gate.pos();
+        BlockPos center = gate.facing() == null ? gate.pos()
+                : StructureRotationUtil.computeBoundingBox(gate.pos(), BuildingType.GATE, gate.facing()).getCenter();
         boolean friendlyNearby = false;
         net.minecraft.util.math.Box box = new net.minecraft.util.math.Box(center).expand(GATE_RANGE);
 
@@ -132,16 +133,22 @@ public final class DefenseSystem {
             return;
         }
         DefenseData data = DefenseData.getOrCreate(world);
-        data.setGateOpen(center, friendlyNearby);
-        setLeaves(world, center, friendlyNearby ? Blocks.AIR.getDefaultState()
+        data.setGateOpen(gate.pos(), friendlyNearby);
+        setLeaves(world, gate, friendlyNearby ? Blocks.AIR.getDefaultState()
                 : Blocks.IRON_BLOCK.getDefaultState());
     }
 
-    private static void setLeaves(ServerWorld world, BlockPos center, net.minecraft.block.BlockState state) {
-        for (int dx = -StructurePlacer.GATE_LEAF_HALF_WIDTH;
-             dx <= StructurePlacer.GATE_LEAF_HALF_WIDTH; dx++) {
+    private static void setLeaves(ServerWorld world, DefenseData.DefenseSite gate,
+                                  net.minecraft.block.BlockState state) {
+        if (gate.facing() != null) {
+            for (BlockPos leaf : StructurePlacer.gateLeafPositions(gate.pos(), gate.facing())) {
+                world.setBlockState(leaf, state);
+            }
+            return;
+        }
+        for (int dx = -1; dx <= 1; dx++) {
             for (int y = 0; y < StructurePlacer.GATE_LEAF_HEIGHT; y++) {
-                world.setBlockState(center.add(dx, y, 0), state);
+                world.setBlockState(gate.pos().add(dx, y, 0), state);
             }
         }
     }

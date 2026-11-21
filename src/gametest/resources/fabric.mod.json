@@ -6,6 +6,7 @@
   "entrypoints": {
     "fabric-gametest": [
       "com.kingdomunique.building.BlueprintGameTest",
+      "com.kingdomunique.building.StructureFootprintGameTest",
       "com.kingdomunique.soldier.SoldierOrderGameTest",
       "com.kingdomunique.world.VillagePlacementGameTest",
       "com.kingdomunique.world.CitizenMovementGameTest",

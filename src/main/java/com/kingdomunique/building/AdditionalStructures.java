@@ -28,7 +28,7 @@ public final class AdditionalStructures {
     public static List<BlockPlacement> generatePlacements(BuildingType type, BlockPos origin) {
         List<BlockPlacement> list = new ArrayList<>();
         switch (type) {
-            case GRANARY -> granary(origin, list);
+            case GRANARY -> granary(origin.add(1, 0, 1), list);
             case INFIRMARY -> infirmary(origin, list);
             case MARKET -> market(origin, list);
             case ARSENAL -> arsenal(origin, list);
@@ -51,7 +51,7 @@ public final class AdditionalStructures {
         list.add(new BlockPlacement(pos, state));
     }
 
-    /** 王立穀物庫 (7x7)。 */
+    /** 王立穀物庫（本体 7x7、軒と入口階段を含め 9x9）。 */
     private static void granary(BlockPos o, List<BlockPlacement> l) {
         int w = 7, d = 7;
         for (int dx = 0; dx < w; dx++) {
