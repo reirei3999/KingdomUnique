@@ -50,6 +50,7 @@ public class WorldUniqueData extends PersistentState {
 
     /** 黄金の天秤: プレイヤーUUID -> 最後に収益を受け取った日。 */
     private final Map<UUID, Long> goldenScalePayoutDays = new HashMap<>();
+    private final Map<UUID, Long> phoenixRevivalDays = new HashMap<>();
 
     public WorldUniqueData() {
     }
@@ -98,6 +99,13 @@ public class WorldUniqueData extends PersistentState {
                 // 壊れたキーは無視する。
             }
         }
+        NbtCompound phoenixNbt = nbt.getCompound("phoenix_revivals");
+        for (String key : phoenixNbt.getKeys()) {
+            try {
+                phoenixRevivalDays.put(UUID.fromString(key), phoenixNbt.getLong(key));
+            } catch (IllegalArgumentException ignored) {
+            }
+        }
     }
 
     public static WorldUniqueData getOrCreate(ServerWorld world) {
@@ -133,6 +141,11 @@ public class WorldUniqueData extends PersistentState {
             payoutsNbt.putLong(entry.getKey().toString(), entry.getValue());
         }
         nbt.put("golden_scale_payouts", payoutsNbt);
+        NbtCompound phoenixNbt = new NbtCompound();
+        for (Map.Entry<UUID, Long> entry : phoenixRevivalDays.entrySet()) {
+            phoenixNbt.putLong(entry.getKey().toString(), entry.getValue());
+        }
+        nbt.put("phoenix_revivals", phoenixNbt);
         return nbt;
     }
 
@@ -259,6 +272,16 @@ public class WorldUniqueData extends PersistentState {
             return false;
         }
         goldenScalePayoutDays.put(playerUuid, day);
+        markDirty();
+        return true;
+    }
+
+    public boolean claimPhoenixRevival(UUID playerUuid, long day) {
+        Long last = phoenixRevivalDays.get(playerUuid);
+        if (last != null && last == day) {
+            return false;
+        }
+        phoenixRevivalDays.put(playerUuid, day);
         markDirty();
         return true;
     }

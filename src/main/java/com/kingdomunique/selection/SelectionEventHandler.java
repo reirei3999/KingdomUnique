@@ -1,6 +1,7 @@
 package com.kingdomunique.selection;
 
 import com.kingdomunique.effect.CurseEffects;
+import com.kingdomunique.data.WorldUniqueData;
 import com.kingdomunique.effect.RelicEffects;
 import com.kingdomunique.network.SelectionChoicePayload;
 import com.kingdomunique.registry.ContentRegistry;
@@ -34,7 +35,6 @@ public final class SelectionEventHandler {
 
     private static final long GLUTTONY_TICKS = 200L;
     private static final Map<UUID, Long> GLUTTONY_UNTIL = new ConcurrentHashMap<>();
-    private static final Map<UUID, Long> PHOENIX_LAST = new ConcurrentHashMap<>();
     private static final long DAY = 24000L;
 
     private SelectionEventHandler() {
@@ -91,7 +91,6 @@ public final class SelectionEventHandler {
         ServerTickEvents.END_SERVER_TICK.register(SelectionEventHandler::onTick);
         ServerPlayConnectionEvents.DISCONNECT.register((handler, server) -> {
             GLUTTONY_UNTIL.remove(handler.getPlayer().getUuid());
-            PHOENIX_LAST.remove(handler.getPlayer().getUuid());
         });
 
         ServerPlayNetworking.registerGlobalReceiver(SelectionChoicePayload.ID, (payload, context) -> {
@@ -207,12 +206,11 @@ public final class SelectionEventHandler {
         if (!RelicEffects.has(player, RelicRegistry.PHOENIX)) {
             return true;
         }
-        long day = player.getServerWorld().getTimeOfDay() / DAY;
-        Long last = PHOENIX_LAST.get(player.getUuid());
-        if (last != null && last == day) {
+        ServerWorld overworld = player.getServer().getOverworld();
+        long day = overworld.getTimeOfDay() / DAY;
+        if (!WorldUniqueData.getOrCreate(overworld).claimPhoenixRevival(player.getUuid(), day)) {
             return true;
         }
-        PHOENIX_LAST.put(player.getUuid(), day);
         player.setHealth(player.getMaxHealth());
         player.getHungerManager().setFoodLevel(20);
         player.sendMessage(Text.literal("§6[不死鳥の羽根] あなたは灰の中から蘇りました。"), false);
