@@ -11,7 +11,9 @@ import net.minecraft.util.math.Direction;
 
 import java.util.ArrayList;
 import java.util.Comparator;
+import java.util.LinkedHashMap;
 import java.util.List;
+import java.util.Map;
 
 /**
  * 完了時に設計図の構造物を配置する。
@@ -55,7 +57,9 @@ public final class StructurePlacer {
         for (Placement p : localPlacements(type)) {
             BlockPos pos = StructureRotationUtil.transformPos(origin, p.local().getX(), p.local().getY(),
                     p.local().getZ(), d[0], d[2], facing);
-            world.setBlockState(pos, StructureRotationUtil.transformState(p.state(), facing), Block.NOTIFY_LISTENERS);
+            // 扉の両半分などが揃うまでは、隣接ブロックの形状を更新しない。
+            world.setBlockState(pos, StructureRotationUtil.transformState(p.state(), facing),
+                    Block.NOTIFY_LISTENERS | Block.FORCE_STATE);
             placed.add(pos);
         }
         // 板ガラス・フェンス・階段などを、後から置かれた隣のブロックに合わせてつなぐ。
@@ -87,8 +91,10 @@ public final class StructurePlacer {
             case TRAINING_GROUND -> list.addAll(CivicStructures.trainingGround());
             case ROYAL_PALACE -> list.addAll(GrandStructures.royalPalace());
         }
-        list.sort(Comparator.comparingInt(p -> p.local().getY()));
-        return list;
+        Map<BlockPos, Placement> finalPlacements = new LinkedHashMap<>();
+        list.forEach(p -> finalPlacements.put(p.local(), p));
+        return finalPlacements.values().stream()
+                .sorted(Comparator.comparingInt(p -> p.local().getY())).toList();
     }
 
     /** 閉じた門扉のワールド座標。 */
