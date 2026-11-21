@@ -104,8 +104,7 @@ public final class BlueprintBlock extends Block implements BlockEntityProvider {
         if (!(world.getBlockEntity(pos) instanceof BlueprintBlockEntity be)) {
             return ActionResult.SUCCESS;
         }
-        if (serverPlayer.isCreative()) {
-            completeCreative((ServerWorld) world, pos, serverPlayer);
+        if (serverPlayer.isCreative() && completeCreative((ServerWorld) world, pos, serverPlayer)) {
             return ActionResult.SUCCESS;
         }
 
@@ -125,19 +124,20 @@ public final class BlueprintBlock extends Block implements BlockEntityProvider {
         return ActionResult.SUCCESS;
     }
 
-    private void completeCreative(ServerWorld world, BlockPos pos, ServerPlayerEntity player) {
+    private boolean completeCreative(ServerWorld world, BlockPos pos, ServerPlayerEntity player) {
         BuildData.BuildSite site = BuildData.getOrCreate(world).sites().stream()
                 .filter(candidate -> candidate.pos().equals(pos))
                 .findFirst().orElse(null);
-        if (site == null) {
-            return;
+        if (site == null || !site.owner().equals(player.getUuid())) {
+            return false;
         }
         Optional<Text> error = BuildingValidator.validate(world, site);
         if (error.isPresent()) {
             player.sendMessage(error.get(), false);
-            return;
+            return true;
         }
         BuildingManager.completeNow(world, site, player);
+        return true;
     }
 
     /** 資材を消費して建築サイトを「建築中」へ遷移させる。 */

@@ -50,7 +50,7 @@ public final class BlueprintGameTest {
     public void creativeClickCompletesExistingUnreadyAndReadySites(TestContext context) {
         ServerWorld world = context.getWorld();
         ServerPlayerEntity survival = player(world);
-        ServerPlayerEntity creative = player(world, true);
+        ServerPlayerEntity creative = player(world, true, survival.getUuid());
         for (int height : new int[]{128, 160}) {
             BlockPos pos = context.getAbsolutePos(new BlockPos(0, height, 0));
             BlueprintBlockEntity blueprint = place(ModBlocks.WATCHTOWER, world, pos, survival);
@@ -66,6 +66,37 @@ public final class BlueprintGameTest {
                     ItemActionResult.PASS_TO_DEFAULT_BLOCK_INTERACTION, "Empty-hand use must reach construction controls");
             state.onUse(world, creative, hit(pos));
             assertCompleted(context, pos, creative);
+        }
+        context.complete();
+    }
+
+    @GameTest(templateName = FabricGameTest.EMPTY_STRUCTURE)
+    public void creativeNonOwnerCannotCompleteExistingSites(TestContext context) {
+        ServerWorld world = context.getWorld();
+        ServerPlayerEntity owner = player(world);
+        ServerPlayerEntity creative = player(world, true);
+        for (int height : new int[]{256, 288}) {
+            BlockPos pos = context.getAbsolutePos(new BlockPos(0, height, 0));
+            BlueprintBlockEntity blueprint = place(ModBlocks.WATCHTOWER, world, pos, owner);
+            boolean ready = height == 288;
+            if (ready) {
+                BuildData data = BuildData.getOrCreate(world);
+                BuildData.BuildSite site = site(world, pos);
+                data.remove(site);
+                data.add(site.withReady(true));
+                blueprint.setReady(true);
+            }
+            var state = world.getBlockState(pos);
+            context.assertEquals(state.onUseWithItem(ItemStack.EMPTY, world, creative, Hand.MAIN_HAND, hit(pos)),
+                    ItemActionResult.PASS_TO_DEFAULT_BLOCK_INTERACTION, "Empty-hand use must reach construction controls");
+            state.onUse(world, creative, hit(pos));
+            context.assertEquals(site(world, pos).ready(), ready, "Non-owner clicks must preserve construction readiness");
+            context.assertEquals(site(world, pos).owner(), owner.getUuid(), "Non-owner clicks must preserve ownership");
+            context.assertTrue(world.getBlockEntity(pos) == blueprint, "Non-owner clicks must not replace the blueprint");
+            context.assertTrue(blueprint.inventory().isEmpty(), "Non-owner clicks must not supply free materials");
+            context.assertFalse(CompletedBuildingsData.getOrCreate(world).entries().stream()
+                            .anyMatch(entry -> entry.pos().equals(pos)),
+                    "Non-owner clicks must not register a completed building");
         }
         context.complete();
     }
@@ -197,8 +228,12 @@ public final class BlueprintGameTest {
     }
 
     private static ServerPlayerEntity player(ServerWorld world, boolean creative) {
+        return player(world, creative, UUID.randomUUID());
+    }
+
+    private static ServerPlayerEntity player(ServerWorld world, boolean creative, UUID uuid) {
         return new ServerPlayerEntity(world.getServer(), world,
-                new GameProfile(UUID.randomUUID(), "blueprint_test"), SyncedClientOptions.createDefault()) {
+                new GameProfile(uuid, "blueprint_test"), SyncedClientOptions.createDefault()) {
             @Override
             public boolean isCreative() {
                 return creative;
