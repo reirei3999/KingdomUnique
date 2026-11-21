@@ -28,7 +28,7 @@ public abstract class CropDropMixin {
             if (player.squaredDistanceTo(pos.getX(), pos.getY(), pos.getZ()) > 256.0D) {
                 continue;
             }
-            if (UniqueContentRegistry.FERTILITY.equals(UniqueContentRegistry.getAbility(player))) {
+            if (UniqueContentRegistry.has(player, UniqueContentRegistry.FERTILITY)) {
                 // 富国強兵令の農民効率-20%を収穫ドロップにも反映する。
                 double rate = com.kingdomunique.kingdom.PolicyManager.cropGrowthMultiplier(
                         world, player.getUuid());

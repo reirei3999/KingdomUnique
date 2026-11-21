@@ -46,8 +46,7 @@ public abstract class LivingEntityMixin {
         }
 
         if (attacker instanceof ServerPlayerEntity player) {
-            String ability = UniqueContentRegistry.getAbility(player);
-            if (UniqueContentRegistry.CONQUEROR.equals(ability)) {
+            if (UniqueContentRegistry.has(player, UniqueContentRegistry.CONQUEROR)) {
                 amount *= 1.3F;
             }
             if (AbilityState.get(player.getUuid()).isShadowDamageBuff()) {

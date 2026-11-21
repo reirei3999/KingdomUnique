@@ -35,7 +35,7 @@ public abstract class CraftBonusMixin {
         if (!(player instanceof net.minecraft.server.network.ServerPlayerEntity serverPlayer)) {
             return;
         }
-        if (!UniqueContentRegistry.DIVINE_SMITH.equals(UniqueContentRegistry.getAbility(serverPlayer))) {
+        if (!UniqueContentRegistry.has(serverPlayer, UniqueContentRegistry.DIVINE_SMITH)) {
             return;
         }
         if (!EnhancementUtil.isEnhanceable(stack)) {
