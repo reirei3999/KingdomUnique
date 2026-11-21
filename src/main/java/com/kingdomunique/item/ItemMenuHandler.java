@@ -91,10 +91,10 @@ public final class ItemMenuHandler {
         ServerPlayNetworking.registerGlobalReceiver(RequestItemPayload.ID, (payload, context) -> {
             ServerPlayerEntity player = context.player();
             if (!isAdmin(player)) {
-                reject(player, payload.itemId(), "管理者のみ使用できます。管理者に権限を確認してください。");
+                reject(player, payload.itemId(), payload.requestId(), "管理者のみ使用できます。管理者に権限を確認してください。");
                 return;
             }
-            give(player, payload.itemId());
+            give(player, payload.itemId(), payload.requestId());
         });
 
     }
@@ -190,10 +190,10 @@ public final class ItemMenuHandler {
         }
     }
 
-    private static void give(ServerPlayerEntity player, String id) {
+    private static void give(ServerPlayerEntity player, String id, long requestId) {
         ItemStack stack = ItemCatalog.create(id);
         if (stack.isEmpty() || stack.getItem() == net.minecraft.item.Items.AIR) {
-            reject(player, id, "アイテムが見つかりません。メニューを開き直してください。");
+            reject(player, id, requestId, "アイテムが見つかりません。メニューを開き直してください。");
             return;
         }
         if (stack.getCount() <= 0) {
@@ -211,18 +211,18 @@ public final class ItemMenuHandler {
             }
         }
         if (capacity < quantity) {
-            reject(player, id, "所持品がいっぱいです。空きを作ってからもう一度クリック");
+            reject(player, id, requestId, "所持品がいっぱいです。空きを作ってからもう一度クリック");
             return;
         }
         // 管理者メニューからは所有者に関係なく付与する（排他リストは変更しない）。
         player.getInventory().insertStack(stack);
         player.currentScreenHandler.sendContentUpdates();
-        ServerPlayNetworking.send(player, new ItemGrantResultPayload(id, true, itemName, quantity, ""));
+        ServerPlayNetworking.send(player, new ItemGrantResultPayload(id, requestId, true, itemName, quantity, ""));
         player.sendMessage(Text.literal("[KingdomUnique] " + itemName + " ×" + quantity + " を入手"), false);
     }
 
-    private static void reject(ServerPlayerEntity player, String id, String reason) {
-        ServerPlayNetworking.send(player, new ItemGrantResultPayload(id, false, "", 0, reason));
+    private static void reject(ServerPlayerEntity player, String id, long requestId, String reason) {
+        ServerPlayNetworking.send(player, new ItemGrantResultPayload(id, requestId, false, "", 0, reason));
         player.sendMessage(Text.literal("[KingdomUnique] " + reason), false);
     }
 }

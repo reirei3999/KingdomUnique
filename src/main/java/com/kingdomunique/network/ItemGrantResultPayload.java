@@ -6,7 +6,7 @@ import net.minecraft.network.codec.PacketCodec;
 import net.minecraft.network.packet.CustomPayload;
 import net.minecraft.util.Identifier;
 
-public record ItemGrantResultPayload(String itemId, boolean success, String itemName, int quantity,
+public record ItemGrantResultPayload(String itemId, long requestId, boolean success, String itemName, int quantity,
                                      String reason) implements CustomPayload {
     public static final CustomPayload.Id<ItemGrantResultPayload> ID =
             new CustomPayload.Id<>(Identifier.of("kingdomunique", "item_grant_result"));
@@ -14,12 +14,13 @@ public record ItemGrantResultPayload(String itemId, boolean success, String item
     private static final PacketCodec<RegistryByteBuf, ItemGrantResultPayload> CODEC = CustomPayload.codecOf(
             (payload, buf) -> {
                 buf.writeString(payload.itemId());
+                buf.writeLong(payload.requestId());
                 buf.writeBoolean(payload.success());
                 buf.writeString(payload.itemName());
                 buf.writeVarInt(payload.quantity());
                 buf.writeString(payload.reason());
             },
-            buf -> new ItemGrantResultPayload(buf.readString(), buf.readBoolean(), buf.readString(),
+            buf -> new ItemGrantResultPayload(buf.readString(), buf.readLong(), buf.readBoolean(), buf.readString(),
                     buf.readVarInt(), buf.readString())
     );
 

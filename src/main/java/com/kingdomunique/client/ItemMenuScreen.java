@@ -19,8 +19,11 @@ import net.minecraft.sound.SoundEvents;
 public final class ItemMenuScreen extends Screen {
     private static final int BUTTON_HEIGHT = 20;
     private static final int GAP = 4;
+    private static long nextRequestId;
     private int page;
     private String pendingItem;
+    private long pendingRequestId;
+    private int pendingTicks;
     private Text result = Text.literal("アイテムを選んでください");
     private int resultColor = KuTheme.MUTED;
 
@@ -33,14 +36,27 @@ public final class ItemMenuScreen extends Screen {
             return;
         }
         pendingItem = id;
+        pendingRequestId = ++nextRequestId;
+        pendingTicks = 0;
         result = Text.literal("付与中…");
         resultColor = KuTheme.MUTED;
         clearAndInit();
-        ClientPlayNetworking.send(new RequestItemPayload(id));
+        ClientPlayNetworking.send(new RequestItemPayload(id, pendingRequestId));
+    }
+
+    @Override
+    public void tick() {
+        super.tick();
+        if (pendingItem != null && ++pendingTicks >= 100) {
+            pendingItem = null;
+            result = Text.literal("応答がありません。もう一度クリックしてください");
+            resultColor = KuTheme.DRAWBACK;
+            clearAndInit();
+        }
     }
 
     public void acceptResult(ItemGrantResultPayload payload) {
-        if (!payload.itemId().equals(pendingItem)) {
+        if (!payload.itemId().equals(pendingItem) || payload.requestId() != pendingRequestId) {
             return;
         }
         pendingItem = null;
