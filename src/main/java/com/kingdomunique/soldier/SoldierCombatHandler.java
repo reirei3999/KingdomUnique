@@ -2,7 +2,6 @@ package com.kingdomunique.soldier;
 
 import com.kingdomunique.entity.CitizenVillager;
 import com.kingdomunique.util.EnhancementUtil;
-import com.kingdomunique.war.KingdomWarTargetHelper;
 import net.fabricmc.fabric.api.entity.event.v1.ServerLivingEntityEvents;
 import net.fabricmc.fabric.api.event.lifecycle.v1.ServerTickEvents;
 import net.minecraft.component.DataComponentTypes;
@@ -60,10 +59,12 @@ public final class SoldierCombatHandler {
             // 武器が消えないよう自動拾得を禁止する。
             soldier.setCanPickUpLoot(false);
 
-            // Gemini 修正: 戦時は他国兵士・英雄・王も索敵対象に含める。
-            LivingEntity target = KingdomWarTargetHelper.findBestTarget(world, soldier, 18.0D);
+            // Gemini 修正: 視界14マス以内で視線が通っている敵だけを索敵。
+            LivingEntity target = SoldierOrderManager.findVisibleEnemyInSight(world, soldier, 14.0D);
             if (target == null) {
                 soldier.setTarget(null);
+                // 敵が視界にいない場合は移動命令・王追従・防衛を実行。
+                SoldierOrderManager.tickMovementOrder(world, soldier);
                 continue;
             }
             // バニラ村人の逃走状態を解除して戦闘ターゲットへロック。
