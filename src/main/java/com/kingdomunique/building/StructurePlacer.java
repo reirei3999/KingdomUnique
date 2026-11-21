@@ -86,6 +86,8 @@ public final class StructurePlacer {
             case ARSENAL -> list.addAll(CivicStructures.arsenal());
             case TRAINING_GROUND -> list.addAll(CivicStructures.trainingGround());
             case ROYAL_PALACE -> list.addAll(GrandStructures.royalPalace());
+            case WAREHOUSE -> com.kingdomunique.world.WarehouseBuilder.generate(
+                    (pos, state) -> list.add(new Placement(pos, state)));
         }
         list.sort(Comparator.comparingInt(p -> p.local().getY()));
         return list;

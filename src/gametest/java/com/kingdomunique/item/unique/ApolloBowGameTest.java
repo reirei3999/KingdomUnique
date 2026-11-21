@@ -52,9 +52,21 @@ public final class ApolloBowGameTest {
             data.releaseId(previous, "mjolnir");
         }
         data.claimId(UniqueWeaponManager.WORLD_OWNER, "mjolnir");
-        UniqueWeaponManager.releaseWorldOwnedWeapons(world);
-        context.assertFalse(data.isClaimed("mjolnir"),
-                "Weapons the old chest distribution reserved must become obtainable again");
-        context.complete();
+        var sites = new java.util.ArrayList<>(data.getVillageSites());
+        var pos = context.getAbsolutePos(net.minecraft.util.math.BlockPos.ORIGIN);
+        var site = new WorldUniqueData.VillageSite(pos.getX(), pos.getZ());
+        try {
+            data.setVillageSites(java.util.Collections.nCopies(UniqueWeapons.ALL_IDS.length, site));
+            UniqueWeaponManager.clearVillageChestWeapons(world);
+            context.assertFalse(data.isClaimed("mjolnir"),
+                    "Weapons the old chest distribution reserved must become obtainable again");
+            context.complete();
+        } finally {
+            data.setVillageSites(sites);
+            data.releaseId(UniqueWeaponManager.WORLD_OWNER, "mjolnir");
+            if (previous != null) {
+                data.claimId(previous, "mjolnir");
+            }
+        }
     }
 }

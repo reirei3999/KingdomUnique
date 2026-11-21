@@ -120,13 +120,13 @@ public final class PendingSelectionState extends PersistentState {
             }
         }
         NbtCompound queuedNbt = nbt.getCompound("queued");
-        ContentRegistry.Kind[] kinds = ContentRegistry.Kind.values();
+        ContentRegistry.Kind[] queuedKinds = ContentRegistry.Kind.values();
         for (String key : queuedNbt.getKeys()) {
             try {
                 List<ContentRegistry.Kind> list = new ArrayList<>();
                 for (int idx : queuedNbt.getIntArray(key)) {
-                    if (idx >= 0 && idx < kinds.length) {
-                        list.add(kinds[idx]);
+                    if (idx >= 0 && idx < queuedKinds.length) {
+                        list.add(queuedKinds[idx]);
                     }
                 }
                 if (!list.isEmpty()) {
