@@ -60,7 +60,7 @@ public final class AbilityEventHandler {
         if (!(source.getAttacker() instanceof ServerPlayerEntity player)) {
             return;
         }
-        if (!UniqueContentRegistry.ABSOLUTE_DOMINION.equals(UniqueContentRegistry.getAbility(player))) {
+        if (!UniqueContentRegistry.has(player, UniqueContentRegistry.ABSOLUTE_DOMINION)) {
             return;
         }
         if (ThreadLocalRandom.current().nextDouble() > REVIVE_CHANCE) {

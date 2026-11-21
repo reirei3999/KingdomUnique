@@ -48,7 +48,7 @@ public abstract class RangedDamageMixin {
         }
 
         // 覇王: 遠距離武器でも 1.3 倍（近接は属性側で反映済み）。
-        if (UniqueContentRegistry.CONQUEROR.equals(UniqueContentRegistry.getAbility(player))) {
+        if (UniqueContentRegistry.has(player, UniqueContentRegistry.CONQUEROR)) {
             amount *= 1.3F;
         }
         return amount;

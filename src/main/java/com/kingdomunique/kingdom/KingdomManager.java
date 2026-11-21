@@ -252,6 +252,9 @@ public final class KingdomManager {
         hero.refreshPositionAndAngles(x, y, z, player.getYaw(), 0.0F);
         hero.setOwnerUuid(player.getUuid());
         hero.setHeroClass(chosen);
+        // Gemini 修正: 戦時索敵用の識別タグを付与する。
+        hero.addCommandTag("kingdom_hero");
+        hero.addCommandTag("owner_" + player.getUuid().toString());
         world.spawnEntity(hero);
 
         world.setWeather(0, 200, true, true);

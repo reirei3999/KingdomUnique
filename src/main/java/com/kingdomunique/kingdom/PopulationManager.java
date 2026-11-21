@@ -6,17 +6,14 @@ import com.kingdomunique.entity.CitizenVillager;
 import com.kingdomunique.effect.RelicEffects;
 import net.fabricmc.fabric.api.entity.event.v1.ServerLivingEntityEvents;
 import net.fabricmc.fabric.api.event.lifecycle.v1.ServerTickEvents;
-import net.minecraft.block.entity.BlockEntity;
 import net.minecraft.entity.LivingEntity;
 import net.minecraft.entity.passive.VillagerEntity;
-import net.minecraft.inventory.Inventory;
 import net.minecraft.item.ItemStack;
 import net.minecraft.item.Items;
 import net.minecraft.server.MinecraftServer;
 import net.minecraft.server.network.ServerPlayerEntity;
 import net.minecraft.server.world.ServerWorld;
 import net.minecraft.text.Text;
-import net.minecraft.util.math.BlockBox;
 import net.minecraft.util.math.BlockPos;
 import net.minecraft.util.math.Box;
 import net.minecraft.village.VillagerData;
@@ -27,7 +24,6 @@ import net.minecraft.entity.SpawnReason;
 import net.minecraft.entity.EntityType;
 import net.minecraft.world.World;
 
-import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
@@ -104,8 +100,9 @@ public final class PopulationManager {
             if (currentPop >= maxPop || currentPop < 2) {
                 continue;
             }
-            // Gemini 修正: 王のインベントリではなく穀物庫/タウンホールのチェストから食料を消費。
-            if (!consumeFoodFromStorage(world, buildings, kingId, Items.BREAD, 4)) {
+            // Gemini 修正: 国庫（チェスト）から優先消費し、不足分は王が補填する。
+            if (!com.kingdomunique.world.KingdomTreasuryUtil.consumeFromTreasuryOrKing(
+                    world, king, Items.BREAD, 4)) {
                 continue;
             }
 
@@ -158,7 +155,9 @@ public final class PopulationManager {
         KingdomManager.setPopulation(king, newPop);
         // 誕生した瞬間にHUDへ即時反映（Gemini 提示）。
         net.fabricmc.fabric.api.networking.v1.ServerPlayNetworking.send(king,
-                new com.kingdomunique.network.KingdomPopulationSyncPayload(newPop, maxPop));
+                new com.kingdomunique.network.KingdomPopulationSyncPayload(newPop, maxPop,
+                com.kingdomunique.world.KingdomTreasuryUtil.countTreasuryItem(world, king.getUuid(), Items.EMERALD),
+                com.kingdomunique.world.KingdomTreasuryUtil.countTreasuryItem(world, king.getUuid(), Items.BREAD)));
     }
 
     /** 国民・兵士が死亡したときの人口減少と訃報を通知する。 */
@@ -191,7 +190,9 @@ public final class PopulationManager {
                     + remaining + "/" + maxPop + "）"), false);
             // 死亡した瞬間にHUDへ即時反映（Gemini 提示）。
             net.fabricmc.fabric.api.networking.v1.ServerPlayNetworking.send(king,
-                    new com.kingdomunique.network.KingdomPopulationSyncPayload(remaining, maxPop));
+                    new com.kingdomunique.network.KingdomPopulationSyncPayload(remaining, maxPop,
+                    com.kingdomunique.world.KingdomTreasuryUtil.countTreasuryItem(world, ownerUuid, Items.EMERALD),
+                    com.kingdomunique.world.KingdomTreasuryUtil.countTreasuryItem(world, ownerUuid, Items.BREAD)));
         }
     }
 
@@ -203,72 +204,5 @@ public final class PopulationManager {
             }
         }
         return fallback;
-    }
-
-    /**
-     * 穀物庫（GRANARY）およびタウンホール（TOWN_HALL）の敷地内にある
-     * チェスト・樽などの Inventory から食料を消費する（Gemini 提示）。
-     * 複数チェストに分散していても合算して差し引ける。
-     */
-    private static boolean consumeFoodFromStorage(ServerWorld world, KingdomBuildingState buildings,
-                                                  UUID kingId, net.minecraft.item.Item targetItem,
-                                                  int requiredAmount) {
-        List<Inventory> storages = new ArrayList<>();
-        for (KingdomBuildingState.CompletedBuilding b : buildings.entries()) {
-            if (!b.ownerUuid.equals(kingId)) {
-                continue;
-            }
-            if (b.type != BuildingType.GRANARY && b.type != BuildingType.TOWN_HALL) {
-                continue;
-            }
-            BlockBox box = b.boundingBox;
-            for (int x = box.getMinX() - 1; x <= box.getMaxX() + 1; x++) {
-                for (int z = box.getMinZ() - 1; z <= box.getMaxZ() + 1; z++) {
-                    if (!world.isChunkLoaded(x >> 4, z >> 4)) {
-                        continue;
-                    }
-                    for (int y = box.getMinY(); y <= box.getMaxY() + 1; y++) {
-                        BlockEntity be = world.getBlockEntity(new BlockPos(x, y, z));
-                        if (be instanceof Inventory inv && !storages.contains(inv)) {
-                            storages.add(inv);
-                        }
-                    }
-                }
-            }
-        }
-
-        int total = 0;
-        for (Inventory inv : storages) {
-            for (int slot = 0; slot < inv.size(); slot++) {
-                ItemStack stack = inv.getStack(slot);
-                if (stack.isOf(targetItem)) {
-                    total += stack.getCount();
-                }
-            }
-        }
-        if (total < requiredAmount) {
-            return false;
-        }
-
-        int remaining = requiredAmount;
-        for (Inventory inv : storages) {
-            boolean changed = false;
-            for (int slot = 0; slot < inv.size() && remaining > 0; slot++) {
-                ItemStack stack = inv.getStack(slot);
-                if (stack.isOf(targetItem)) {
-                    int take = Math.min(remaining, stack.getCount());
-                    stack.decrement(take);
-                    remaining -= take;
-                    changed = true;
-                }
-            }
-            if (changed) {
-                inv.markDirty();
-            }
-            if (remaining <= 0) {
-                break;
-            }
-        }
-        return true;
     }
 }

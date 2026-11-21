@@ -11,7 +11,6 @@ import net.minecraft.registry.RegistryWrapper;
 import net.minecraft.network.packet.Packet;
 import net.minecraft.network.packet.s2c.play.BlockEntityUpdateS2CPacket;
 import net.minecraft.util.math.BlockPos;
-import net.minecraft.world.World;
 
 import java.util.Map;
 
@@ -22,19 +21,18 @@ public final class BlueprintBlockEntity extends BlockEntity {
     private final BuildingType type;
     private boolean ready = false;
 
-    public BlueprintBlockEntity(BlockPos pos, BlockState state, BuildingType type) {
+    public BlueprintBlockEntity(BlockPos pos, BlockState state) {
         super(ModBlueprintEntities.BLUEPRINT_ENTITY, pos, state);
-        this.type = type;
-        this.inventory = new SimpleInventory(Math.max(1, type.materials().size())) {
+        this.type = ((BlueprintBlock) state.getBlock()).getType();
+        int slots = type.materials().entrySet().stream()
+                .mapToInt(entry -> Math.ceilDiv(entry.getValue(), entry.getKey().getMaxCount()))
+                .sum();
+        this.inventory = new SimpleInventory(Math.max(1, slots)) {
             @Override
             public void markDirty() {
                 BlueprintBlockEntity.this.markDirty();
             }
         };
-    }
-
-    public BlueprintBlockEntity(BlockPos pos, BlockState state) {
-        this(pos, state, BuildingType.HOUSE);
     }
 
     public SimpleInventory inventory() {

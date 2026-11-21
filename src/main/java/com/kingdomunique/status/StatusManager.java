@@ -96,7 +96,12 @@ public final class StatusManager {
         }
         int current = PopulationManager.countLivingCitizens(world, kingId, center);
         int max = PopulationManager.calculateMaxPopulation(world, kingId);
-        ServerPlayNetworking.send(player, new KingdomPopulationSyncPayload(current, max));
+        int emeralds = com.kingdomunique.world.KingdomTreasuryUtil.countTreasuryItem(
+                world, kingId, net.minecraft.item.Items.EMERALD);
+        int bread = com.kingdomunique.world.KingdomTreasuryUtil.countTreasuryItem(
+                world, kingId, net.minecraft.item.Items.BREAD);
+        ServerPlayNetworking.send(player,
+                new KingdomPopulationSyncPayload(current, max, emeralds, bread));
     }
 
     /** 建築開始・完了時に即座に占有範囲を同期する（10tick待ちを不要にする）。 */
@@ -132,7 +137,10 @@ public final class StatusManager {
                 player.getServer().getWorld(World.OVERWORLD));
         List<String> owned = new ArrayList<>(data.getClaimedIds(player.getUuid()));
 
-        String abilityId = UniqueContentRegistry.getAbility(player);
+        String abilityId = UniqueContentRegistry.getActiveAbility(player);
+        if (abilityId == null) {
+            abilityId = UniqueContentRegistry.getAbility(player);
+        }
         PlayerAbilityState state = AbilityState.get(player.getUuid());
         long now = player.getServerWorld().getTime();
         int cooldown = 0;

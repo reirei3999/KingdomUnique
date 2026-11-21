@@ -5,6 +5,7 @@ import net.minecraft.server.network.ServerPlayerEntity;
 import net.minecraft.server.world.ServerWorld;
 import net.minecraft.world.World;
 
+import java.util.ArrayList;
 import java.util.Collections;
 import java.util.LinkedHashMap;
 import java.util.List;
@@ -86,28 +87,43 @@ public final class UniqueContentRegistry {
 
     /** プレイヤーが保持するユニーク能力IDを返す（未保持なら null）。 */
     public static String getAbility(ServerPlayerEntity player) {
-        if (player == null) {
-            return null;
-        }
-        net.minecraft.server.MinecraftServer server = player.getServer();
-        if (server == null) {
-            return null;
-        }
-        ServerWorld overworld = server.getWorld(World.OVERWORLD);
-        if (overworld == null) {
-            return null;
-        }
-        WorldUniqueData data = WorldUniqueData.getOrCreate(overworld);
-        for (String id : ABILITY_IDS) {
-            if (data.hasId(player.getUuid(), id)) {
+        List<String> abilities = getAbilities(player);
+        return abilities.isEmpty() ? null : abilities.getFirst();
+    }
+
+    public static String getActiveAbility(ServerPlayerEntity player) {
+        for (String id : getAbilities(player)) {
+            if (AbilityDescriptions.cooldownTicks(id) > 0) {
                 return id;
             }
         }
         return null;
     }
 
+    public static List<String> getAbilities(ServerPlayerEntity player) {
+        if (player == null) {
+            return List.of();
+        }
+        net.minecraft.server.MinecraftServer server = player.getServer();
+        if (server == null) {
+            return List.of();
+        }
+        ServerWorld overworld = server.getWorld(World.OVERWORLD);
+        if (overworld == null) {
+            return List.of();
+        }
+        WorldUniqueData data = WorldUniqueData.getOrCreate(overworld);
+        List<String> abilities = new ArrayList<>();
+        for (String id : ABILITY_IDS) {
+            if (data.hasId(player.getUuid(), id)) {
+                abilities.add(id);
+            }
+        }
+        return abilities;
+    }
+
     /** プレイヤーが指定IDの能力を持つか。 */
     public static boolean has(ServerPlayerEntity player, String id) {
-        return id != null && id.equals(getAbility(player));
+        return id != null && getAbilities(player).contains(id);
     }
 }

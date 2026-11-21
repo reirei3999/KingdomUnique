@@ -2,12 +2,10 @@ package com.kingdomunique.building;
 
 import net.minecraft.block.BlockState;
 import net.minecraft.block.Blocks;
-import net.minecraft.server.network.ServerPlayerEntity;
 import net.minecraft.server.world.ServerWorld;
 import net.minecraft.text.Text;
 import net.minecraft.util.math.BlockBox;
 import net.minecraft.util.math.BlockPos;
-import net.minecraft.util.math.Direction;
 import net.minecraft.world.World;
 
 import java.util.Optional;
@@ -19,10 +17,9 @@ public final class BuildingValidator {
     private BuildingValidator() {
     }
 
-    public static Optional<Text> validate(ServerPlayerEntity player, BuildingType type,
-                                          BlockPos origin, Direction facing) {
-        ServerWorld world = player.getServerWorld();
-        UUID owner = player.getUuid();
+    public static Optional<Text> validate(ServerWorld world, BuildData.BuildSite site) {
+        BuildingType type = site.type();
+        UUID owner = site.owner();
         KingdomBuildingState state = KingdomBuildingState.get(world);
 
         if ((type == BuildingType.HERO_SANCTUARY || type == BuildingType.TOWN_HALL
@@ -36,8 +33,7 @@ public final class BuildingValidator {
             if (!state.hasCompletedBuilding(owner, BuildingType.TOWN_HALL)) {
                 return Optional.of(Text.literal("§c[建築不可] 王宮を建てるには先に王城・役場を完成させる必要があります。"));
             }
-            net.minecraft.server.MinecraftServer server = player.getServer();
-            ServerWorld overworld = server == null ? null : server.getWorld(World.OVERWORLD);
+            ServerWorld overworld = world.getServer().getWorld(World.OVERWORLD);
             int population = 0;
             if (overworld != null) {
                 com.kingdomunique.kingdom.KingdomData.KingdomInfo info =
@@ -52,7 +48,7 @@ public final class BuildingValidator {
             }
         }
 
-        BlockBox box = StructureRotationUtil.computeBoundingBox(origin, type, facing);
+        BlockBox box = StructureRotationUtil.computeBoundingBox(site.pos(), type, site.facing());
         if (box.getMinY() < world.getBottomY() + 1 || box.getMaxY() >= world.getTopY()) {
             return Optional.of(Text.literal("§c[建築不可] 建築範囲がワールドの高度限界を超えています。"));
         }
@@ -65,12 +61,15 @@ public final class BuildingValidator {
                         + b.type.getDisplayName() + "）と範囲が重なっています。"));
             }
         }
-        for (BuildData.BuildSite site : BuildData.getOrCreate(world).sites()) {
+        for (BuildData.BuildSite otherSite : BuildData.getOrCreate(world).sites()) {
+            if (otherSite.pos().equals(site.pos())) {
+                continue;
+            }
             BlockBox other = StructureRotationUtil.computeBoundingBox(
-                    site.pos(), site.type(), site.facing());
+                    otherSite.pos(), otherSite.type(), otherSite.facing());
             if (padded.intersects(other)) {
                 return Optional.of(Text.literal("§c[建築不可] 建築中の建物（"
-                        + site.type().getDisplayName() + "）と範囲が重なっています。"));
+                        + otherSite.type().getDisplayName() + "）と範囲が重なっています。"));
             }
         }
 

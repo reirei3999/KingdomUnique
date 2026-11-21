@@ -28,6 +28,7 @@ public final class ModCommands {
             SelectionEventHandler.registerCommands(ku);
             PolicyManager.registerCommands(ku);
             StatusManager.registerCommands(ku);
+            com.kingdomunique.war.DiplomacyCommand.registerCommands(ku);
             dispatcher.register(ku);
         });
     }

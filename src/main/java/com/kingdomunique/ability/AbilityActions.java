@@ -40,8 +40,7 @@ public final class AbilityActions {
 
     /** Vキー：神匠の採掘範囲を切り替える。 */
     public static void handleModeSwitch(ServerPlayerEntity player) {
-        String ability = UniqueContentRegistry.getAbility(player);
-        if (!UniqueContentRegistry.DIVINE_SMITH.equals(ability)) {
+        if (!UniqueContentRegistry.has(player, UniqueContentRegistry.DIVINE_SMITH)) {
             player.sendMessage(Text.literal("§7[KingdomUnique] モード切替可能な能力を持っていません。"), false);
             return;
         }
@@ -58,16 +57,15 @@ public final class AbilityActions {
 
     /** Rキー：サーバー側で world.getTime() によるクールタイムを厳密に_checkして発動。 */
     public static void handleActivate(ServerPlayerEntity player) {
-        String ability = UniqueContentRegistry.getAbility(player);
+        String ability = UniqueContentRegistry.getActiveAbility(player);
         if (ability == null) {
+            if (!UniqueContentRegistry.getAbilities(player).isEmpty()) {
+                player.sendMessage(
+                        Text.literal("§7[KingdomUnique] この能力は受動型のため発動キーは使用しません。"), true);
+            }
             return;
         }
         int cooldown = AbilityDescriptions.cooldownTicks(ability);
-        if (cooldown <= 0) {
-            player.sendMessage(
-                    Text.literal("§7[KingdomUnique] この能力は受動型のため発動キーは使用しません。"), true);
-            return;
-        }
 
         PlayerAbilityState state = AbilityState.get(player.getUuid());
         long now = player.getServerWorld().getTime();

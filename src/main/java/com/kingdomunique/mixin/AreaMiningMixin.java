@@ -29,7 +29,7 @@ public abstract class AreaMiningMixin {
         if (!cir.getReturnValue()) {
             return;
         }
-        if (!UniqueContentRegistry.DIVINE_SMITH.equals(UniqueContentRegistry.getAbility(player))) {
+        if (!UniqueContentRegistry.has(player, UniqueContentRegistry.DIVINE_SMITH)) {
             return;
         }
         if (!EnhancementUtil.isEnhanceable(player.getMainHandStack())) {

@@ -33,6 +33,8 @@ public final class KingdomUnifiedHud {
 
     private static int cachedCurrentPop = 0;
     private static int cachedMaxPop = 10;
+    private static int cachedTreasuryEmeralds = 0;
+    private static int cachedTreasuryBread = 0;
 
     private KingdomUnifiedHud() {
     }
@@ -48,6 +50,8 @@ public final class KingdomUnifiedHud {
                 (payload, context) -> context.client().execute(() -> {
                     cachedCurrentPop = payload.currentPopulation();
                     cachedMaxPop = payload.maxPopulation();
+                    cachedTreasuryEmeralds = payload.treasuryEmeralds();
+                    cachedTreasuryBread = payload.treasuryBread();
                 }));
     }
 
@@ -88,6 +92,19 @@ public final class KingdomUnifiedHud {
         context.fill(x, y, x + width, y + 16, 0x9010141E);
         context.fill(x, y, x + 2, y + 16, 0xFFE5B84B);
         context.drawTextWithShadow(tr, Text.literal(text), x + 6, y + 3, 0xFFFFFF);
+
+        // Gemini 修正: 2段目に国庫在庫（エメラルド／パン）をアイコン付きで表示。
+        int subY = y + 18;
+        int subWidth = 96;
+        context.fill(x, subY, x + subWidth, subY + 16, 0x9010141E);
+        context.fill(x, subY, x + 2, subY + 16, 0xFF38BDF8);
+        context.drawTextWithShadow(tr, Text.literal("§7国庫:"), x + 6, subY + 4, 0xFFFFFF);
+        context.drawItem(new ItemStack(net.minecraft.item.Items.EMERALD), x + 34, subY);
+        context.drawTextWithShadow(tr, Text.literal("§a" + cachedTreasuryEmeralds), x + 51, subY + 4, 0xFFFFFF);
+        int breadX = x + 51 + tr.getWidth(String.valueOf(cachedTreasuryEmeralds)) + 6;
+        context.drawItem(new ItemStack(net.minecraft.item.Items.BREAD), breadX, subY);
+        context.drawTextWithShadow(tr, Text.literal("§e" + cachedTreasuryBread),
+                breadX + 17, subY + 4, 0xFFFFFF);
     }
 
     /** ② ホットバー右隣: 能力アイコン＋CTゲージ（使用可能時は金色枠）。 */
