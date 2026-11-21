@@ -2,6 +2,7 @@ package com.kingdomunique.soldier;
 
 import com.kingdomunique.entity.CitizenVillager;
 import com.kingdomunique.util.EnhancementUtil;
+import com.kingdomunique.war.KingdomWarTargetHelper;
 import net.fabricmc.fabric.api.entity.event.v1.ServerLivingEntityEvents;
 import net.fabricmc.fabric.api.event.lifecycle.v1.ServerTickEvents;
 import net.minecraft.component.DataComponentTypes;
@@ -59,7 +60,8 @@ public final class SoldierCombatHandler {
             // 武器が消えないよう自動拾得を禁止する。
             soldier.setCanPickUpLoot(false);
 
-            LivingEntity target = findNearestEnemy(world, soldier, 18.0D);
+            // Gemini 修正: 戦時は他国兵士・英雄・王も索敵対象に含める。
+            LivingEntity target = KingdomWarTargetHelper.findBestTarget(world, soldier, 18.0D);
             if (target == null) {
                 soldier.setTarget(null);
                 continue;

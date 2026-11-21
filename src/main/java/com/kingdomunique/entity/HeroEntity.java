@@ -161,6 +161,13 @@ public final class HeroEntity extends PathAwareEntity {
         }
         lastSpecialTick = now;
 
+        // Gemini 修正: 戦時中は敵国の兵士・英雄・王を自動索敵して攻撃対象にロックする。
+        LivingEntity warTarget = com.kingdomunique.war.KingdomWarTargetHelper.findBestTarget(
+                (net.minecraft.server.world.ServerWorld) this.getWorld(), this, 24.0D);
+        if (warTarget != null) {
+            this.setTarget(warTarget);
+        }
+
         if (heroClass == HeroClass.KNIGHT) {
             for (HostileEntity hostile : this.getWorld().getEntitiesByClass(HostileEntity.class,
                     this.getBoundingBox().expand(3.5D), h -> h.isAlive())) {
