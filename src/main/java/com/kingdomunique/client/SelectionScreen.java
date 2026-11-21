@@ -159,7 +159,7 @@ public final class SelectionScreen extends Screen {
 
     @Override
     public void render(DrawContext context, int mouseX, int mouseY, float delta) {
-        renderBackground(context, mouseX, mouseY, delta);
+        super.render(context, mouseX, mouseY, delta);
         context.drawCenteredTextWithShadow(textRenderer, title, width / 2, 10, 0xFFFFFFFF);
         context.drawCenteredTextWithShadow(textRenderer, Text.literal("1枚だけ選べます・世界で唯一・やり直し不可"),
                 width / 2, 26, 0xFF94A3B8);
@@ -169,7 +169,6 @@ public final class SelectionScreen extends Screen {
             drawCard(context, layout, i, hovered == i);
         }
         drawDetails(context, layout.detailTop(), hovered >= 0 ? hovered : selectedIndex);
-        super.render(context, mouseX, mouseY, delta);
     }
 
     private void drawCard(DrawContext context, Layout layout, int index, boolean hovered) {
