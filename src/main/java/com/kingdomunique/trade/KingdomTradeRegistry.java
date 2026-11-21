@@ -32,11 +32,16 @@ public final class KingdomTradeRegistry {
         UUID ownerUuid = resolveOwner(villager, player);
         KingdomBuildingState buildings = KingdomBuildingState.get(world);
 
-        boolean hasMarket = buildings.hasCompletedBuilding(ownerUuid, BuildingType.MARKET);
-        boolean hasGranary = buildings.hasCompletedBuilding(ownerUuid, BuildingType.GRANARY);
-        boolean hasBlacksmith = buildings.hasCompletedBuilding(ownerUuid, BuildingType.BLACKSMITH);
-        boolean hasTownHall = buildings.hasCompletedBuilding(ownerUuid, BuildingType.TOWN_HALL);
-        boolean hasRoyalPalace = buildings.hasCompletedBuilding(ownerUuid, BuildingType.ROYAL_PALACE);
+        return buildOffers(citizenRole, type -> buildings.hasCompletedBuilding(ownerUuid, type));
+    }
+
+    public static TradeOfferList buildOffers(String citizenRole,
+                                            java.util.function.Predicate<BuildingType> completed) {
+        boolean hasMarket = completed.test(BuildingType.MARKET);
+        boolean hasGranary = completed.test(BuildingType.GRANARY);
+        boolean hasBlacksmith = completed.test(BuildingType.BLACKSMITH);
+        boolean hasTownHall = completed.test(BuildingType.TOWN_HALL);
+        boolean hasRoyalPalace = completed.test(BuildingType.ROYAL_PALACE);
 
         TradeOfferList offers = new TradeOfferList();
         switch (citizenRole) {

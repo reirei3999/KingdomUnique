@@ -10,7 +10,7 @@ import org.spongepowered.asm.mixin.injection.Inject;
 import org.spongepowered.asm.mixin.injection.callback.CallbackInfo;
 import org.spongepowered.asm.mixin.injection.callback.CallbackInfoReturnable;
 
-/** 狂戦士の自然回復封じ、足枷のジャンプ封じ、聖杯の空腹無効。 */
+/** 狂戦士の自然回復封じ、足枷のジャンプ封じ、聖杯の空腹ステータス効果解除。 */
 @Mixin(PlayerEntity.class)
 public abstract class PlayerCurseMixin {
 
@@ -29,10 +29,10 @@ public abstract class PlayerCurseMixin {
         }
     }
 
-    @Inject(method = "addExhaustion", at = @At("HEAD"), cancellable = true)
-    private void kingdomUnique$noHunger(CallbackInfo ci) {
-        if ((Object) this instanceof ServerPlayerEntity player && RelicEffects.isHungerDisabled(player)) {
-            ci.cancel();
+    @Inject(method = "tick", at = @At("HEAD"))
+    private void kingdomUnique$removeHungerEffect(CallbackInfo ci) {
+        if ((Object) this instanceof ServerPlayerEntity player) {
+            RelicEffects.tickChalice(player);
         }
     }
 }
