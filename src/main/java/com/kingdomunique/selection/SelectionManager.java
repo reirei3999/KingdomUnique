@@ -60,7 +60,15 @@ public final class SelectionManager {
         }
         List<String> options = ContentRegistry.randomDistinct(available, count);
         pendingState(player).setPending(player.getUuid(), kind, options);
-        sendScreen(player, kind, options);
+        PendingSelectionState.Pending head = pendingState(player).getPending(player.getUuid());
+        if (head == null) {
+            return;
+        }
+        if (head.kind() == kind) {
+            sendScreen(player, kind, options);
+        } else {
+            player.sendMessage(Text.literal("§e[KingdomUnique] 新しい選択を保留しました。現在の選択を確定すると表示されます。"), false);
+        }
     }
 
     /** 専用コマンド等から未選択分を再表示する。 */
@@ -115,6 +123,11 @@ public final class SelectionManager {
             return;
         }
         state.clearPending(player.getUuid());
+
+        PendingSelectionState.Pending next = state.getPending(player.getUuid());
+        if (next != null) {
+            sendScreen(player, next.kind(), next.optionIds());
+        }
 
         // 実体アイテムがある場合のみ安全に付与する（空気は渡さない）。
         com.kingdomunique.util.RewardUtil.grantPhysical(player, chosenId);
