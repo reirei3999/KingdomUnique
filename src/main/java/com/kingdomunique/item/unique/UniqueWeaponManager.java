@@ -129,22 +129,28 @@ public final class UniqueWeaponManager {
         return false;
     }
 
-    /** ステップ1の10村のチェストへ未取得の武器を1本ずつ配置する。 */
+    /**
+     * ステップ1の10村のチェストへ未取得の武器を1本ずつ配置する。
+     * 村が生成済みでチェスト位置のチャンクが読み込まれている村だけに置く
+     * （未読み込みのチャンクでは地表の高さが取れず、岩盤付近に埋まってしまうため）。
+     */
     public static void distributeToVillages(ServerWorld world) {
         WorldUniqueData data = WorldUniqueData.getOrCreate(world);
-        int index = 0;
-        for (com.kingdomunique.data.WorldUniqueData.VillageSite site : data.getVillageSites()) {
-            if (index >= UniqueWeapons.ALL_IDS.length) {
-                break;
-            }
-            String id = UniqueWeapons.ALL_IDS[index++];
-            if (data.isClaimed(id)) {
+        com.kingdomunique.world.VillageGenState gen = com.kingdomunique.world.VillageGenState.get(world);
+        java.util.List<WorldUniqueData.VillageSite> sites = data.getVillageSites();
+        for (int index = 0; index < Math.min(sites.size(), UniqueWeapons.ALL_IDS.length); index++) {
+            String id = UniqueWeapons.ALL_IDS[index];
+            WorldUniqueData.VillageSite site = sites.get(index);
+            if (data.isClaimed(id) || !isVillageBuilt(gen, site)) {
                 continue;
             }
-            BlockPos base = new BlockPos(site.x(),
-                    world.getTopY(net.minecraft.world.Heightmap.Type.WORLD_SURFACE, site.x(), site.z()) + 1,
-                    site.z());
-            BlockPos chestPos = base.add(2, 0, 2);
+            int chestX = site.x() + 2;
+            int chestZ = site.z() + 2;
+            if (!world.isChunkLoaded(chestX >> 4, chestZ >> 4)) {
+                continue;
+            }
+            BlockPos chestPos = new BlockPos(chestX,
+                    world.getTopY(net.minecraft.world.Heightmap.Type.WORLD_SURFACE, chestX, chestZ), chestZ);
             net.minecraft.inventory.Inventory inventory = null;
             if (world.getBlockEntity(chestPos) instanceof net.minecraft.inventory.Inventory found) {
                 inventory = found;
@@ -160,6 +166,16 @@ public final class UniqueWeaponManager {
             inventory.setStack(0, new ItemStack(uniqueStack(id).getItem()));
             data.claimId(WORLD_OWNER, id);
         }
+    }
+
+    private static boolean isVillageBuilt(com.kingdomunique.world.VillageGenState gen,
+                                          WorldUniqueData.VillageSite site) {
+        for (com.kingdomunique.world.VillageGenState.VillageEntry entry : gen.pendingVillages) {
+            if (entry.x == site.x() && entry.z == site.z()) {
+                return entry.built;
+            }
+        }
+        return false;
     }
 
     private static ItemStack uniqueStack(String id) {
