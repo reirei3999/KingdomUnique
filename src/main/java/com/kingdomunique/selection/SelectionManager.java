@@ -1,5 +1,6 @@
 package com.kingdomunique.selection;
 
+import com.kingdomunique.data.PendingSelectionState;
 import com.kingdomunique.data.WorldUniqueData;
 import com.kingdomunique.effect.RelicEffects;
 import com.kingdomunique.effect.CurseEffects;
@@ -75,6 +76,9 @@ public final class SelectionManager {
         List<String> options = ContentRegistry.randomDistinct(available, count);
         Pending pending = new Pending(kind, options);
         PENDING.put(player.getUuid(), pending);
+        // Gemini 修正: 未確定選択を永続化し、再ログイン時に再表示できるようにする。
+        PendingSelectionState.get(player.getServerWorld())
+                .setPending(player.getUuid(), kind, options);
         sendScreen(player, pending);
     }
 
@@ -124,9 +128,11 @@ public final class SelectionManager {
         if (!data.claimId(player.getUuid(), chosenId)) {
             player.sendMessage(Text.literal("§c[KingdomUnique] このアイテムは他のプレイヤーに取得されました。"), false);
             PENDING.remove(player.getUuid());
+            PendingSelectionState.get(player.getServerWorld()).clearPending(player.getUuid());
             return;
         }
         PENDING.remove(player.getUuid());
+        PendingSelectionState.get(player.getServerWorld()).clearPending(player.getUuid());
 
         // 実体アイテムがある場合のみ安全に付与する（空気は渡さない）。
         com.kingdomunique.util.RewardUtil.grantPhysical(player, chosenId);

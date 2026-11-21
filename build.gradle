@@ -30,6 +30,33 @@ processResources {
     }
 }
 
+sourceSets {
+    gametest {
+        compileClasspath += main.output + main.compileClasspath
+        runtimeClasspath += main.runtimeClasspath
+    }
+}
+
+loom {
+    mods {
+        kingdomunique {
+            sourceSet sourceSets.main
+        }
+        kingdomunique_gametest {
+            sourceSet sourceSets.gametest
+        }
+    }
+    runs {
+        gameTest {
+            server()
+            source sourceSets.gametest
+            runDir 'build/gametest'
+            vmArg '-Dfabric-api.gametest'
+            vmArg "-Dfabric-api.gametest.report-file=${layout.buildDirectory.file('gametest-results.xml').get().asFile}"
+        }
+    }
+}
+
 def targetJavaVersion = 21
 
 tasks.withType(JavaCompile).configureEach {

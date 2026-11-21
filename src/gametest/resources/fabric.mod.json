@@ -1,0 +1,13 @@
+{
+  "schemaVersion": 1,
+  "id": "kingdomunique_gametest",
+  "version": "1.0.0",
+  "name": "KingdomUnique GameTest",
+  "entrypoints": {
+    "fabric-gametest": ["com.kingdomunique.world.VillagePlacementGameTest"]
+  },
+  "depends": {
+    "kingdomunique": "*",
+    "fabric-gametest-api-v1": "*"
+  }
+}

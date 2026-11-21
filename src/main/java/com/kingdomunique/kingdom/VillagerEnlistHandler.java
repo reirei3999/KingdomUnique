@@ -22,6 +22,10 @@ public final class VillagerEnlistHandler {
                     || !(entity instanceof com.kingdomunique.entity.CitizenVillager citizen)) {
                 return ActionResult.PASS;
             }
+            // 通常の右クリックはバニラの交易に任せる。スニーク時のみ国民化する。
+            if (!serverPlayer.isSneaking()) {
+                return ActionResult.PASS;
+            }
             if (!"".equals(citizen.ku$getOwnerUuid())) {
                 return ActionResult.PASS;
             }

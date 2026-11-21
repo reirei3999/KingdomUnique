@@ -1,6 +1,7 @@
 package com.kingdomunique.client;
 
 import com.kingdomunique.network.OpenItemMenuPayload;
+import com.kingdomunique.network.RequestKingdomNamePayload;
 import com.kingdomunique.network.OpenSelectionPayload;
 import net.fabricmc.api.EnvType;
 import net.fabricmc.api.Environment;
@@ -20,6 +21,9 @@ public final class SelectionClient {
             return;
         }
         initialized = true;
+        ClientPlayNetworking.registerGlobalReceiver(RequestKingdomNamePayload.ID, (payload, context) -> {
+            context.client().execute(() -> context.client().setScreen(new KingdomNameScreen()));
+        });
         ClientPlayNetworking.registerGlobalReceiver(OpenItemMenuPayload.ID, (payload, context) -> {
             context.client().execute(() -> context.client().setScreen(new ItemMenuScreen()));
         });

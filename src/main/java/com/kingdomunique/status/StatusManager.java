@@ -2,7 +2,13 @@ package com.kingdomunique.status;
 
 import com.kingdomunique.ability.AbilityState;
 import com.kingdomunique.ability.PlayerAbilityState;
+import com.kingdomunique.building.BuildData;
+import com.kingdomunique.building.KingdomBuildingState;
+import com.kingdomunique.building.StructureRotationUtil;
 import com.kingdomunique.data.WorldUniqueData;
+import com.kingdomunique.kingdom.PopulationManager;
+import com.kingdomunique.network.BuildingBoxesSyncPayload;
+import com.kingdomunique.network.KingdomPopulationSyncPayload;
 import com.kingdomunique.network.RequestStatusPayload;
 import com.kingdomunique.network.SyncPlayerStatusPayload;
 import com.kingdomunique.registry.UniqueContentRegistry;
@@ -12,6 +18,8 @@ import net.fabricmc.fabric.api.networking.v1.ServerPlayNetworking;
 import net.minecraft.server.command.CommandManager;
 import net.minecraft.server.command.ServerCommandSource;
 import net.minecraft.server.network.ServerPlayerEntity;
+import net.minecraft.server.world.ServerWorld;
+import net.minecraft.util.math.BlockBox;
 import net.minecraft.world.World;
 
 import java.util.ArrayList;
@@ -58,6 +66,62 @@ public final class StatusManager {
         for (ServerPlayerEntity player : server.getPlayerManager().getPlayerList()) {
             sendStatus(player, false);
         }
+        // 建築物の占有範囲・王国人口は1秒ごとに同期（プレビュー判定とHUD表示用）。
+        if (tick % 20L == 0L) {
+            ServerWorld overworld = server.getWorld(World.OVERWORLD);
+            if (overworld != null) {
+                BuildingBoxesSyncPayload payload = createBuildingBoxesPayload(overworld);
+                for (ServerPlayerEntity player : server.getPlayerManager().getPlayerList()) {
+                    if (ServerPlayNetworking.canSend(player, BuildingBoxesSyncPayload.ID)) {
+                        ServerPlayNetworking.send(player, payload);
+                    }
+                    syncPopulationToPlayer(player, overworld);
+                }
+            }
+        }
+    }
+
+    /** 王国の現在人口・上限をクライアントへ同期する。 */
+    public static void syncPopulationToPlayer(ServerPlayerEntity player, ServerWorld world) {
+        if (!ServerPlayNetworking.canSend(player, KingdomPopulationSyncPayload.ID)) {
+            return;
+        }
+        java.util.UUID kingId = player.getUuid();
+        net.minecraft.util.math.BlockPos center = player.getBlockPos();
+        for (KingdomBuildingState.CompletedBuilding b : KingdomBuildingState.get(world).entries()) {
+            if (b.ownerUuid.equals(kingId) && b.type == com.kingdomunique.building.BuildingType.TOWN_HALL) {
+                center = b.origin;
+                break;
+            }
+        }
+        int current = PopulationManager.countLivingCitizens(world, kingId, center);
+        int max = PopulationManager.calculateMaxPopulation(world, kingId);
+        ServerPlayNetworking.send(player, new KingdomPopulationSyncPayload(current, max));
+    }
+
+    /** 建築開始・完了時に即座に占有範囲を同期する（10tick待ちを不要にする）。 */
+    public static void syncBuildingBoxesToWorld(ServerWorld world) {
+        if (world == null) {
+            return;
+        }
+        BuildingBoxesSyncPayload payload = createBuildingBoxesPayload(world);
+        for (ServerPlayerEntity player : world.getPlayers()) {
+            if (ServerPlayNetworking.canSend(player, BuildingBoxesSyncPayload.ID)) {
+                ServerPlayNetworking.send(player, payload);
+            }
+        }
+    }
+
+    /** 完成済み＋建築中の BlockBox を収集してパケットを作る。 */
+    private static BuildingBoxesSyncPayload createBuildingBoxesPayload(ServerWorld world) {
+        List<BlockBox> boxes = new ArrayList<>();
+        for (KingdomBuildingState.CompletedBuilding entry : KingdomBuildingState.get(world).entries()) {
+            boxes.add(entry.boundingBox);
+        }
+        for (BuildData.BuildSite site : BuildData.getOrCreate(world).sites()) {
+            boxes.add(StructureRotationUtil.computeBoundingBox(site.pos(), site.type(), site.facing()));
+        }
+        return new BuildingBoxesSyncPayload(boxes);
     }
 
     public static void sendStatus(ServerPlayerEntity player, boolean openScreen) {

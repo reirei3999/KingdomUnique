@@ -7,10 +7,8 @@ import net.fabricmc.api.EnvType;
 import net.fabricmc.api.Environment;
 import net.fabricmc.fabric.api.client.event.lifecycle.v1.ClientTickEvents;
 import net.fabricmc.fabric.api.client.networking.v1.ClientPlayNetworking;
-import net.fabricmc.fabric.api.client.rendering.v1.HudRenderCallback;
 import net.fabricmc.fabric.api.client.rendering.v1.WorldRenderEvents;
 import net.minecraft.client.MinecraftClient;
-import net.minecraft.client.gui.DrawContext;
 import net.minecraft.client.render.RenderLayer;
 import net.minecraft.client.render.VertexConsumer;
 import net.minecraft.client.render.VertexConsumerProvider;
@@ -18,7 +16,6 @@ import net.minecraft.client.render.WorldRenderer;
 import net.minecraft.client.util.math.MatrixStack;
 import net.minecraft.item.BlockItem;
 import net.minecraft.item.ItemStack;
-import net.minecraft.text.Text;
 import net.minecraft.util.hit.BlockHitResult;
 import net.minecraft.util.math.BlockPos;
 import net.minecraft.util.math.Box;
@@ -27,7 +24,7 @@ import net.minecraft.util.math.Vec3d;
 import java.util.ArrayList;
 import java.util.List;
 
-/** 設計図の建材リストHUDと建築範囲の3Dプレビュー。 */
+/** 設計図の建材情報保持とワールド内3D線枠プレビュー（2D描画は KingdomUnifiedHud に統合）。 */
 @Environment(EnvType.CLIENT)
 public final class BlueprintClientOverlay {
 
@@ -51,7 +48,6 @@ public final class BlueprintClientOverlay {
         });
 
         ClientTickEvents.END_CLIENT_TICK.register(BlueprintClientOverlay::tick);
-        HudRenderCallback.EVENT.register(BlueprintClientOverlay::renderHud);
         WorldRenderEvents.AFTER_ENTITIES.register(context -> {
             if (focusPos == null || context.matrixStack() == null || context.consumers() == null) {
                 return;
@@ -65,11 +61,12 @@ public final class BlueprintClientOverlay {
             VertexConsumerProvider consumers = context.consumers();
             VertexConsumer consumer = consumers.getBuffer(RenderLayer.getLines());
             double minX = focusPos.getX() - radius;
-            double minY = focusPos.getY();
+            double minY = focusPos.getY() - 1;
             double minZ = focusPos.getZ() - radius;
             WorldRenderer.drawBox(matrices, consumer,
                     new Box(minX, minY, minZ,
-                            minX + radius * 2 + 2, minY + 10, minZ + radius * 2 + 2),
+                            focusPos.getX() + radius + 1, focusPos.getY() + 15,
+                            focusPos.getZ() + radius + 1),
                     0.30F, 0.85F, 1.0F, 0.85F);
         });
     }
@@ -89,12 +86,12 @@ public final class BlueprintClientOverlay {
             if (client.world.getBlockState(hitPos).getBlock() instanceof BlueprintBlock) {
                 newFocus = hitPos;
             } else if (holdingBlueprint) {
-                newFocus = hitPos.up();
+                newFocus = hitPos.offset(hit.getSide());
             }
         }
         if (holdingBlueprint && newFocus == null) {
             Vec3d look = client.player.getRotationVec(1.0F);
-            newFocus = client.player.getBlockPos().add(
+            newFocus = client.player.getBlockPos().up().add(
                     (int) Math.round(look.x * 6.0D), 0, (int) Math.round(look.z * 6.0D));
         }
         if (newFocus == null || !newFocus.equals(focusPos)) {
@@ -119,42 +116,16 @@ public final class BlueprintClientOverlay {
         holdingBlueprint = false;
     }
 
-    private static void renderHud(DrawContext context, net.minecraft.client.render.RenderTickCounter tickCounter) {
-        if (focusPos == null || lines.isEmpty()) {
-            return;
-        }
-        MinecraftClient client = MinecraftClient.getInstance();
-        // F1（HUD非表示）中は建材HUDも描画しない。
-        if (client.player == null || client.options.hudHidden) {
-            return;
-        }
-        int y = client.getWindow().getScaledHeight() / 2 + 32;
-        int x = 12;
-        context.fill(x - 4, y - 16, x + 200, y + lines.size() * 12 + 6, 0x99000000);
-        context.drawTextWithShadow(client.textRenderer,
-                Text.literal("§6§l" + (buildingName.isEmpty() ? "建築予定" : buildingName)), x, y - 14, 0xFFFFFFFF);
-        for (int i = 0; i < lines.size(); i++) {
-            String line = lines.get(i);
-            int color = line.contains("建築中") ? 0xFF55FF55
-                    : (line.matches(".*\\s\\d+/\\d+") ? parseColor(line) : 0xFFFFFFFF);
-            context.drawTextWithShadow(client.textRenderer, Text.literal(line), x, y + i * 12, color);
-        }
+    /** 統合HUDへ渡すための状態アクセサ。 */
+    public static BlockPos getFocusPos() {
+        return focusPos;
     }
 
-    private static int parseColor(String line) {
-        String[] parts = line.split("\\s+");
-        if (parts.length < 2) {
-            return 0xFFFFFFFF;
-        }
-        String[] nums = parts[parts.length - 1].split("/");
-        if (nums.length == 2) {
-            try {
-                return Integer.parseInt(nums[0]) >= Integer.parseInt(nums[1])
-                        ? 0xFF55FF55 : 0xFFFF6666;
-            } catch (NumberFormatException ignored) {
-                return 0xFFFFFFFF;
-            }
-        }
-        return 0xFFFFFFFF;
+    public static List<String> getLines() {
+        return lines;
+    }
+
+    public static String getBuildingName() {
+        return buildingName;
     }
 }

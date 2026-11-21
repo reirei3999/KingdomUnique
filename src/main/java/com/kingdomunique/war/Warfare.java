@@ -122,12 +122,16 @@ public final class Warfare {
 
     public static void setAlly(ServerPlayerEntity a, ServerPlayerEntity b) {
         DiplomacyData.getOrCreate(a.getServerWorld()).ally(a.getUuid(), b.getUuid());
+        com.kingdomunique.kingdom.KingdomManager.refreshCitizenNameplates(a.getServerWorld(), a.getUuid(), b.getUuid());
+        com.kingdomunique.kingdom.KingdomManager.refreshCitizenNameplates(b.getServerWorld(), b.getUuid(), a.getUuid());
         a.sendMessage(Text.literal("§6[外交] " + b.getName().getString() + " と同盟を結んだ。"), false);
         b.sendMessage(Text.literal("§6[外交] " + a.getName().getString() + " と同盟を結んだ。"), false);
     }
 
     public static void declareWar(ServerPlayerEntity a, ServerPlayerEntity b) {
         DiplomacyData.getOrCreate(a.getServerWorld()).declareWar(a.getUuid(), b.getUuid());
+        com.kingdomunique.kingdom.KingdomManager.refreshCitizenNameplates(a.getServerWorld(), a.getUuid(), b.getUuid());
+        com.kingdomunique.kingdom.KingdomManager.refreshCitizenNameplates(b.getServerWorld(), b.getUuid(), a.getUuid());
         a.getServer().getPlayerManager().broadcast(
                 Text.literal("§c§l【宣戦布告】§r " + a.getName().getString()
                         + " が " + b.getName().getString() + " に宣戦布告した！"), false);

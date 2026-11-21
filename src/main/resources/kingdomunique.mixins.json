@@ -19,9 +19,13 @@
     "PlayerCurseMixin",
     "RangedDamageMixin",
     "StatusEffectMixin",
-    "UniqueWeaponMixin"
+    "UniqueWeaponMixin",
+    "VillagerBreedTaskMixin",
+    "VillagerProfessionMixin"
   ],
-  "client": [],
+  "client": [
+    "client.VillagerRendererMixin"
+  ],
   "injectors": {
     "defaultRequire": 1
   }

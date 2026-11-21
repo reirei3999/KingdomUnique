@@ -111,8 +111,17 @@ public final class BuildingManager {
         return true;
     }
 
+    /** 建築現場に割り当てた建築士（dimension|pos -> villager UUID）。 */
+    private static final java.util.Map<String, java.util.UUID> ASSIGNED_BUILDERS =
+            new java.util.HashMap<>();
+
+    private static String siteKey(ServerWorld world, BlockPos pos) {
+        return world.getRegistryKey().getValue().toString() + "|" + pos.asLong();
+    }
+
     /** 毎Tickの建築進行。 */
     public static void onServerTick(MinecraftServer server) {
+        BuildingEffectHandler.tick(server);
         for (ServerWorld world : server.getWorlds()) {
             BuildData data = BuildData.getOrCreate(world);
             for (BuildData.BuildSite site : new java.util.ArrayList<>(data.sites())) {
@@ -129,7 +138,11 @@ public final class BuildingManager {
                 if (owner == null) {
                     continue;
                 }
-                if (!hasBuilderNearby(world, site.pos(), owner)) {
+
+                // 建築士を現場へ向かわせ、到着するまで進行させない。
+                net.minecraft.entity.passive.VillagerEntity builder =
+                        guideBuilder(world, site, owner);
+                if (builder == null || !hasBuilderNearby(world, site.pos(), owner)) {
                     continue;
                 }
 
@@ -143,20 +156,7 @@ public final class BuildingManager {
                             SoundCategory.BLOCKS, 0.6F, 1.0F);
                 }
                 if (progress >= required) {
-                    StructurePlacer.place(world, site.pos(), site.type());
-                    DefenseData.register(world, site.pos(), site.type(), owner.getUuid());
-                    if (site.type() == BuildingType.TOWN_HALL) {
-                        KingdomManager.markTownHall(owner, site.pos());
-                        com.kingdomunique.kingdom.PolicyManager.sendPolicyOffer(owner);
-                    } else if (site.type().getPopulationCapBonus() > 0) {
-                        KingdomManager.addCapBonus(owner, site.type().getPopulationCapBonus());
-                    }
-                    world.playSound(null, site.pos(), SoundEvents.UI_TOAST_CHALLENGE_COMPLETE,
-                            SoundCategory.BLOCKS, 1.0F, 1.0F);
-                    owner.sendMessage(Text.literal("§6[設計図] " + site.type().getDisplayName()
-                            + " が完成しました！"), false);
-                    data.sites().remove(site);
-                    data.markChanged();
+                    completeNow(world, site, owner);
                 } else {
                     data.sites().remove(site);
                     data.add(site.withProgress(progress));
@@ -165,10 +165,121 @@ public final class BuildingManager {
         }
     }
 
+    /** 建築士を選択し、現場へ誘導する。到着後はその場に留まらせる。 */
+    private static net.minecraft.entity.passive.VillagerEntity guideBuilder(
+            ServerWorld world, BuildData.BuildSite site, ServerPlayerEntity owner) {
+        String key = siteKey(world, site.pos());
+        net.minecraft.entity.passive.VillagerEntity builder = null;
+        java.util.UUID assigned = ASSIGNED_BUILDERS.get(key);
+        if (assigned != null && world.getEntity(assigned)
+                instanceof net.minecraft.entity.passive.VillagerEntity found && found.isAlive()) {
+            builder = found;
+        }
+        if (builder == null) {
+            builder = findNearestBuilder(world, site.pos(), owner);
+            if (builder == null) {
+                return null;
+            }
+            ASSIGNED_BUILDERS.put(key, builder.getUuid());
+            owner.sendMessage(Text.literal("§6[設計図] 建築士が現場へ向かいました。"), false);
+        }
+
+        double dx = builder.getX() - (site.pos().getX() + 0.5D);
+        double dz = builder.getZ() - (site.pos().getZ() + 0.5D);
+        double distanceSq = dx * dx + dz * dz;
+        if (distanceSq <= 4.0D) {
+            // 現場に到着：徘徊させずその場に留める。
+            builder.getNavigation().stop();
+            builder.setYaw((float) (Math.atan2(-dx, dz) * 180.0D / Math.PI));
+        } else {
+            builder.getNavigation().startMovingTo(
+                    site.pos().getX() + 0.5D, site.pos().getY(), site.pos().getZ() + 0.5D, 0.7D);
+        }
+        return builder;
+    }
+
+    private static net.minecraft.entity.passive.VillagerEntity findNearestBuilder(
+            ServerWorld world, BlockPos pos, ServerPlayerEntity owner) {
+        net.minecraft.entity.passive.VillagerEntity best = null;
+        double bestDist = Double.MAX_VALUE;
+        for (net.minecraft.entity.passive.VillagerEntity villager : world.getEntitiesByClass(
+                net.minecraft.entity.passive.VillagerEntity.class,
+                new net.minecraft.util.math.Box(pos).expand(128.0D),
+                v -> v.isAlive())) {
+            if (!(villager instanceof CitizenVillager citizen)
+                    || !owner.getUuid().toString().equals(citizen.ku$getOwnerUuid())
+                    || !CitizenVillager.ROLE_BUILDER.equals(citizen.ku$getRole())) {
+                continue;
+            }
+            double d = villager.squaredDistanceTo(pos.getX(), pos.getY(), pos.getZ());
+            if (d < bestDist) {
+                bestDist = d;
+                best = villager;
+            }
+        }
+        return best;
+    }
+
+    private static void releaseBuilder(ServerWorld world, BuildData.BuildSite site) {
+        java.util.UUID uuid = ASSIGNED_BUILDERS.remove(siteKey(world, site.pos()));
+        if (uuid != null && world.getEntity(uuid)
+                instanceof net.minecraft.entity.passive.VillagerEntity villager) {
+            villager.getNavigation().stop();
+        }
+    }
+    /** 建築を即座に完了させる（通常進行と OP クリエイティブの即時完了から共通利用）。 */
+    public static boolean completeNow(ServerWorld world, BuildData.BuildSite site,
+                                      ServerPlayerEntity owner) {
+        if (!canPlaceSafely(world, site.pos())) {
+            return false;
+        }
+        StructurePlacer.place(world, site.pos(), site.type(), site.facing());
+        net.minecraft.util.math.Direction facing = site.facing();
+        net.minecraft.util.math.BlockBox box = StructureRotationUtil.computeBoundingBox(site.pos(), site.type(), facing);
+        net.minecraft.util.math.BlockPos core = site.type() == BuildingType.HERO_SANCTUARY
+                ? StructureRotationUtil.transformPos(site.pos(), 4, 1, 4, 9, 9, facing) : null;
+        KingdomBuildingState.get(world).add(owner.getUuid(), site.type(), site.pos(), facing, box, core);
+        BuildingEffectHandler.onCompleted(world, owner.getUuid(), site.type(), site.pos());
+        CompletedBuildingsData.getOrCreate(world).add(site.pos(), site.type(), owner.getUuid());
+        DefenseData.register(world, site.pos(), site.type(), owner.getUuid());
+        if (site.type() == BuildingType.TOWN_HALL) {
+            KingdomManager.markTownHall(owner, site.pos());
+            com.kingdomunique.kingdom.PolicyManager.sendPolicyOffer(owner);
+        } else if (site.type() == BuildingType.HERO_SANCTUARY) {
+            net.minecraft.util.math.BlockPos sanctuaryCore = core != null ? core
+                    : site.pos().add(com.kingdomunique.world.HeroSanctuaryBuilder.CORE_OFFSET);
+            com.kingdomunique.kingdom.SanctuaryData.getOrCreate(world)
+                    .register(sanctuaryCore, owner.getUuid());
+            owner.sendMessage(Text.literal("§6[英雄召喚の祭壇] 完成！中央のロードストーンを右クリックして英雄を召喚できます。"), false);
+        } else if (site.type().getPopulationCapBonus() > 0) {
+            KingdomManager.addCapBonus(owner, site.type().getPopulationCapBonus());
+        }
+        world.playSound(null, site.pos(), SoundEvents.UI_TOAST_CHALLENGE_COMPLETE,
+                SoundCategory.BLOCKS, 1.0F, 1.0F);
+        owner.sendMessage(Text.literal("§6[設計図] " + site.type().getDisplayName()
+                + " が完成しました！"), false);
+        BuildData data = BuildData.getOrCreate(world);
+        data.sites().remove(site);
+        data.markDirty();
+        releaseBuilder(world, site);
+        return true;
+    }
+    /** チャンク未ロード・高度範囲外での配置を防ぐ（Gemini 提示のバグ③対策）。 */
+    public static boolean canPlaceSafely(ServerWorld world, BlockPos pos) {
+        return world.isChunkLoaded(pos.getX() >> 4, pos.getZ() >> 4)
+                && world.isInBuildLimit(pos);
+    }
+    /** 建築サイトの完了までに必要なティック数（依頼者の倍率を反映）。 */
+    public static int requiredTicks(ServerWorld world, BuildData.BuildSite site) {
+        ServerPlayerEntity owner = world.getServer().getPlayerManager().getPlayer(site.owner());
+        double multiplier = owner != null ? timeMultiplier(owner) : 1.0D;
+        return (int) Math.max(20L, site.type().getBaseBuildTicks() * multiplier);
+    }
+
     private static boolean hasBuilderNearby(ServerWorld world, BlockPos pos, ServerPlayerEntity owner) {
         for (net.minecraft.entity.passive.VillagerEntity villager : world.getEntitiesByClass(
                 net.minecraft.entity.passive.VillagerEntity.class,
-                new net.minecraft.util.math.Box(pos).expand(24.0D),
+                new net.minecraft.util.math.Box(pos).expand(5.0D),
                 v -> v.isAlive() && v instanceof CitizenVillager)) {
             CitizenVillager citizen = (CitizenVillager) villager;
             if (owner.getUuid().toString().equals(citizen.ku$getOwnerUuid())

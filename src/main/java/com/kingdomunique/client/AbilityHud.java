@@ -51,10 +51,10 @@ public final class AbilityHud {
         int ct = status.cooldownTicks();
         if (AbilityDescriptions.cooldownTicks(abilityId) > 0) {
             if (ct > 0) {
-                float seconds = ct / 20.0F;
                 int color = ct <= 40 ? 0xFFFF5555 : 0xFFFFDD55;
                 context.drawTextWithShadow(client.textRenderer,
-                        Text.literal("CT：残り " + String.format("%.1f", seconds) + "秒"),
+                        Text.literal("CT：残り "
+                                + AbilityDescriptions.formatSeconds(ct) + "秒"),
                         x + 22, y + 15, color);
             } else {
                 context.drawTextWithShadow(client.textRenderer,

@@ -57,6 +57,7 @@ public class KingdomUniqueMod implements ModInitializer {
         com.kingdomunique.item.ItemMenuHandler.register();
         com.kingdomunique.command.ModCommands.register();
         SelectionEventHandler.register();
+        com.kingdomunique.selection.SelectionResendHandler.register();
         com.kingdomunique.status.StatusManager.register();
 
         // ステップ5: 国民・英雄エンティティと王国イベントを登録する。
@@ -64,10 +65,18 @@ public class KingdomUniqueMod implements ModInitializer {
         KingdomEventHandler.register();
         com.kingdomunique.kingdom.PolicyManager.register();
         com.kingdomunique.kingdom.VillagerEnlistHandler.register();
+        com.kingdomunique.kingdom.PopulationManager.register();
+        com.kingdomunique.trade.CitizenTradeHandler.register();
+        com.kingdomunique.soldier.SoldierInteractionHandler.register();
+        com.kingdomunique.soldier.SoldierCombatHandler.register();
+        com.kingdomunique.world.KingdomDecayManager.register();
         com.kingdomunique.building.DefenseSystem.register();
         com.kingdomunique.util.EnhancementAuraSystem.register();
         com.kingdomunique.util.RoadSpeedSystem.register();
         com.kingdomunique.world.StarterSpawn.register();
+        com.kingdomunique.world.WorldInitializer.register();
+        com.kingdomunique.kingdom.SanctuaryInteractHandler.register();
+        com.kingdomunique.world.VillageProtection.register();
 
         // ステップ6: 設計図ブロック・一点モノ武器・最終統合イベントを登録する。
         ModBlocks.initialize();

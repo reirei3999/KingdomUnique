@@ -21,6 +21,15 @@ public final class AbilityDescriptions {
         };
     }
 
+    /**
+     * 残りティックを0.5秒刻みの文字列にする（小数部は 0.0 か 0.5 のみ）。
+     */
+    public static String formatSeconds(int ticks) {
+        double seconds = Math.max(0.0D, ticks / 20.0D);
+        double rounded = Math.round(seconds * 2.0D) / 2.0D;
+        return String.format(java.util.Locale.ROOT, "%.1f", rounded);
+    }
+
     /** 操作キーのヒント。 */
     public static String controlHint(String id) {
         int ct = cooldownTicks(id);
@@ -89,7 +98,77 @@ public final class AbilityDescriptions {
                     "・Rキー：視線先の敵を浮かせて拘束、再押下で解放",
                     "・落下ダメージ50%カット、CT 15秒"
             };
-            default -> new String[]{"世界で唯一の能力。"};
+            // ---- 遺物（レリック） ----
+            case "chalice_of_abundance" -> new String[]{
+                    "・王国内のNPC回復量が2倍",
+                    "・空腹ゲージの減少を無効化"
+            };
+            case "banner_of_victory" -> new String[]{
+                    "・自国兵士NPCの攻撃力1.2倍",
+                    "・英雄の召喚上限が+1"
+            };
+            case "sages_blueprint" -> new String[]{
+                    "・建築時間が50%短縮",
+                    "・建築士NPCの作業効率が2倍"
+            };
+            case "golden_scale" -> new String[]{
+                    "・1日ごとに国民数に応じたエメラルドと鉄を生成"
+            };
+            case "ward_stone" -> new String[]{
+                    "・領土内の敵対Mobのスポーンを無効",
+                    "・夜間の被ダメージ30%カット"
+            };
+            case "phoenix_feather" -> new String[]{
+                    "・1日1回、致命傷をキャンセルして全回復",
+                    "・空腹も全回復する"
+            };
+            case "artisans_hammer" -> new String[]{
+                    "・一定間隔で装備やエンチャント本を自動生産"
+            };
+            case "blade_of_slaughter" -> new String[]{
+                    "・専用の殺戮の宝剣を付与",
+                    "・撃破ごとに攻撃力+0.05が永久に蓄積"
+            };
+            case "cradle_of_prosperity" -> new String[]{
+                    "・王国の人口増加速度が1.5倍"
+            };
+            // ---- 呪物（カース） ----
+            case "berserker_mask" -> new String[]{
+                    "・与ダメージ1.6倍",
+                    "・自然回復が不能になる"
+            };
+            case "ring_of_gluttony" -> new String[]{
+                    "・撃破で一時的に攻撃力が上昇",
+                    "・空腹の減少3倍、空腹0で猛毒"
+            };
+            case "glass_cannon" -> new String[]{
+                    "・攻撃力・採掘速度2.5倍",
+                    "・最大HPが10に固定される"
+            };
+            case "crown_of_solitude" -> new String[]{
+                    "・全ての能力効果が1.8倍",
+                    "・味方や随伴者を連れられない"
+            };
+            case "chaos_dice" -> new String[]{
+                    "・攻撃ごとにダメージ0.7〜2.7倍（期待値1.7倍）"
+            };
+            case "gravity_shackles" -> new String[]{
+                    "・被ダメージ60%カット",
+                    "・ジャンプ不可・移動速度0.8倍・状態異常を無効化"
+            };
+            case "immoral_contract" -> new String[]{
+                    "・国民化のコストが0になる",
+                    "・国民が死ぬたびに呪いダメージを受ける"
+            };
+            case "void_lantern" -> new String[]{
+                    "・暗所では透明化＋攻撃力2倍",
+                    "・明所では防御力が半減する"
+            };
+            case "pickaxe_of_destruction" -> new String[]{
+                    "・専用ツルハシでどんなブロックも一瞬で破壊",
+                    "・破壊したブロックのドロップは消滅"
+            };
+            default -> new String[]{"世界で唯一の力。所持しているだけで効果が発動します。"};
         };
     }
 }

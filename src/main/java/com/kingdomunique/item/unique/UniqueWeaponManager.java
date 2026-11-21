@@ -259,7 +259,15 @@ public final class UniqueWeaponManager {
         arrow.setDamage(8.0D);
         arrow.setCritical(true);
         arrow.setOnFireFor(10);
+
+        // create(world) は原点(0,0,0)に生成されるため、目の前へ明示的に配置する。
+        Vec3d eye = player.getEyePos();
         Vec3d look = player.getRotationVec(1.0F);
+        arrow.refreshPositionAndAngles(
+                eye.x + look.x * 0.6D,
+                eye.y + look.y * 0.6D - 0.1D,
+                eye.z + look.z * 0.6D,
+                player.getYaw(), player.getPitch());
         arrow.setVelocity(look.x * 3.0D, look.y * 3.0D, look.z * 3.0D, 1.0F, 0.0F);
         arrow.addCommandTag("ku_light_arrow");
         world.spawnEntity(arrow);

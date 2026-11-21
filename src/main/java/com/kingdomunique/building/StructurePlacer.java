@@ -11,6 +11,28 @@ public final class StructurePlacer {
     }
 
     public static void place(ServerWorld world, BlockPos center, BuildingType type) {
+        place(world, center, type, net.minecraft.util.math.Direction.SOUTH);
+    }
+
+    /** 建物の正面を facing に向けて配置する。 */
+    public static void place(ServerWorld world, BlockPos center, BuildingType type,
+                             net.minecraft.util.math.Direction facing) {
+        // 王城は専用の中世ファンタジー風ビルダーで生成する（origin = 北西の角）。
+        if (type == BuildingType.TOWN_HALL) {
+            for (int cx = (center.getX() - 16) >> 4; cx <= (center.getX() + 16) >> 4; cx++) {
+                for (int cz = (center.getZ() - 16) >> 4; cz <= (center.getZ() + 16) >> 4; cz++) {
+                    world.getChunk(cx, cz);
+                }
+            }
+            com.kingdomunique.world.TownHallBuilder.buildTownHall(world, center);
+            return;
+        }
+        // 通常建築はバニラの村テンプレートを主体にする。
+        if (type == BuildingType.HOUSE || type == BuildingType.BARRACKS
+                || type == BuildingType.BLACKSMITH) {
+            placeVanillaVillageBuilding(world, center, type);
+            return;
+        }
         int r = radius(type) + 4;
         // 構造物がまたがる全チャンクを確実にロードする。
         for (int cx = (center.getX() - r) >> 4; cx <= (center.getX() + r) >> 4; cx++) {
@@ -28,9 +50,44 @@ public final class StructurePlacer {
             case WATCHTOWER -> watchtower(world, center);
             case GATE -> gate(world, center);
             case WALL -> wall(world, center);
+            case HERO_SANCTUARY -> {
+                int[] d = StructureRotationUtil.getBuildingDimensions(type);
+                for (var p : com.kingdomunique.world.HeroSanctuaryBuilder.generatePlacements(center)) {
+                    world.setBlockState(
+                            StructureRotationUtil.transformPos(center,
+                                    p.pos().getX() - center.getX(), p.pos().getY() - center.getY(),
+                                    p.pos().getZ() - center.getZ(), d[0], d[2], facing),
+                            StructureRotationUtil.transformState(p.state(), facing),
+                            net.minecraft.block.Block.NOTIFY_LISTENERS);
+                }
+            }
+            case GRANARY, INFIRMARY, MARKET, ARSENAL, TRAINING_GROUND, ROYAL_PALACE -> {
+                int[] d = StructureRotationUtil.getBuildingDimensions(type);
+                for (var p : AdditionalStructures.generatePlacements(type, center)) {
+                    world.setBlockState(
+                            StructureRotationUtil.transformPos(center,
+                                    p.pos().getX() - center.getX(), p.pos().getY() - center.getY(),
+                                    p.pos().getZ() - center.getZ(), d[0], d[2], facing),
+                            StructureRotationUtil.transformState(p.state(), facing),
+                            net.minecraft.block.Block.NOTIFY_LISTENERS);
+                }
+            }
         }
     }
 
+    /** 建築種別に対応するバニラ村の家テンプレートを配置する。 */
+    private static void placeVanillaVillageBuilding(ServerWorld world, BlockPos center,
+                                                    BuildingType type) {
+        String path = switch (type) {
+            case HOUSE -> "village/plains/houses/plains_small_house_1";
+            case BARRACKS -> "village/plains/houses/plains_medium_house_1";
+            case BLACKSMITH -> "village/plains/houses/plains_tool_smith_1";
+            default -> "village/plains/houses/plains_small_house_1";
+        };
+        com.kingdomunique.world.VillageBuilder.placeTemplate(world,
+                net.minecraft.util.Identifier.of("minecraft", path),
+                center.getX(), center.getZ());
+    }
     private static int radius(BuildingType type) {
         return switch (type) {
             case HOUSE -> 4;
@@ -40,6 +97,10 @@ public final class StructurePlacer {
             case WATCHTOWER -> 5;
             case GATE -> 4;
             case WALL -> 5;
+            case HERO_SANCTUARY -> 6;
+            case GRANARY, INFIRMARY, MARKET, ARSENAL -> 6;
+            case TRAINING_GROUND -> 7;
+            case ROYAL_PALACE -> 9;
         };
     }
 

@@ -93,9 +93,19 @@ public final class StarterSpawn {
         BlockPos center = (info.centerSet())
                 ? new BlockPos(info.centerX(), player.getBlockPos().getY(), info.centerZ())
                 : player.getBlockPos();
+        if (TownHallBuilder.findVillageOrigin(world, center.getX(), center.getZ()) == null) {
+            BlockPos alternate = findNearbyStarterSite(world, center);
+            if (alternate == null && !info.centerSet()) {
+                alternate = findSafeSpawn(world);
+            }
+            if (alternate != null) {
+                center = alternate;
+            }
+        }
 
         world.getChunk(center.getX() >> 4, center.getZ() >> 4);
-        VillageBuilder.generateStarterVillage(world, center.getX(), center.getZ());
+        VillageBuilder.generateStarterVillage(world, center.getX(), center.getZ(), player.getUuid());
+        com.kingdomunique.kingdom.KingdomManager.setPopulation(player, 6);
 
         BlockPos spawn = findVillageSpawn(world, center);
         if (spawn == null) {
@@ -109,12 +119,24 @@ public final class StarterSpawn {
         kingdomData.put(player.getUuid(), new KingdomData.KingdomInfo(
                 spawn.getX(), spawn.getZ(),
                 info.population(), info.populationCap(), info.houses(),
-                info.heroSummoned(), info.heroSummonCount(), true, info.territoryRadius(), true));
+                info.heroSummoned(), info.heroSummonCount(), true, info.territoryRadius(),
+                true, info.kingdomName()));
         player.sendMessage(Text.literal("§6[KingdomUnique] 王国の村が完成した。村の中心に到着した。"), false);
+        if (info.kingdomName() == null || info.kingdomName().isEmpty()) {
+            askKingdomName(player);
+        }
         KingdomUniqueMod.LOGGER.info("[KingdomUnique] Generated missing village for {} at ({}, {}).",
                 player.getName().getString(), spawn.getX(), spawn.getZ());
     }
 
+    /** 初回建国時に国名入力画面を開かせる。 */
+    private static void askKingdomName(ServerPlayerEntity player) {
+        if (net.fabricmc.fabric.api.networking.v1.ServerPlayNetworking.canSend(player,
+                com.kingdomunique.network.RequestKingdomNamePayload.ID)) {
+            net.fabricmc.fabric.api.networking.v1.ServerPlayNetworking.send(player,
+                    new com.kingdomunique.network.RequestKingdomNamePayload());
+        }
+    }
     private static void spawn(ServerPlayerEntity player, MinecraftServer server, ServerWorld world) {
         BlockPos villageCenter = findSafeSpawn(world);
         if (villageCenter == null) {
@@ -128,7 +150,8 @@ public final class StarterSpawn {
         world.getChunk(villageCenter.getX() >> 4, villageCenter.getZ() >> 4);
 
         // まず村を生成し、その中（井戸の周囲）で安全な立ち位置を探す。
-        VillageBuilder.generateStarterVillage(world, villageCenter.getX(), villageCenter.getZ());
+        VillageBuilder.generateStarterVillage(world, villageCenter.getX(), villageCenter.getZ(), player.getUuid());
+        com.kingdomunique.kingdom.KingdomManager.setPopulation(player, 6);
         BlockPos spawn = findVillageSpawn(world, villageCenter);
         if (spawn == null) {
             KingdomUniqueMod.LOGGER.warn("[KingdomUnique] No free spot in village, using center for {}.",
@@ -145,10 +168,11 @@ public final class StarterSpawn {
         // テレポート地点そのものを王国の中心（初期領土半径100）として保存する。
         KingdomData.getOrCreate(world).put(player.getUuid(),
                 new KingdomData.KingdomInfo(spawn.getX(), spawn.getZ(), 0, 10, 0, false, 0,
-                        true, 100, true));
+                        true, 100, true, ""));
 
         player.sendMessage(Text.literal("§6[KingdomUnique] この地があなたの王国となった。"
                 + "村の中心に到着した。村人6人が出迎える。"), false);
+        askKingdomName(player);
         KingdomUniqueMod.LOGGER.info("[KingdomUnique] Starter spawn inside village ({}, {}) -> ({}, {}) for {}.",
                 villageCenter.getX(), villageCenter.getZ(), spawn.getX(), spawn.getZ(),
                 player.getName().getString());
@@ -156,21 +180,37 @@ public final class StarterSpawn {
 
     /** 村の井戸周囲から、足元・頭上が空で地面が固体の安全な立ち位置を探す。 */
     private static BlockPos findVillageSpawn(ServerWorld world, BlockPos center) {
-        int groundY = center.getY() + 1;
         for (int radius = 2; radius <= 8; radius++) {
             for (int i = 0; i < 16; i++) {
                 double angle = i * Math.PI * 2.0D / 16.0D;
                 int x = center.getX() + (int) Math.round(Math.cos(angle) * radius);
                 int z = center.getZ() + (int) Math.round(Math.sin(angle) * radius);
-                for (int y = groundY + 8; y >= groundY - 4; y--) {
-                    BlockPos feet = new BlockPos(x, y, z);
-                    net.minecraft.block.BlockState below = world.getBlockState(feet.down());
-                    if (world.getBlockState(feet).isAir()
-                            && world.getBlockState(feet.up()).isAir()
-                            && !below.isAir()
-                            && !below.isOf(Blocks.WATER)
-                            && !below.isOf(Blocks.LAVA)) {
-                        return feet;
+                int y = world.getTopY(Heightmap.Type.MOTION_BLOCKING_NO_LEAVES, x, z);
+                BlockPos feet = new BlockPos(x, y, z);
+                net.minecraft.block.BlockState below = world.getBlockState(feet.down());
+                if (world.getBlockState(feet).isAir()
+                        && world.getBlockState(feet.up()).isAir()
+                        && !below.isAir()
+                        && below.getFluidState().isEmpty()) {
+                    return feet;
+                }
+            }
+        }
+        return null;
+    }
+
+    private static BlockPos findNearbyStarterSite(ServerWorld world, BlockPos center) {
+        for (int radius = 24; radius <= 72; radius += 24) {
+            for (int dx = -radius; dx <= radius; dx += 24) {
+                for (int dz = -radius; dz <= radius; dz += 24) {
+                    if (Math.max(Math.abs(dx), Math.abs(dz)) != radius) {
+                        continue;
+                    }
+                    BlockPos candidate = VillageTerrain.plot(world, center.getX() + dx,
+                            center.getZ() + dz, 1, 1);
+                    if (candidate != null && candidate.getY() >= world.getSeaLevel()
+                            && TownHallBuilder.findVillageOrigin(world, candidate.getX(), candidate.getZ()) != null) {
+                        return candidate;
                     }
                 }
             }
@@ -209,6 +249,9 @@ public final class StarterSpawn {
             world.getChunk(x >> 4, z >> 4);
             BlockPos top = world.getTopPosition(Heightmap.Type.MOTION_BLOCKING_NO_LEAVES, raw);
             if (top.getY() < world.getSeaLevel()) {
+                continue;
+            }
+            if (TownHallBuilder.findVillageOrigin(world, x, z) == null) {
                 continue;
             }
             return top;

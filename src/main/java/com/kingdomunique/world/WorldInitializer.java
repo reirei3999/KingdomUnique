@@ -2,60 +2,67 @@ package com.kingdomunique.world;
 
 import com.kingdomunique.KingdomUniqueMod;
 import com.kingdomunique.data.WorldUniqueData;
+import net.fabricmc.fabric.api.event.lifecycle.v1.ServerTickEvents;
+import net.minecraft.block.Blocks;
+import net.minecraft.registry.tag.BiomeTags;
 import net.minecraft.server.world.ServerWorld;
+import net.minecraft.util.math.BlockPos;
+import net.minecraft.util.math.ChunkPos;
+import net.minecraft.world.Heightmap;
+import net.minecraft.world.World;
 import net.minecraft.world.border.WorldBorder;
 
 import java.util.ArrayList;
+import java.util.Collections;
 import java.util.List;
 import java.util.Random;
 
 /**
- * ワールド初回生成時の初期化処理。
- *
- *  - オーバーワールドのワールドボーダーを中心(0,0)・5000x5000に設定
- *  - 5000x5000 の範囲内に、適度に離れた10箇所の村を確実に配置
+ * オーバーワールド初期化：ワールドボーダー設定、村の配置計画、
+ * および「チャンクが読み込まれた時点で安全に村を生成」する遅延処理。
  */
 public final class WorldInitializer {
 
-    /** ワールドボーダーの一辺（ブロック数）。 */
     public static final double WORLD_SIZE = 5000.0;
-
-    /** 生成する村の数。 */
     public static final int VILLAGE_COUNT = 10;
-
-    /** 村候補を配置するグリッド（X方向4列、約 -2400 〜 +2400）。 */
-    private static final int[] X_CELLS = {-2000, -700, 700, 2000};
-
-    /** 村候補を配置するグリッド（Z方向4列、全16マスから10マスを選択）。 */
-    private static final int[] Z_CELLS = {-2000, -700, 700, 2000};
-
+    private static final int MIN_DISTANCE = 800;
     private static final long SITE_SEED_XOR = 0x4B494E47_444F4DL;
 
     private WorldInitializer() {
     }
 
+    public static void register() {
+        ServerTickEvents.END_WORLD_TICK.register(WorldInitializer::onWorldTick);
+    }
+
     /** ServerWorldEvents.LOAD から呼ばれる初期化エントリ。 */
     public static void initialize(ServerWorld world) {
-        WorldUniqueData data = WorldUniqueData.getOrCreate(world);
-
-        if (data.isInitialized()) {
-            KingdomUniqueMod.LOGGER.info("[KingdomUnique] Overworld already initialized. Skipping setup.");
+        VillageGenState state = VillageGenState.get(world);
+        if (state.initialized) {
+            KingdomUniqueMod.LOGGER.info("[KingdomUnique] Village plan already exists. Skipping setup.");
+            configureWorldBorder(world);
             return;
         }
 
         configureWorldBorder(world);
 
-        List<WorldUniqueData.VillageSite> sites = planVillageSites(world.getSeed());
-        for (WorldUniqueData.VillageSite site : sites) {
-            VillageBuilder.build(world, site.x(), site.z());
+        List<BlockPos> planned = planVillagePositions(world.getSeed());
+        List<WorldUniqueData.VillageSite> sites = new ArrayList<>();
+        for (BlockPos pos : planned) {
+            state.pendingVillages.add(new VillageGenState.VillageEntry(pos.getX(), pos.getZ(), false));
+            sites.add(new WorldUniqueData.VillageSite(pos.getX(), pos.getZ()));
         }
+        state.initialized = true;
+        state.markDirty();
 
-        data.setVillageSites(sites);
-        data.setInitialized(true);
-        data.markDirty();
+        // 他システム（トレジャー配布・人口調整・保護）互換のためのサイト一覧も保存する。
+        WorldUniqueData unique = WorldUniqueData.getOrCreate(world);
+        unique.setVillageSites(sites);
+        unique.setInitialized(true);
+        unique.markDirty();
 
-        KingdomUniqueMod.LOGGER.info("[KingdomUnique] Overworld setup done: border {}x{}, villages={}.",
-                (int) WORLD_SIZE, (int) WORLD_SIZE, sites.size());
+        KingdomUniqueMod.LOGGER.info("[KingdomUnique] Village plan created: {} sites (built on chunk load).",
+                sites.size());
     }
 
     /** ボーダーを中心(0,0)・5000x5000に設定する。 */
@@ -65,37 +72,102 @@ public final class WorldInitializer {
         border.setSize(WORLD_SIZE);
     }
 
-    /**
-     * 12個のグリッド Cell から10個を選び、それぞれにジッターを加えて村座標を決定する。
-     * グリッド間隔は約1200ブロック、ジッター±200なので最低でも約800ブロックは離れる。
-     */
-    private static List<WorldUniqueData.VillageSite> planVillageSites(long worldSeed) {
-        Random random = new Random(worldSeed ^ SITE_SEED_XOR);
+    /** 毎ティック（1秒ごと）未生成の村をチェックし、チャンク読み込み後に生成する。 */
+    private static void onWorldTick(ServerWorld world) {
+        if (world.getRegistryKey() != World.OVERWORLD) {
+            return;
+        }
+        if (world.getTime() % 20L != 0L) {
+            return;
+        }
+        VillageGenState state = VillageGenState.get(world);
+        boolean updated = false;
+        for (VillageGenState.VillageEntry entry : state.pendingVillages) {
+            if (entry.built) {
+                continue;
+            }
+            ChunkPos center = new ChunkPos(entry.x >> 4, entry.z >> 4);
+            if (!isAreaLoaded(world, center, 4)) {
+                continue;
+            }
+            int surfaceY = findSafeSurfaceY(world, entry.x, entry.z);
+            VillageBuilder.build(world, entry.x, entry.z);
+            entry.built = true;
+            updated = true;
+            KingdomUniqueMod.LOGGER.info("[KingdomUnique] Generated deferred village at ({}, {}).",
+                    entry.x, entry.z);
+        }
+        if (updated) {
+            state.markDirty();
+        }
+    }
 
-        int[][] cells = new int[X_CELLS.length * Z_CELLS.length][2];
-        int index = 0;
-        for (int x : X_CELLS) {
-            for (int z : Z_CELLS) {
-                cells[index][0] = x;
-                cells[index][1] = z;
-                index++;
+    /** 周辺9x9チャンクが読み込まれているか（村の端が途切れないように）。 */
+    private static boolean isAreaLoaded(ServerWorld world, ChunkPos center, int radius) {
+        for (int dx = -radius; dx <= radius; dx++) {
+            for (int dz = -radius; dz <= radius; dz++) {
+                if (!world.isChunkLoaded(center.x + dx, center.z + dz)) {
+                    return false;
+                }
             }
         }
+        return true;
+    }
 
-        // グリッドをシャッフルしてから先頭10個を採用（＝12マスのうち2マスは使わない）。
-        for (int i = cells.length - 1; i > 0; i--) {
-            int j = random.nextInt(i + 1);
-            int[] tmp = cells[i];
-            cells[i] = cells[j];
-            cells[j] = tmp;
+    /** 海・マグマを避けた安全な地表Yを返す。 */
+    private static int findSafeSurfaceY(ServerWorld world, int centerX, int centerZ) {
+        for (int r = 0; r <= 32; r += 8) {
+            for (int dx = -r; dx <= r; dx += 8) {
+                for (int dz = -r; dz <= r; dz += 8) {
+                    int x = centerX + dx;
+                    int z = centerZ + dz;
+                    if (world.getBiome(new BlockPos(x, 0, z)).isIn(BiomeTags.IS_OCEAN)) {
+                        continue;
+                    }
+                    int y = world.getTopY(Heightmap.Type.MOTION_BLOCKING_NO_LEAVES, x, z);
+                    BlockPos ground = new BlockPos(x, y - 1, z);
+                    if (!world.getBlockState(ground).isOf(Blocks.WATER)
+                            && !world.getBlockState(ground).isOf(Blocks.LAVA)
+                            && world.getFluidState(ground).isEmpty()) {
+                        return y;
+                    }
+                }
+            }
         }
+        return world.getSeaLevel() + 1;
+    }
 
-        List<WorldUniqueData.VillageSite> sites = new ArrayList<>();
-        for (int i = 0; i < VILLAGE_COUNT; i++) {
-            int x = cells[i][0] + random.nextInt(401) - 200;
-            int z = cells[i][1] + random.nextInt(401) - 200;
-            sites.add(new WorldUniqueData.VillageSite(x, z));
+    /** 4x3=12グリッドから、互いに800マス以上離れた10箇所を選ぶ。 */
+    private static List<BlockPos> planVillagePositions(long seed) {
+        Random random = new Random(seed ^ SITE_SEED_XOR);
+        int[] xs = {-1800, -600, 600, 1800};
+        int[] zs = {-1600, 0, 1600};
+
+        List<BlockPos> candidates = new ArrayList<>();
+        for (int gx : xs) {
+            for (int gz : zs) {
+                candidates.add(new BlockPos(
+                        gx + random.nextInt(401) - 200, 64, gz + random.nextInt(401) - 200));
+            }
         }
-        return sites;
+        Collections.shuffle(candidates, random);
+
+        List<BlockPos> selected = new ArrayList<>();
+        for (BlockPos candidate : candidates) {
+            if (selected.size() >= VILLAGE_COUNT) {
+                break;
+            }
+            boolean tooClose = false;
+            for (BlockPos existing : selected) {
+                if (candidate.getSquaredDistance(existing) < (double) MIN_DISTANCE * MIN_DISTANCE) {
+                    tooClose = true;
+                    break;
+                }
+            }
+            if (!tooClose) {
+                selected.add(candidate);
+            }
+        }
+        return selected;
     }
 }

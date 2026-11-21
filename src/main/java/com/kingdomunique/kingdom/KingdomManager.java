@@ -1,8 +1,10 @@
 package com.kingdomunique.kingdom;
 
 import com.kingdomunique.effect.CurseEffects;
+import com.kingdomunique.war.DiplomacyData;
 import com.kingdomunique.effect.RelicEffects;
 import com.kingdomunique.entity.CitizenVillager;
+import com.kingdomunique.entity.VillagerProfessionUtil;
 import com.kingdomunique.entity.HeroClass;
 import com.kingdomunique.entity.HeroEntity;
 import com.kingdomunique.entity.ModEntities;
@@ -140,7 +142,9 @@ public final class KingdomManager {
         citizen.ku$setOwnerUuid(player.getUuid().toString());
         String role = preferredRole != null ? preferredRole : roleFromHand(player);
         citizen.ku$setRole(role);
-        villager.setCustomName(Text.literal("§a[" + roleName(role) + "] 国民"));
+        VillagerProfessionUtil.applyRole(villager, role);
+        villager.setCustomName(citizenName(player.getServerWorld(), player.getUuid(), player.getUuid(),
+                    getKingdomName(player.getServerWorld(), player.getUuid()), role));
         villager.setCustomNameVisible(true);
         villager.setPersistent();
 
@@ -220,6 +224,11 @@ public final class KingdomManager {
 
     /** 英雄召喚（1王国1回、軍旗で2回まで）。 */
     public static void summonHero(ServerPlayerEntity player) {
+        summonHero(player, null);
+    }
+
+    /** 祭壇の核を起点に英雄を召喚する（null ならプレイヤー位置）。 */
+    public static void summonHero(ServerPlayerEntity player, net.minecraft.util.math.BlockPos summonPos) {
         KingdomData data = KingdomData.getOrCreate(player.getServer().getWorld(World.OVERWORLD));
         KingdomData.KingdomInfo info = getOrCreate(player);
         int max = RelicEffects.has(player, com.kingdomunique.registry.RelicRegistry.BANNER) ? 2 : 1;
@@ -235,9 +244,12 @@ public final class KingdomManager {
         if (hero == null) {
             return;
         }
-        double x = player.getX() + player.getRotationVec(1.0F).x * 2.0D;
-        double z = player.getZ() + player.getRotationVec(1.0F).z * 2.0D;
-        hero.refreshPositionAndAngles(x, player.getY(), z, player.getYaw(), 0.0F);
+        double x = summonPos != null ? summonPos.getX() + 0.5D
+                : player.getX() + player.getRotationVec(1.0F).x * 2.0D;
+        double y = summonPos != null ? summonPos.getY() + 0.5D : player.getY();
+        double z = summonPos != null ? summonPos.getZ() + 1.5D
+                : player.getZ() + player.getRotationVec(1.0F).z * 2.0D;
+        hero.refreshPositionAndAngles(x, y, z, player.getYaw(), 0.0F);
         hero.setOwnerUuid(player.getUuid());
         hero.setHeroClass(chosen);
         world.spawnEntity(hero);
@@ -296,11 +308,86 @@ public final class KingdomManager {
         POSSESSING.remove(player.getUuid());
     }
 
+    /** 王国名を返す（未設定なら「無名の王国」）。 */
+    public static String getKingdomName(ServerWorld world, UUID owner) {
+        KingdomData.KingdomInfo info = KingdomData.getOrCreate(world).get(owner);
+        return info == null || info.kingdomName() == null || info.kingdomName().isEmpty()
+                ? "無名の王国" : info.kingdomName();
+    }
+
+    /** 国民の名札テキスト（王国名＋役職＋関係色: 自国=緑 / 同盟=黄 / 敵対=赤）。 */
+    public static Text citizenName(ServerWorld world, java.util.UUID viewer,
+                                   java.util.UUID owner, String kingdomName, String role) {
+        String color = "§a";
+        if (viewer != null && owner != null && !viewer.equals(owner)) {
+            color = DiplomacyData.getOrCreate(world).isAllied(viewer, owner) ? "§e" : "§c";
+        }
+        return Text.literal(color + "[" + kingdomName + "] [" + roleName(role) + "] 国民");
+    }
+
+    /** 旧API互換（自国として緑で表示）。 */
+    public static Text citizenName(String kingdomName, String role) {
+        return Text.literal("§a[" + kingdomName + "] [" + roleName(role) + "] 国民");
+    }
+
+    /** 外交変更時に国民の名札色を更新する。 */
+    public static void refreshCitizenNameplates(ServerWorld world, java.util.UUID viewer,
+                                                java.util.UUID owner) {
+        String kingdomName = getKingdomName(world, owner);
+        net.minecraft.util.math.Box box = new net.minecraft.util.math.Box(
+                -4_000_000.0D, -512.0D, -4_000_000.0D,
+                4_000_000.0D, 512.0D, 4_000_000.0D);
+        for (VillagerEntity villager : world.getEntitiesByClass(VillagerEntity.class,
+                box, v -> v.isAlive())) {
+            if (villager instanceof CitizenVillager citizen
+                    && owner.toString().equals(citizen.ku$getOwnerUuid())) {
+                villager.setCustomName(citizenName(world, viewer, owner,
+                        kingdomName, citizen.ku$getRole()));
+                villager.setCustomNameVisible(true);
+            }
+        }
+    }
+
+    /** 王国名を設定し、既存の国民の名札も更新する。 */
+    public static void setKingdomName(ServerPlayerEntity player, String rawName) {
+        String name = rawName == null ? "" : rawName.trim()
+                .replace('\n', ' ').replace('\r', ' ');
+        if (name.isEmpty()) {
+            name = "無名の王国";
+        }
+        if (name.length() > 24) {
+            name = name.substring(0, 24);
+        }
+        ServerWorld world = player.getServerWorld();
+        KingdomData data = KingdomData.getOrCreate(world);
+        KingdomData.KingdomInfo info = getOrCreate(player);
+        data.put(player.getUuid(), new KingdomData.KingdomInfo(
+                info.centerX(), info.centerZ(), info.population(), info.populationCap(),
+                info.houses(), info.heroSummoned(), info.heroSummonCount(), info.centerSet(),
+                info.territoryRadius(), info.villageGenerated(), name));
+
+        int updatedNameplates = 0;
+        for (VillagerEntity villager : world.getEntitiesByClass(VillagerEntity.class,
+                new net.minecraft.util.math.Box(player.getBlockPos()).expand(512.0D),
+                v -> v.isAlive())) {
+            if (villager instanceof CitizenVillager citizen
+                    && player.getUuid().toString().equals(citizen.ku$getOwnerUuid())) {
+                villager.setCustomName(citizenName(world, player.getUuid(), player.getUuid(), name, citizen.ku$getRole()));
+                villager.setCustomNameVisible(true);
+                updatedNameplates++;
+            }
+        }
+        com.kingdomunique.KingdomUniqueMod.LOGGER.info(
+                "[KingdomUnique] Kingdom name set to {}. Updated {} citizen nameplates.",
+                name, updatedNameplates);
+        player.sendMessage(Text.literal("§6[王国] 国名を「" + name + "」に決定しました。"), false);
+        KingdomData.getOrCreate(world).markDirty();
+    }
     private static KingdomData.KingdomInfo copy(KingdomData.KingdomInfo info, int population, int cap,
                                                 int houses, boolean summoned, int count) {
         return new KingdomData.KingdomInfo(info.centerX(), info.centerZ(), population, cap,
                 houses, summoned, count, info.centerSet(), info.territoryRadius(),
-                info.villageGenerated());
+                info.villageGenerated(), info.kingdomName());
     }
 
     /** 王国の中心を設定する。force=false のときは既に明示設定済みなら上書きしない。 */
@@ -313,7 +400,7 @@ public final class KingdomManager {
         KingdomData.KingdomInfo updated = new KingdomData.KingdomInfo(
                 center.getX(), center.getZ(), info.population(), info.populationCap(),
                 info.houses(), info.heroSummoned(), info.heroSummonCount(), true,
-                info.territoryRadius(), info.villageGenerated());
+                info.territoryRadius(), info.villageGenerated(), info.kingdomName());
         data.put(player.getUuid(), updated);
     }
 
@@ -324,7 +411,7 @@ public final class KingdomManager {
         data.put(player.getUuid(), new KingdomData.KingdomInfo(
                 center.getX(), center.getZ(), info.population(), info.populationCap(),
                 info.houses(), info.heroSummoned(), info.heroSummonCount(), true, 200,
-                info.villageGenerated()));
+                info.villageGenerated(), info.kingdomName()));
     }
 
     /** プレイヤーが自国領地内にいるか（通常100、王城完成後200マス）。 */

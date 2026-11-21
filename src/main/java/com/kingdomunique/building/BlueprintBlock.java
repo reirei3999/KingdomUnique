@@ -17,6 +17,9 @@ import net.minecraft.util.math.BlockPos;
 import net.minecraft.world.BlockView;
 import net.minecraft.world.World;
 
+import java.util.Map;
+import java.util.Optional;
+
 /** 設置して直接資材を投入すると自動建築が始まる設計図ブロック（素手で即時回収可能）。 */
 public final class BlueprintBlock extends Block implements BlockEntityProvider {
 
@@ -50,7 +53,8 @@ public final class BlueprintBlock extends Block implements BlockEntityProvider {
             return;
         }
         BuildData data = BuildData.getOrCreate((ServerWorld) world);
-        data.add(new BuildData.BuildSite(pos.toImmutable(), type, 0, false, player.getUuid()));
+        data.add(new BuildData.BuildSite(pos.toImmutable(), type, 0, false, player.getUuid(),
+                player.getHorizontalFacing().getOpposite()));
         player.sendMessage(Text.literal("§6[設計図] " + type.getDisplayName()
                 + " に直接建材を右クリックで投入し、空手で右クリックして確認してください。"), false);
     }
@@ -96,13 +100,46 @@ public final class BlueprintBlock extends Block implements BlockEntityProvider {
         if (!(world.getBlockEntity(pos) instanceof BlueprintBlockEntity be)) {
             return ActionResult.SUCCESS;
         }
+        boolean adminCreative = serverPlayer.hasPermissionLevel(2) && serverPlayer.isCreative();
+
         if (be.isReady()) {
+            // OP＋クリエイティブは建築中のサイトを素手右クリックで即完了させる。
+            if (adminCreative) {
+                BuildData data = BuildData.getOrCreate((ServerWorld) world);
+                for (BuildData.BuildSite site : new java.util.ArrayList<>(data.sites())) {
+                    if (site.pos().equals(pos)) {
+                        BuildingManager.completeNow((ServerWorld) world, site, serverPlayer);
+                        return ActionResult.SUCCESS;
+                    }
+                }
+            }
             player.sendMessage(Text.literal("§7[設計図] すでに建築が開始されています。"), false);
             return ActionResult.SUCCESS;
         }
 
-        // 空手: 必要資材が揃っていれば、ここで初めて消費して建築を開始する。
         double multiplier = BuildingManager.costMultiplier(serverPlayer);
+
+        // OP＋クリエイティブ: 素手右クリックで不足している資材を1種類ずつ全量投入する。
+        if (adminCreative) {
+            for (Map.Entry<net.minecraft.item.Item, Integer> entry : type.materials().entrySet()) {
+                int needed = Math.max(1, (int) Math.ceil(entry.getValue() * multiplier));
+                int have = be.countOf(entry.getKey());
+                if (have >= needed) {
+                    continue;
+                }
+                ItemStack fill = new ItemStack(entry.getKey(), needed - have);
+                be.insert(fill, multiplier);
+                serverPlayer.sendMessage(Text.literal("§6[設計図] [Creator] "
+                        + entry.getKey().getName().getString() + " を " + needed + " 個投入しました。"), false);
+                break;
+            }
+            if (be.hasAllMaterials(type, multiplier)) {
+                startBuilding(world, pos, be, serverPlayer);
+            }
+            return ActionResult.SUCCESS;
+        }
+
+        // 空手: 必要資材が揃っていれば、ここで初めて消費して建築を開始する。
         if (!be.hasAllMaterials(type, multiplier)) {
             serverPlayer.sendMessage(Text.literal("§c[設計図] 資材が不足しています。"), false);
             return ActionResult.SUCCESS;
@@ -114,6 +151,13 @@ public final class BlueprintBlock extends Block implements BlockEntityProvider {
     /** 資材を消費して建築サイトを「建築中」へ遷移させる。 */
     private void startBuilding(World world, BlockPos pos, BlueprintBlockEntity be,
                                ServerPlayerEntity serverPlayer) {
+        // Gemini 修正: 上限・前提・重複・高度・破壊不能ブロックを事前検証する。
+        net.minecraft.util.math.Direction facing = serverPlayer.getHorizontalFacing().getOpposite();
+        Optional<Text> error = BuildingValidator.validate(serverPlayer, type, pos, facing);
+        if (error.isPresent()) {
+            serverPlayer.sendMessage(error.get(), false);
+            return;
+        }
         double multiplier = BuildingManager.costMultiplier(serverPlayer);
         be.consume(type, multiplier);
         be.setReady(true);
@@ -133,6 +177,10 @@ public final class BlueprintBlock extends Block implements BlockEntityProvider {
     @Override
     public void onStateReplaced(BlockState state, net.minecraft.world.World world, BlockPos pos,
                                 BlockState newState, boolean moved) {
+        // クライアント側では BlockEntity の破壊演出のみ行い、ServerWorld へのキャストはしない。
+        if (world.isClient()) {
+            return;
+        }
         if (!state.isOf(newState.getBlock())) {
             if (world.getBlockEntity(pos) instanceof BlueprintBlockEntity be) {
                 be.dropAll(world, pos);

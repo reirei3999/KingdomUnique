@@ -17,6 +17,20 @@
   "item.kingdomunique.blueprint_watchtower": "Blueprint: Watchtower",
   "item.kingdomunique.blueprint_gate": "Blueprint: Kingdom Gate",
   "item.kingdomunique.blueprint_wall": "Blueprint: Kingdom Wall",
+  "item.kingdomunique.blueprint_hero_sanctuary": "Blueprint: Hero Sanctuary",
+  "item.kingdomunique.blueprint_granary": "Blueprint: Royal Granary",
+  "block.kingdomunique.blueprint_granary": "Blueprint: Royal Granary",
+  "item.kingdomunique.blueprint_infirmary": "Blueprint: Royal Infirmary",
+  "block.kingdomunique.blueprint_infirmary": "Blueprint: Royal Infirmary",
+  "item.kingdomunique.blueprint_market": "Blueprint: Royal Market",
+  "block.kingdomunique.blueprint_market": "Blueprint: Royal Market",
+  "item.kingdomunique.blueprint_arsenal": "Blueprint: Royal Arsenal",
+  "block.kingdomunique.blueprint_arsenal": "Blueprint: Royal Arsenal",
+  "item.kingdomunique.blueprint_training_ground": "Blueprint: Hero Training Ground",
+  "block.kingdomunique.blueprint_training_ground": "Blueprint: Hero Training Ground",
+  "item.kingdomunique.blueprint_royal_palace": "Blueprint: Royal Palace",
+  "block.kingdomunique.blueprint_royal_palace": "Blueprint: Royal Palace",
+
   "item.kingdomunique.excalibur": "Excalibur",
   "item.kingdomunique.gae_bolg": "Gae Bolg",
   "item.kingdomunique.muramasa": "Muramasa",
@@ -30,5 +44,6 @@
   "block.kingdomunique.blueprint_watchtower": "Blueprint: Watchtower",
   "block.kingdomunique.blueprint_gate": "Blueprint: Kingdom Gate",
   "block.kingdomunique.blueprint_wall": "Blueprint: Kingdom Wall",
+  "block.kingdomunique.blueprint_hero_sanctuary": "Blueprint: Hero Sanctuary",
   "entity.kingdomunique.hero": "Kingdom Hero"
 }

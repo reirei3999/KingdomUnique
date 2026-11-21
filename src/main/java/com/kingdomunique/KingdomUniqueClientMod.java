@@ -24,15 +24,22 @@ public class KingdomUniqueClientMod implements ClientModInitializer {
         // 選択GUIのパケット受信を登録する。
         SelectionClient.initialize();
 
-        // ステータス確認画面（/ku info・Kキー）と能力HUD。
+        // ステータス確認画面（/ku info・Kキー）と統合HUD。
         com.kingdomunique.client.StatusClient.initialize();
-        com.kingdomunique.client.AbilityHud.initialize();
+        com.kingdomunique.client.KingdomUnifiedHud.register();
+        com.kingdomunique.client.KingdomUnifiedHud.registerPopulationReceiver();
 
         // 英雄NPCのレンダラーを登録する（Bipedモデル＋防具/手持ち描画）。
         EntityRendererRegistry.register(ModEntities.HERO, HeroEntityRenderer::new);
 
         // 設計図の建材HUDと3Dプレビュー。
         BlueprintClientOverlay.initialize();
+
+        // 建築済み／建築中の占有範囲を受信してプレビューの赤枠判定に使う。
+        com.kingdomunique.client.ClientBuildingBoxCache.registerReceiver();
+
+        // 設計図アイテムを持った際のパーティクル枠線プレビュー（向き・入口・建築可否を表示）。
+        com.kingdomunique.client.BlueprintPreviewRenderer.register();
 
         // 起動確認用: -Dkingdomunique.verify.seconds=N を渡すと N 秒後に自動終了する。
         // 通常プレイではプロパティが無いため何も起きない。
