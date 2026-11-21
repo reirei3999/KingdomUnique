@@ -251,7 +251,8 @@ public final class SelectionScreen extends Screen {
             drawFooterLine(context, "選択中: " + UniqueLoreRegistry.getOrFallback(optionIds.get(selectedIndex)).name()
                     + " ・確定後は変更できません", height - 49, KuTheme.PRIMARY);
         }
-        drawFooterLine(context, "←→/数字: 選択  ↑↓: 詳細  Enter: 確定", height - 38, KuTheme.MUTED);
+        drawFooterLine(context, hasOptions() ? "←→/数字: 選択  ↑↓: 詳細  Enter: 確定" : "Enter / Esc: 閉じる",
+                height - 38, KuTheme.MUTED);
     }
 
     private void drawFooterLine(DrawContext context, String text, int y, int color) {
