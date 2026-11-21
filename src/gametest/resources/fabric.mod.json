@@ -13,7 +13,8 @@
       "com.kingdomunique.effect.GoldenScaleGameTest",
       "com.kingdomunique.effect.SolitudeCrownGameTest",
       "com.kingdomunique.data.AcquisitionGameTest",
-      "com.kingdomunique.trade.CitizenMerchantGameTest"
+      "com.kingdomunique.trade.CitizenMerchantGameTest",
+      "com.kingdomunique.unique.UniqueWeaponGrantGameTest"
     ]
   },
   "depends": {

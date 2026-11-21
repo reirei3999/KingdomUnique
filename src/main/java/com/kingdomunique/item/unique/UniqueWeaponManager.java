@@ -162,6 +162,26 @@ public final class UniqueWeaponManager {
         }
     }
 
+    /** 村チェストに残っている武器を取り除く（取得条件で付与したときの重複防止）。 */
+    public static void removeFromVillageChests(ServerWorld world, String id) {
+        WorldUniqueData data = WorldUniqueData.getOrCreate(world);
+        for (WorldUniqueData.VillageSite site : data.getVillageSites()) {
+            BlockPos.Mutable pos = new BlockPos.Mutable(site.x() + 2, 0, site.z() + 2);
+            for (int y = world.getBottomY(); y < world.getTopY(); y++) {
+                pos.setY(y);
+                if (!(world.getBlockEntity(pos) instanceof net.minecraft.inventory.Inventory inventory)) {
+                    continue;
+                }
+                for (int slot = 0; slot < inventory.size(); slot++) {
+                    if (id.equals(inventory.getStack(slot).get(ModDataComponents.UNIQUE_WEAPON_ID))) {
+                        inventory.setStack(slot, ItemStack.EMPTY);
+                        inventory.markDirty();
+                    }
+                }
+            }
+        }
+    }
+
     private static ItemStack uniqueStack(String id) {
         return switch (id) {
             case "excalibur" -> new ItemStack(UniqueWeapons.EXCALIBUR);
