@@ -1,5 +1,7 @@
 package com.kingdomunique.ability;
 
+import com.kingdomunique.entity.CitizenVillager;
+import com.kingdomunique.war.KingdomWarTargetHelper;
 import com.mojang.authlib.GameProfile;
 import net.fabricmc.fabric.api.gametest.v1.FabricGameTest;
 import net.fabricmc.fabric.api.networking.v1.ServerPlayConnectionEvents;
@@ -47,6 +49,15 @@ public final class AbilityCleanupGameTest {
     public void reviveUsesFreshUuid(TestContext context) {
         var owner = player(context);
         var dead = context.spawnEntity(EntityType.ZOMBIE, 1, 2, 4);
+        var soldier = context.spawnEntity(EntityType.VILLAGER, 2, 2, 1);
+        ((CitizenVillager) soldier).ku$setRole(CitizenVillager.ROLE_SOLDIER);
+        ((CitizenVillager) soldier).ku$setOwnerUuid(owner.getUuid().toString());
+        context.assertTrue(KingdomWarTargetHelper.isValidEnemy(context.getWorld(), soldier, owner.getUuid(), dead),
+                "Ordinary hostile mobs must remain enemy targets");
+        dead.addCommandTag("allied_mob");
+        context.assertFalse(KingdomWarTargetHelper.isValidEnemy(context.getWorld(), soldier, owner.getUuid(), dead),
+                "Legacy allied tags must remain protected");
+        dead.removeCommandTag("allied_mob");
         dead.kill();
         context.assertTrue(context.getWorld().getEntity(dead.getUuid()) == dead,
                 "Dying original must still occupy its UUID");
@@ -57,6 +68,8 @@ public final class AbilityCleanupGameTest {
         var revived = allies.getFirst();
         context.assertFalse(revived.getUuid().equals(dead.getUuid()), "Copy must use a new UUID");
         context.assertTrue(revived.isAlive(), "Copy must be alive");
+        context.assertFalse(KingdomWarTargetHelper.isValidEnemy(context.getWorld(), soldier, owner.getUuid(), revived),
+                "The owner's soldiers must not target revived allies");
         AlliedMobManager.forgetOwner(owner.getUuid());
         context.complete();
     }
