@@ -98,8 +98,9 @@ public final class VillagePlacementGameTest {
                         .filter(b -> b.ownerUuid.equals(uuid) && b.type == BuildingType.HOUSE).count() == houses,
                 "Every starter house must be registered once");
         int cap = KingdomManager.getOrCreate(player).populationCap();
-        context.assertTrue(cap == 10 + 5 * (int) houses,
-                "Starter houses must raise the population cap once each, got " + cap);
+        context.assertTrue(cap == 10, "Starter houses must not raise the population cap, got " + cap);
+        int max = com.kingdomunique.kingdom.PopulationManager.calculateMaxPopulation(world, uuid);
+        context.assertTrue(max == 10, "Starter houses must not count toward the growth cap, got " + max);
         context.complete();
     }
 
