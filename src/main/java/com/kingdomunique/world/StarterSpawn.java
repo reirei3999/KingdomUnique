@@ -4,9 +4,7 @@ import com.kingdomunique.KingdomUniqueMod;
 import com.kingdomunique.kingdom.KingdomData;
 import net.fabricmc.fabric.api.event.lifecycle.v1.ServerLifecycleEvents;
 import net.fabricmc.fabric.api.event.lifecycle.v1.ServerTickEvents;
-import net.minecraft.block.Blocks;
 import net.minecraft.network.packet.s2c.play.PositionFlag;
-import net.minecraft.registry.tag.BiomeTags;
 import net.minecraft.server.MinecraftServer;
 import net.minecraft.server.network.ServerPlayerEntity;
 import net.minecraft.server.world.ServerWorld;
@@ -18,6 +16,8 @@ import net.minecraft.world.Heightmap;
 import net.minecraft.world.World;
 
 import java.util.ArrayDeque;
+import java.util.HashMap;
+import java.util.Map;
 import java.util.Queue;
 import java.util.UUID;
 import java.util.concurrent.ThreadLocalRandom;
@@ -32,6 +32,7 @@ public final class StarterSpawn {
 
     /** 次ティックで処理するプレイヤー（JOIN 契機に加え、毎ティックの検出でも積む）。 */
     private static final Queue<UUID> PENDING = new ArrayDeque<>();
+    private static final Map<UUID, Long> RETRY_AFTER = new HashMap<>();
 
     private StarterSpawn() {
     }
@@ -90,6 +91,7 @@ public final class StarterSpawn {
             return;
         }
         KingdomData kingdomData = KingdomData.getOrCreate(world);
+        RETRY_AFTER.keySet().removeIf(uuid -> server.getPlayerManager().getPlayer(uuid) == null);
 
         // シングルプレイ（統合サーバー）では JOIN イベントの順番が環境に依存するため、
         // 毎ティック「王国が無い」または「王国はあるが村未生成」のプレイヤーを検出する。
@@ -97,7 +99,8 @@ public final class StarterSpawn {
             UUID uuid = player.getUuid();
             KingdomData.KingdomInfo info = kingdomData.get(uuid);
             boolean needsVillage = info == null || !info.villageGenerated();
-            if (needsVillage && !PENDING.contains(uuid)) {
+            if (needsVillage && world.getTime() >= RETRY_AFTER.getOrDefault(uuid, 0L)
+                    && !PENDING.contains(uuid)) {
                 PENDING.add(uuid);
             }
         }
@@ -107,6 +110,9 @@ public final class StarterSpawn {
             UUID uuid = PENDING.poll();
             ServerPlayerEntity player = server.getPlayerManager().getPlayer(uuid);
             if (player == null) {
+                continue;
+            }
+            if (world.getTime() < RETRY_AFTER.getOrDefault(uuid, 0L)) {
                 continue;
             }
             KingdomData.KingdomInfo info = kingdomData.get(uuid);
@@ -122,24 +128,31 @@ public final class StarterSpawn {
     }
 
     /** 既存王国に村が無い場合: 王国中心に村を生成し、プレイヤーをその中へ移す。 */
-    private static void ensureVillage(ServerPlayerEntity player, ServerWorld world,
+    static void ensureVillage(ServerPlayerEntity player, ServerWorld world,
                                       KingdomData kingdomData, KingdomData.KingdomInfo info) {
         BlockPos center = (info.centerSet())
                 ? new BlockPos(info.centerX(), player.getBlockPos().getY(), info.centerZ())
                 : player.getBlockPos();
-        if (TownHallBuilder.findVillageOrigin(world, center.getX(), center.getZ()) == null) {
+        if (VillageSiteFinder.suitableCenter(world, center.getX(), center.getZ()) == null) {
             BlockPos alternate = findNearbyStarterSite(world, center);
             if (alternate == null && !info.centerSet()) {
                 alternate = findSafeSpawn(world);
             }
-            if (alternate != null) {
-                center = alternate;
+            if (alternate == null) {
+                retryVillageLater(player, world);
+                return;
             }
+            center = alternate;
         }
 
         world.getChunk(center.getX() >> 4, center.getZ() >> 4);
-        var starterBuildings = VillageBuilder.generateStarterVillage(world, center.getX(), center.getZ(),
+        var result = VillageBuilder.generateVillage(world, center.getX(), center.getZ(),
                 player.getUuid());
+        if (result.placedBuildings() == 0) {
+            retryVillageLater(player, world);
+            return;
+        }
+        var starterBuildings = result.buildings();
         com.kingdomunique.kingdom.KingdomManager.setPopulation(player, 6);
 
         BlockPos spawn = findVillageSpawn(world, center);
@@ -157,6 +170,7 @@ public final class StarterSpawn {
                 info.heroSummoned(), info.heroSummonCount(), true, info.territoryRadius(),
                 true, info.kingdomName()));
         VillageBuilder.registerStarterBuildings(world, player, starterBuildings, spawn);
+        RETRY_AFTER.remove(player.getUuid());
         player.sendMessage(Text.literal("§6[KingdomUnique] 王国の村が完成した。村の中心に到着した。"), false);
         if (info.kingdomName() == null || info.kingdomName().isEmpty()) {
             askKingdomName(player);
@@ -176,8 +190,11 @@ public final class StarterSpawn {
     private static void spawn(ServerPlayerEntity player, MinecraftServer server, ServerWorld world) {
         BlockPos villageCenter = findSafeSpawn(world);
         if (villageCenter == null) {
-            // 安全地点が見つからなくても王国は必ず作成し、再予約ループを防ぐ。
-            villageCenter = player.getBlockPos();
+            villageCenter = VillageSiteFinder.suitableCenter(world, player.getBlockX(), player.getBlockZ());
+            if (villageCenter == null) {
+                retryVillageLater(player, world);
+                return;
+            }
             KingdomUniqueMod.LOGGER.warn(
                     "[KingdomUnique] No safe random spot for {}; using current position as village center.",
                     player.getName().getString());
@@ -186,8 +203,13 @@ public final class StarterSpawn {
         world.getChunk(villageCenter.getX() >> 4, villageCenter.getZ() >> 4);
 
         // まず村を生成し、その中（井戸の周囲）で安全な立ち位置を探す。
-        var starterBuildings = VillageBuilder.generateStarterVillage(world, villageCenter.getX(),
+        var result = VillageBuilder.generateVillage(world, villageCenter.getX(),
                 villageCenter.getZ(), player.getUuid());
+        if (result.placedBuildings() == 0) {
+            retryVillageLater(player, world);
+            return;
+        }
+        var starterBuildings = result.buildings();
         com.kingdomunique.kingdom.KingdomManager.setPopulation(player, 6);
         BlockPos spawn = findVillageSpawn(world, villageCenter);
         if (spawn == null) {
@@ -207,6 +229,7 @@ public final class StarterSpawn {
                 new KingdomData.KingdomInfo(spawn.getX(), spawn.getZ(), 0, 10, 0, false, 0,
                         true, 100, true, ""));
         VillageBuilder.registerStarterBuildings(world, player, starterBuildings, spawn);
+        RETRY_AFTER.remove(player.getUuid());
 
         player.sendMessage(Text.literal("§6[KingdomUnique] この地があなたの王国となった。"
                 + "村の中心に到着した。村人6人が出迎える。"), false);
@@ -238,22 +261,14 @@ public final class StarterSpawn {
     }
 
     private static BlockPos findNearbyStarterSite(ServerWorld world, BlockPos center) {
-        for (int radius = 24; radius <= 72; radius += 24) {
-            for (int dx = -radius; dx <= radius; dx += 24) {
-                for (int dz = -radius; dz <= radius; dz += 24) {
-                    if (Math.max(Math.abs(dx), Math.abs(dz)) != radius) {
-                        continue;
-                    }
-                    BlockPos candidate = VillageTerrain.plot(world, center.getX() + dx,
-                            center.getZ() + dz, 1, 1);
-                    if (candidate != null && candidate.getY() >= world.getSeaLevel()
-                            && TownHallBuilder.findVillageOrigin(world, candidate.getX(), candidate.getZ()) != null) {
-                        return candidate;
-                    }
-                }
-            }
-        }
-        return null;
+        return VillageSiteFinder.findNearby(world, center.getX(), center.getZ(), 72, 24, candidate -> true);
+    }
+
+    private static void retryVillageLater(ServerPlayerEntity player, ServerWorld world) {
+        RETRY_AFTER.put(player.getUuid(), world.getTime() + 1200);
+        KingdomUniqueMod.LOGGER.warn(
+                "[KingdomUnique] No village buildings placed for {}; retrying in 60 seconds.",
+                player.getName().getString());
     }
 
     /** 海・マグマを避け、他プレイヤーの王国から500マス以上離れた地上座標を探す。 */
@@ -262,15 +277,6 @@ public final class StarterSpawn {
         for (int attempt = 0; attempt < MAX_ATTEMPTS; attempt++) {
             int x = ThreadLocalRandom.current().nextInt(-RANGE, RANGE + 1);
             int z = ThreadLocalRandom.current().nextInt(-RANGE, RANGE + 1);
-            BlockPos raw = new BlockPos(x, 0, z);
-
-            if (world.getBiome(raw).isIn(BiomeTags.IS_OCEAN)
-                    || world.getBiome(raw).isIn(BiomeTags.IS_DEEP_OCEAN)) {
-                continue;
-            }
-            if (world.getBlockState(raw.down()).isOf(Blocks.MAGMA_BLOCK)) {
-                continue;
-            }
             boolean tooClose = false;
             for (KingdomData.KingdomInfo info : kingdomData.all().values()) {
                 double dx = info.centerX() - x;
@@ -284,15 +290,10 @@ public final class StarterSpawn {
                 continue;
             }
 
-            world.getChunk(x >> 4, z >> 4);
-            BlockPos top = world.getTopPosition(Heightmap.Type.MOTION_BLOCKING_NO_LEAVES, raw);
-            if (top.getY() < world.getSeaLevel()) {
-                continue;
+            BlockPos top = VillageSiteFinder.suitableCenter(world, x, z);
+            if (top != null) {
+                return top;
             }
-            if (TownHallBuilder.findVillageOrigin(world, x, z) == null) {
-                continue;
-            }
-            return top;
         }
         return null;
     }
