@@ -27,21 +27,37 @@ public final class AcquisitionGameTest {
     public void milestonesDoNotRepeatAfterLoadingSavedState(TestContext context) {
         var world = context.getWorld();
         var player = player(context, UUID.randomUUID());
+        var uuid = player.getUuid();
         var state = PendingSelectionState.get(world);
+        var ownership = WorldUniqueData.getOrCreate(world);
         SelectionManager.onDiamondObtained(player);
-        SelectionManager.onNetherEntered(player);
-        SelectionManager.onCitizenCountReached(player, 15);
-        state.clearPending(player.getUuid());
+        var diamond = state.getPending(uuid);
+        context.assertTrue(diamond != null && diamond.kind() == Kind.ABILITY,
+                "The original diamond milestone must open an ability selection");
+        var ability = diamond.optionIds().getFirst();
 
-        var saved = state.writeNbt(new NbtCompound(), world.getRegistryManager());
-        var reloaded = PendingSelectionState.fromNbt(saved, world.getRegistryManager());
-        for (Kind kind : Kind.values()) {
-            context.assertFalse(reloaded.recordTrigger(player.getUuid(), kind),
-                    "The completed " + kind + " milestone must not repeat after reloading");
+        try {
+            SelectionManager.handleChoice(player, Kind.ABILITY, ability);
+            context.assertTrue(ownership.hasId(uuid, ability), "The player must receive their first diamond ability");
+            var rejoined = player(context, uuid);
+            SelectionManager.onDiamondObtained(rejoined);
+            context.assertFalse(state.hasPending(uuid), "A new session with a diamond must not receive a second offer");
+
+            SelectionManager.onNetherEntered(rejoined);
+            SelectionManager.onCitizenCountReached(rejoined, 15);
+            var saved = state.writeNbt(new NbtCompound(), world.getRegistryManager());
+            var reloaded = PendingSelectionState.fromNbt(saved, world.getRegistryManager());
+            for (Kind kind : Kind.values()) {
+                context.assertFalse(reloaded.recordTrigger(uuid, kind),
+                        "The completed " + kind + " milestone must not repeat after reloading");
+            }
+            context.assertTrue(reloaded.recordTrigger(UUID.randomUUID(), Kind.ABILITY),
+                    "A new player must still be eligible for their first milestone");
+            context.complete();
+        } finally {
+            ownership.releaseId(uuid, ability);
+            state.clearPending(uuid);
         }
-        context.assertTrue(reloaded.recordTrigger(UUID.randomUUID(), Kind.ABILITY),
-                "A new player must still be eligible for their first milestone");
-        context.complete();
     }
 
     @GameTest(templateName = FabricGameTest.EMPTY_STRUCTURE)
