@@ -16,7 +16,6 @@ import net.minecraft.entity.LivingEntity;
 import net.minecraft.entity.damage.DamageSource;
 import net.minecraft.entity.effect.StatusEffectInstance;
 import net.minecraft.entity.effect.StatusEffects;
-import net.minecraft.entity.mob.HostileEntity;
 import net.minecraft.item.ItemStack;
 import net.minecraft.server.MinecraftServer;
 import net.minecraft.server.command.CommandManager;
@@ -115,7 +114,6 @@ public final class SelectionEventHandler {
             checkNether(player);
             checkCitizens(player);
             tickGluttony(player);
-            blockHostileSpawns(player);
         }
     }
 
@@ -162,18 +160,6 @@ public final class SelectionEventHandler {
             player.addExhaustion(0.06F);
         } else {
             player.addExhaustion(0.02F);
-        }
-    }
-
-    /** 守護の結界石：王国範囲内の敵対Mobを除去する。 */
-    private static void blockHostileSpawns(ServerPlayerEntity player) {
-        if (!RelicEffects.isHostileSpawnBlocked(player)) {
-            return;
-        }
-        ServerWorld world = player.getServerWorld();
-        for (HostileEntity hostile : world.getEntitiesByClass(HostileEntity.class,
-                player.getBoundingBox().expand(128.0D), h -> h.isAlive())) {
-            hostile.discard();
         }
     }
 

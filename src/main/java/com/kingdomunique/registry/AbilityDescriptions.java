@@ -115,7 +115,8 @@ public final class AbilityDescriptions {
                     "・1日ごとに国民数に応じたエメラルドと鉄を生成"
             };
             case "ward_stone" -> new String[]{
-                    "・領土内の敵対Mobのスポーンを無効",
+                    "・自身の半径128ブロック以内の敵対Mobの自然スポーンを無効",
+                    "・既存のMob・ボス・召喚やスポナーには影響しない",
                     "・夜間の被ダメージ30%カット"
             };
             case "phoenix_feather" -> new String[]{

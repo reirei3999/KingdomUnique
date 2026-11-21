@@ -20,6 +20,7 @@
     "PlayerCurseMixin",
     "RangedDamageMixin",
     "StatusEffectMixin",
+    "SpawnRestrictionMixin",
     "UniqueWeaponMixin",
     "VillagerBreedTaskMixin",
     "VillagerProfessionMixin"
