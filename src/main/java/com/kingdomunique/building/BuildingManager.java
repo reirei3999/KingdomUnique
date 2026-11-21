@@ -258,7 +258,7 @@ public final class BuildingManager {
                     : site.pos().add(com.kingdomunique.world.HeroSanctuaryBuilder.CORE_OFFSET);
             com.kingdomunique.kingdom.SanctuaryData.getOrCreate(world)
                     .register(sanctuaryCore, owner.getUuid());
-            owner.sendMessage(Text.literal("§6[英雄召喚の祭壇] 完成！中央のロードストーンを右クリックして英雄を召喚できます。"), false);
+            owner.sendMessage(Text.literal("§6[英雄召喚の祭壇] 完成！「英雄召喚の角笛」を持って中央のロードストーンを右クリックすると英雄を召喚できます。"), false);
         } else if (site.type().getPopulationCapBonus() > 0) {
             KingdomManager.addCapBonus(owner, site.type().getPopulationCapBonus());
         }

@@ -32,6 +32,9 @@ public final class PendingSelectionState extends PersistentState {
     /** プレイヤーUUID -> 未確定選択（kind + 選択肢）。 */
     private final Map<UUID, Pending> pendingMap = new HashMap<>();
 
+    /** プレイヤーUUID -> 順番待ちの選択カテゴリ。 */
+    private final Map<UUID, List<ContentRegistry.Kind>> queued = new HashMap<>();
+
     public record Pending(ContentRegistry.Kind kind, List<String> optionIds) {
     }
 
@@ -66,6 +69,26 @@ public final class PendingSelectionState extends PersistentState {
         return pendingMap.get(playerUuid);
     }
 
+    /** 別の選択が保留中に発生したトリガーを順番待ちに入れる（上書きで失わないため）。 */
+    public void enqueue(UUID playerUuid, ContentRegistry.Kind kind) {
+        queued.computeIfAbsent(playerUuid, ignored -> new ArrayList<>()).add(kind);
+        markDirty();
+    }
+
+    /** 順番待ちの先頭を取り出す（なければ null）。 */
+    public ContentRegistry.Kind pollQueued(UUID playerUuid) {
+        List<ContentRegistry.Kind> kinds = queued.get(playerUuid);
+        if (kinds == null || kinds.isEmpty()) {
+            return null;
+        }
+        ContentRegistry.Kind kind = kinds.remove(0);
+        if (kinds.isEmpty()) {
+            queued.remove(playerUuid);
+        }
+        markDirty();
+        return kind;
+    }
+
     private static PendingSelectionState fromNbt(NbtCompound nbt, RegistryWrapper.WrapperLookup lookup) {
         PendingSelectionState state = new PendingSelectionState();
         NbtCompound players = nbt.getCompound("players");
@@ -88,6 +111,23 @@ public final class PendingSelectionState extends PersistentState {
                 // 壊れたUUIDは無視。
             }
         }
+        NbtCompound queuedNbt = nbt.getCompound("queued");
+        ContentRegistry.Kind[] kinds = ContentRegistry.Kind.values();
+        for (String key : queuedNbt.getKeys()) {
+            try {
+                List<ContentRegistry.Kind> list = new ArrayList<>();
+                for (int idx : queuedNbt.getIntArray(key)) {
+                    if (idx >= 0 && idx < kinds.length) {
+                        list.add(kinds[idx]);
+                    }
+                }
+                if (!list.isEmpty()) {
+                    state.queued.put(UUID.fromString(key), list);
+                }
+            } catch (IllegalArgumentException ignored) {
+                // 壊れたUUIDは無視。
+            }
+        }
         return state;
     }
 
@@ -105,6 +145,12 @@ public final class PendingSelectionState extends PersistentState {
             players.put(entry.getKey().toString(), e);
         }
         nbt.put("players", players);
+        NbtCompound queuedNbt = new NbtCompound();
+        for (Map.Entry<UUID, List<ContentRegistry.Kind>> entry : queued.entrySet()) {
+            queuedNbt.putIntArray(entry.getKey().toString(),
+                    entry.getValue().stream().mapToInt(Enum::ordinal).toArray());
+        }
+        nbt.put("queued", queuedNbt);
         return nbt;
     }
 }

@@ -32,11 +32,12 @@ public final class HeroGameTest {
         FallenHeroData fallen = FallenHeroData.getOrCreate(world.getServer().getWorld(World.OVERWORLD));
         context.assertTrue(fallen.count(king.getUuid()) == 1, "A slain hero must wait at the altar");
 
-        ItemStack apple = new ItemStack(Items.GOLDEN_APPLE, 2);
         BlockPos altar = context.getAbsolutePos(new BlockPos(3, 2, 3));
-        context.assertFalse(KingdomManager.reviveHero(king, altar, apple), "Reviving must cost experience levels");
+        king.getInventory().insertStack(new ItemStack(Items.GOLDEN_APPLE, 5));
+        king.getInventory().insertStack(new ItemStack(Items.EMERALD, 16));
+        context.assertFalse(KingdomManager.reviveHero(king, altar), "Reviving must cost experience levels");
         king.experienceLevel = KingdomManager.HERO_REVIVE_LEVEL_COST;
-        context.assertTrue(KingdomManager.reviveHero(king, altar, apple), "The fallen hero must be revivable");
+        context.assertTrue(KingdomManager.reviveHero(king, altar), "The fallen hero must be revivable");
 
         HeroEntity revived = world.getEntitiesByClass(HeroEntity.class, new Box(altar).expand(4.0D),
                 h -> h.isAlive() && h != hero).stream().findFirst().orElse(null);
@@ -44,7 +45,9 @@ public final class HeroGameTest {
                 "The same hero class must come back");
         context.assertTrue(king.getUuid().equals(revived.getOwnerUuid()), "The revived hero must keep its king");
         context.assertTrue(revived.getHealth() == revived.getMaxHealth(), "The revived hero must be at full health");
-        context.assertTrue(apple.getCount() == 1 && king.experienceLevel == 0, "The offering must be consumed");
+        context.assertTrue(king.getInventory().count(Items.GOLDEN_APPLE) == 1
+                        && king.getInventory().count(Items.EMERALD) == 0 && king.experienceLevel == 0,
+                "4 golden apples, 16 emeralds and 10 levels must be consumed");
         context.assertTrue(fallen.count(king.getUuid()) == 0, "A revived hero must leave the fallen list");
         context.complete();
     }

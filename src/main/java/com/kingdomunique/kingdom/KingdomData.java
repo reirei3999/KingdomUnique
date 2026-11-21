@@ -55,8 +55,9 @@ public class KingdomData extends PersistentState {
         }
     }
 
+    /** どのディメンションから呼ばれても、王国データはオーバーワールドに保存する。 */
     public static KingdomData getOrCreate(ServerWorld world) {
-        return world.getPersistentStateManager().getOrCreate(TYPE, KEY);
+        return world.getServer().getOverworld().getPersistentStateManager().getOrCreate(TYPE, KEY);
     }
 
     @Override

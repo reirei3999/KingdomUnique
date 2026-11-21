@@ -223,15 +223,14 @@ public final class KingdomManager {
         owner.damage(owner.getDamageSources().magic(), curse);
     }
 
-    /** 祭壇で倒れた英雄を復活させるのに必要な経験レベル。 */
+    /** 祭壇で倒れた英雄を復活させるための捧げ物（金のリンゴ4・エメラルド16・経験値10レベル）。 */
+    public static final int HERO_REVIVE_APPLE_COST = 4;
+    public static final int HERO_REVIVE_EMERALD_COST = 16;
     public static final int HERO_REVIVE_LEVEL_COST = 10;
+    private static final String REVIVE_COST_TEXT = "金のリンゴ" + HERO_REVIVE_APPLE_COST
+            + "・エメラルド" + HERO_REVIVE_EMERALD_COST + "・経験値" + HERO_REVIVE_LEVEL_COST + "レベル";
 
-    /** 英雄召喚（1王国1回、軍旗で2回まで）。成功したら true。 */
-    public static boolean summonHero(ServerPlayerEntity player) {
-        return summonHero(player, null);
-    }
-
-    /** 祭壇の核を起点に英雄を召喚する（null ならプレイヤー位置）。成功したら true。 */
+    /** 祭壇の核を起点に英雄を召喚する（1王国1回、軍旗で2回まで）。成功したら true。 */
     public static boolean summonHero(ServerPlayerEntity player, net.minecraft.util.math.BlockPos summonPos) {
         KingdomData data = KingdomData.getOrCreate(player.getServer().getWorld(World.OVERWORLD));
         KingdomData.KingdomInfo info = getOrCreate(player);
@@ -239,8 +238,8 @@ public final class KingdomManager {
         if (info.heroSummonCount() >= max) {
             player.sendMessage(Text.literal("§c[英雄] この王国ではこれ以上召喚できません。"), false);
             if (FallenHeroData.getOrCreate(player.getServer().getWorld(World.OVERWORLD)).count(player.getUuid()) > 0) {
-                player.sendMessage(Text.literal("§e[英雄] 倒れた英雄は、祭壇のロードストーンを金のリンゴを持って右クリックすると復活できます（経験値"
-                        + HERO_REVIVE_LEVEL_COST + "レベル）。"), false);
+                player.sendMessage(Text.literal("§e[英雄] 倒れた英雄は、祭壇のロードストーンを金のリンゴを持って右クリックすると復活できます（"
+                        + REVIVE_COST_TEXT + "）。"), false);
             }
             return false;
         }
@@ -294,26 +293,28 @@ public final class KingdomManager {
         ServerPlayerEntity king = world.getServer().getPlayerManager().getPlayer(owner);
         if (king != null) {
             king.sendMessage(Text.literal("§c[英雄] " + hero.getHeroClass().getDisplayName()
-                    + " が倒れました。祭壇のロードストーンを金のリンゴを持って右クリックすると復活できます（経験値"
-                    + HERO_REVIVE_LEVEL_COST + "レベル）。"), false);
+                    + " が倒れました。祭壇のロードストーンを金のリンゴを持って右クリックすると復活できます（"
+                    + REVIVE_COST_TEXT + "）。"), false);
         }
     }
 
     /**
-     * 祭壇で倒れた英雄を復活させる（金のリンゴ1個＋経験値10レベル、クリエイティブは無料）。
-     * 召喚回数は消費しない。成功したら true。
+     * 祭壇で倒れた英雄を復活させる（金のリンゴ4・エメラルド16・経験値10レベル、クリエイティブは無料）。
+     * 捧げ物はインベントリ全体から消費する。召喚回数は消費しない。成功したら true。
      */
-    public static boolean reviveHero(ServerPlayerEntity player, net.minecraft.util.math.BlockPos altar,
-                                     net.minecraft.item.ItemStack offering) {
+    public static boolean reviveHero(ServerPlayerEntity player, net.minecraft.util.math.BlockPos altar) {
         FallenHeroData fallen = FallenHeroData.getOrCreate(player.getServer().getWorld(World.OVERWORLD));
         if (fallen.count(player.getUuid()) == 0) {
             player.sendMessage(Text.literal("§7[祭壇] 復活を待つ英雄はいません。"), false);
             return false;
         }
         boolean free = player.isCreative();
-        if (!free && player.experienceLevel < HERO_REVIVE_LEVEL_COST) {
-            player.sendMessage(Text.literal("§c[祭壇] 英雄の復活には経験値" + HERO_REVIVE_LEVEL_COST
-                    + "レベルが必要です（現在 " + player.experienceLevel + "）。"), false);
+        if (!free && (player.getInventory().count(Items.GOLDEN_APPLE) < HERO_REVIVE_APPLE_COST
+                || player.getInventory().count(Items.EMERALD) < HERO_REVIVE_EMERALD_COST
+                || player.experienceLevel < HERO_REVIVE_LEVEL_COST)) {
+            player.sendMessage(Text.literal("§c[祭壇] 英雄の復活には " + REVIVE_COST_TEXT + " が必要です（所持: 金のリンゴ"
+                    + player.getInventory().count(Items.GOLDEN_APPLE) + "・エメラルド"
+                    + player.getInventory().count(Items.EMERALD) + "・レベル" + player.experienceLevel + "）。"), false);
             return false;
         }
         ServerWorld world = player.getServerWorld();
@@ -332,7 +333,8 @@ public final class KingdomManager {
             return false;
         }
         if (!free) {
-            offering.decrement(1);
+            removeItems(player, Items.GOLDEN_APPLE, HERO_REVIVE_APPLE_COST);
+            removeItems(player, Items.EMERALD, HERO_REVIVE_EMERALD_COST);
             player.addExperienceLevels(-HERO_REVIVE_LEVEL_COST);
         }
         world.spawnParticles(net.minecraft.particle.ParticleTypes.TOTEM_OF_UNDYING,
@@ -343,6 +345,19 @@ public final class KingdomManager {
                 Text.literal("§6§l【英雄復活】§r " + player.getName().getString() + " の「"
                         + hero.getHeroClass().getDisplayName() + "」が祭壇より蘇った！"), false);
         return true;
+    }
+
+    private static void removeItems(ServerPlayerEntity player, Item item, int count) {
+        net.minecraft.entity.player.PlayerInventory inventory = player.getInventory();
+        for (int slot = 0; slot < inventory.size() && count > 0; slot++) {
+            ItemStack stack = inventory.getStack(slot);
+            if (stack.isOf(item)) {
+                int taken = Math.min(count, stack.getCount());
+                stack.decrement(taken);
+                count -= taken;
+            }
+        }
+        inventory.markDirty();
     }
 
     /** Gキー／オーブによる刺客英雄への憑依切替。 */

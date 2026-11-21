@@ -36,8 +36,9 @@ public class DiplomacyData extends PersistentState {
         }
     }
 
+    /** どのディメンションから呼ばれても、外交データはオーバーワールドに保存する。 */
     public static DiplomacyData getOrCreate(ServerWorld world) {
-        return world.getPersistentStateManager().getOrCreate(TYPE, KEY);
+        return world.getServer().getOverworld().getPersistentStateManager().getOrCreate(TYPE, KEY);
     }
 
     @Override

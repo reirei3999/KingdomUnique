@@ -9,6 +9,7 @@
       "com.kingdomunique.ability.GravityControlGameTest",
       "com.kingdomunique.building.BlueprintGameTest",
       "com.kingdomunique.kingdom.HeroGameTest",
+      "com.kingdomunique.selection.SelectionGameTest",
       "com.kingdomunique.soldier.SoldierOrderGameTest",
       "com.kingdomunique.world.VillagePlacementGameTest",
       "com.kingdomunique.world.CitizenMovementGameTest",

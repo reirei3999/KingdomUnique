@@ -45,8 +45,8 @@ public final class FallenHeroData extends PersistentState {
         return data;
     }
 
-    public static FallenHeroData getOrCreate(ServerWorld overworld) {
-        return overworld.getPersistentStateManager().getOrCreate(TYPE, KEY);
+    public static FallenHeroData getOrCreate(ServerWorld world) {
+        return world.getServer().getOverworld().getPersistentStateManager().getOrCreate(TYPE, KEY);
     }
 
     @Override

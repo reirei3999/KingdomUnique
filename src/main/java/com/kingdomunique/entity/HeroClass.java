@@ -4,7 +4,7 @@ package com.kingdomunique.entity;
 public enum HeroClass {
     ASSASSIN("シャドウ（刺客）", 120.0F, 14.0F, 0.34F, 2.0D, 6.0D),
     KNIGHT("アーサー（近衛騎士団長）", 220.0F, 10.0F, 0.22F, 14.0D, 4.0D),
-    ARCHER("ロビン（神弓の狩人）", 100.0F, 9.0F, 0.25F, 4.0D, 16.0D),
+    ARCHER("ロビン（神弓の狩人）", 100.0F, 7.0F, 0.25F, 4.0D, 24.0D),
     SMITH("ヘファイストス（伝説の鍛冶師）", 160.0F, 6.0F, 0.20F, 8.0D, 8.0D);
 
     private final String displayName;

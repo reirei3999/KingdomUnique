@@ -54,6 +54,9 @@ public class WorldUniqueData extends PersistentState {
     /** 不死鳥の羽根: プレイヤーUUID -> 最後に蘇生した日（再ログイン・再起動で回数が戻らないように保存）。 */
     private final Map<UUID, Long> phoenixReviveDays = new HashMap<>();
 
+    /** 選択トリガー（diamond / citizen / nether）の発動済み記録。再起動で再抽選されないように保存する。 */
+    private final Map<UUID, Set<String>> selectionTriggers = new HashMap<>();
+
     public WorldUniqueData() {
     }
 
@@ -95,6 +98,21 @@ public class WorldUniqueData extends PersistentState {
 
         readDays(nbt.getCompound("golden_scale_payouts"), goldenScalePayoutDays);
         readDays(nbt.getCompound("phoenix_revives"), phoenixReviveDays);
+
+        NbtCompound triggersNbt = nbt.getCompound("selection_triggers");
+        for (String key : triggersNbt.getKeys()) {
+            try {
+                Set<String> triggers = new HashSet<>();
+                for (String trigger : triggersNbt.getString(key).split(",")) {
+                    if (!trigger.isEmpty()) {
+                        triggers.add(trigger);
+                    }
+                }
+                selectionTriggers.put(UUID.fromString(key), triggers);
+            } catch (IllegalArgumentException ignored) {
+                // 壊れたキーは無視する。
+            }
+        }
     }
 
     private static void readDays(NbtCompound daysNbt, Map<UUID, Long> target) {
@@ -115,8 +133,9 @@ public class WorldUniqueData extends PersistentState {
         return daysNbt;
     }
 
+    /** どのディメンションから呼ばれても、世界共通のデータとしてオーバーワールドに保存する。 */
     public static WorldUniqueData getOrCreate(ServerWorld world) {
-        return world.getPersistentStateManager().getOrCreate(TYPE, KEY);
+        return world.getServer().getOverworld().getPersistentStateManager().getOrCreate(TYPE, KEY);
     }
 
     @Override
@@ -145,6 +164,12 @@ public class WorldUniqueData extends PersistentState {
 
         nbt.put("golden_scale_payouts", writeDays(goldenScalePayoutDays));
         nbt.put("phoenix_revives", writeDays(phoenixReviveDays));
+
+        NbtCompound triggersNbt = new NbtCompound();
+        for (Map.Entry<UUID, Set<String>> entry : selectionTriggers.entrySet()) {
+            triggersNbt.putString(entry.getKey().toString(), String.join(",", entry.getValue()));
+        }
+        nbt.put("selection_triggers", triggersNbt);
         return nbt;
     }
 
@@ -272,6 +297,15 @@ public class WorldUniqueData extends PersistentState {
     /** 不死鳥の羽根の蘇生をその日に未使用なら使用済みにして true を返す。 */
     public boolean claimPhoenixRevive(UUID playerUuid, long day) {
         return claimDay(phoenixReviveDays, playerUuid, day);
+    }
+
+    /** 選択トリガーを発動済みにする。初めてなら true（＝抽選してよい）。 */
+    public boolean markSelectionTrigger(UUID playerUuid, String trigger) {
+        if (!selectionTriggers.computeIfAbsent(playerUuid, ignored -> new HashSet<>()).add(trigger)) {
+            return false;
+        }
+        markDirty();
+        return true;
     }
 
     private boolean claimDay(Map<UUID, Long> days, UUID playerUuid, long day) {

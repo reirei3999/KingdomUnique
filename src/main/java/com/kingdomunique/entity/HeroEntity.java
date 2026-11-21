@@ -35,7 +35,7 @@ public final class HeroEntity extends PathAwareEntity implements RangedAttackMob
 
     /** 弓手が敵との間に保とうとする距離（これより近づかれたら離れる）。 */
     private static final float ARCHER_KEEP_DISTANCE = 6.0F;
-    private static final float ARCHER_RANGE = 16.0F;
+    private static final float ARCHER_RANGE = 24.0F;
     private static final int ARCHER_SHOT_INTERVAL = 25;
     private static final float ARROW_SPEED = 1.6F;
 
@@ -190,6 +190,9 @@ public final class HeroEntity extends PathAwareEntity implements RangedAttackMob
         } catch (IllegalArgumentException ignored) {
             heroClass = HeroClass.KNIGHT;
         }
+        // 調整後のクラス性能（攻撃力・索敵範囲）を既存の英雄にも反映する。HPと装備は保存値を保つ。
+        this.getAttributeInstance(EntityAttributes.GENERIC_ATTACK_DAMAGE).setBaseValue(heroClass.getAttackDamage());
+        this.getAttributeInstance(EntityAttributes.GENERIC_FOLLOW_RANGE).setBaseValue(heroClass.getFollowRange());
         try {
             mode = HeroMode.valueOf(nbt.getString("ku_hero_mode"));
         } catch (IllegalArgumentException ignored) {

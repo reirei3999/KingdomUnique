@@ -112,10 +112,8 @@ public final class SelectionEventHandler {
 
     public static void register() {
         ServerTickEvents.END_SERVER_TICK.register(SelectionEventHandler::onTick);
-        ServerPlayConnectionEvents.DISCONNECT.register((handler, server) -> {
-            SelectionManager.remove(handler.getPlayer());
-            GLUTTONY_UNTIL.remove(handler.getPlayer().getUuid());
-        });
+        ServerPlayConnectionEvents.DISCONNECT.register((handler, server) ->
+                GLUTTONY_UNTIL.remove(handler.getPlayer().getUuid()));
 
         ServerPlayNetworking.registerGlobalReceiver(SelectionChoicePayload.ID, (payload, context) -> {
             ServerPlayerEntity player = context.player();

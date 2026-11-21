@@ -40,8 +40,9 @@ public class PlayerStatsData extends PersistentState {
         }
     }
 
+    /** どのディメンションから呼ばれても、戦績データはオーバーワールドに保存する。 */
     public static PlayerStatsData getOrCreate(ServerWorld world) {
-        return world.getPersistentStateManager().getOrCreate(TYPE, KEY);
+        return world.getServer().getOverworld().getPersistentStateManager().getOrCreate(TYPE, KEY);
     }
 
     @Override
