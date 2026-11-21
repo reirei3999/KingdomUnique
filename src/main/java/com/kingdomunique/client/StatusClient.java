@@ -12,7 +12,7 @@ import java.util.List;
 public final class StatusClient {
 
     private static SyncPlayerStatusPayload latest = new SyncPlayerStatusPayload(
-            List.of(), "", 0, 1, false);
+            List.of(), "", 0, 1, false, 1.0D);
 
     private StatusClient() {
     }

@@ -161,6 +161,10 @@ public enum BuildingType {
 
     public abstract Map<Item, Integer> materials();
 
+    public static int requiredAmount(int baseAmount, double costMultiplier) {
+        return Math.max(1, (int) Math.ceil(baseAmount * costMultiplier));
+    }
+
     public String getDisplayName() {
         return displayName;
     }

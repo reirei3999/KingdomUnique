@@ -1,7 +1,10 @@
 package com.kingdomunique.building;
 
 import com.kingdomunique.kingdom.KingdomData;
+import com.kingdomunique.data.WorldUniqueData;
 import com.kingdomunique.network.BuildingBoxesSyncPayload;
+import com.kingdomunique.network.SyncPlayerStatusPayload;
+import com.kingdomunique.registry.UniqueContentRegistry;
 import com.mojang.authlib.GameProfile;
 import io.netty.buffer.Unpooled;
 import net.fabricmc.fabric.api.gametest.v1.FabricGameTest;
@@ -27,11 +30,61 @@ import net.minecraft.util.hit.BlockHitResult;
 import net.minecraft.util.math.BlockPos;
 import net.minecraft.util.math.Direction;
 import net.minecraft.util.math.Vec3d;
+import net.minecraft.world.World;
 
 import java.util.UUID;
 import java.util.concurrent.atomic.AtomicReference;
 
 public final class BlueprintGameTest {
+    @GameTest(templateName = FabricGameTest.EMPTY_STRUCTURE)
+    public void barracksPreviewMatchesMaterialRequirements(TestContext context) {
+        ServerWorld world = context.getWorld();
+        ServerPlayerEntity player = player(world);
+        var ownership = WorldUniqueData.getOrCreate(world.getServer().getWorld(World.OVERWORLD));
+        String supervisor = UniqueContentRegistry.SITE_SUPERVISOR;
+        try {
+            for (boolean discounted : new boolean[]{false, true}) {
+                if (discounted) {
+                    context.assertTrue(ownership.claimId(player.getUuid(), supervisor), "Supervisor must be available");
+                }
+                double multiplier = BuildingManager.costMultiplier(player);
+                var status = new SyncPlayerStatusPayload(
+                        java.util.List.copyOf(ownership.getClaimedIds(player.getUuid())), "", 0, 1, false, multiplier);
+                var buffer = new RegistryByteBuf(Unpooled.buffer(), world.getRegistryManager());
+                try {
+                    SyncPlayerStatusPayload.TYPE.codec().encode(buffer, status);
+                    status = (SyncPlayerStatusPayload) SyncPlayerStatusPayload.TYPE.codec().decode(buffer);
+                } finally {
+                    buffer.release();
+                }
+                context.assertEquals(status.ownedIds().contains(supervisor), discounted, "Supervisor ownership must sync");
+                BlockPos pos = context.getAbsolutePos(new BlockPos(0, discounted ? 128 : 96, 0));
+                BlueprintBlockEntity blueprint = place(ModBlocks.BARRACKS, world, pos, player);
+                int[] expected = discounted ? new int[]{45, 9, 12} : new int[]{64, 12, 16};
+                int index = 0;
+                context.assertFalse(blueprint.hasAllMaterials(BuildingType.BARRACKS, multiplier),
+                        "An empty site must still require materials");
+                context.assertFalse(blueprint.insert(ItemStack.EMPTY, multiplier), "Empty stacks must be rejected");
+                context.assertFalse(blueprint.insert(new ItemStack(Items.DIRT), multiplier), "Unrelated items must be rejected");
+                for (var entry : BuildingType.BARRACKS.materials().entrySet()) {
+                    int needed = BuildingType.requiredAmount(entry.getValue(), status.buildingCostMultiplier());
+                    context.assertEquals(needed, expected[index++], "Preview must round up discounted barracks costs");
+                    ItemStack stack = new ItemStack(entry.getKey(), needed + 1);
+                    context.assertTrue(blueprint.insert(stack, multiplier), "The site must accept preview materials");
+                    context.assertEquals(stack.getCount(), 1, "The site must take exactly the preview amount");
+                    context.assertFalse(blueprint.insert(stack, multiplier), "The site must reject surplus materials");
+                }
+                context.assertTrue(blueprint.hasAllMaterials(BuildingType.BARRACKS, multiplier),
+                        "Preview materials must satisfy the site");
+                blueprint.consume(BuildingType.BARRACKS, multiplier);
+                context.assertTrue(blueprint.inventory().isEmpty(), "Construction must consume exactly the preview materials");
+            }
+            context.complete();
+        } finally {
+            ownership.releaseId(player.getUuid(), supervisor);
+        }
+    }
+
     @GameTest(templateName = FabricGameTest.EMPTY_STRUCTURE)
     public void creativePlacementCompletesWithoutMaterialsOrPermission(TestContext context) {
         ServerWorld world = context.getWorld();
