@@ -6,14 +6,17 @@ import com.kingdomunique.entity.CitizenVillager;
 import com.kingdomunique.effect.RelicEffects;
 import net.fabricmc.fabric.api.entity.event.v1.ServerLivingEntityEvents;
 import net.fabricmc.fabric.api.event.lifecycle.v1.ServerTickEvents;
+import net.minecraft.block.entity.BlockEntity;
 import net.minecraft.entity.LivingEntity;
 import net.minecraft.entity.passive.VillagerEntity;
+import net.minecraft.inventory.Inventory;
 import net.minecraft.item.ItemStack;
 import net.minecraft.item.Items;
 import net.minecraft.server.MinecraftServer;
 import net.minecraft.server.network.ServerPlayerEntity;
 import net.minecraft.server.world.ServerWorld;
 import net.minecraft.text.Text;
+import net.minecraft.util.math.BlockBox;
 import net.minecraft.util.math.BlockPos;
 import net.minecraft.util.math.Box;
 import net.minecraft.village.VillagerData;
@@ -24,6 +27,7 @@ import net.minecraft.entity.SpawnReason;
 import net.minecraft.entity.EntityType;
 import net.minecraft.world.World;
 
+import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
@@ -74,6 +78,10 @@ public final class PopulationManager {
                 || world.getTime() % GROWTH_CHECK_INTERVAL != 0L) {
             return;
         }
+        // Gemini 修正: 夜の間だけ出生判定を行う。
+        if (!world.isNight()) {
+            return;
+        }
         MinecraftServer server = world.getServer();
         KingdomBuildingState buildings = KingdomBuildingState.get(world);
 
@@ -96,7 +104,8 @@ public final class PopulationManager {
             if (currentPop >= maxPop || currentPop < 2) {
                 continue;
             }
-            if (!consumeFood(king, Items.BREAD, 4)) {
+            // Gemini 修正: 王のインベントリではなく穀物庫/タウンホールのチェストから食料を消費。
+            if (!consumeFoodFromStorage(world, buildings, kingId, Items.BREAD, 4)) {
                 continue;
             }
 
@@ -196,24 +205,68 @@ public final class PopulationManager {
         return fallback;
     }
 
-    private static boolean consumeFood(ServerPlayerEntity player, net.minecraft.item.Item item, int amount) {
-        int available = 0;
-        for (int i = 0; i < player.getInventory().size(); i++) {
-            ItemStack s = player.getInventory().getStack(i);
-            if (s.isOf(item)) {
-                available += s.getCount();
+    /**
+     * 穀物庫（GRANARY）およびタウンホール（TOWN_HALL）の敷地内にある
+     * チェスト・樽などの Inventory から食料を消費する（Gemini 提示）。
+     * 複数チェストに分散していても合算して差し引ける。
+     */
+    private static boolean consumeFoodFromStorage(ServerWorld world, KingdomBuildingState buildings,
+                                                  UUID kingId, net.minecraft.item.Item targetItem,
+                                                  int requiredAmount) {
+        List<Inventory> storages = new ArrayList<>();
+        for (KingdomBuildingState.CompletedBuilding b : buildings.entries()) {
+            if (!b.ownerUuid.equals(kingId)) {
+                continue;
+            }
+            if (b.type != BuildingType.GRANARY && b.type != BuildingType.TOWN_HALL) {
+                continue;
+            }
+            BlockBox box = b.boundingBox;
+            for (int x = box.getMinX() - 1; x <= box.getMaxX() + 1; x++) {
+                for (int z = box.getMinZ() - 1; z <= box.getMaxZ() + 1; z++) {
+                    if (!world.isChunkLoaded(x >> 4, z >> 4)) {
+                        continue;
+                    }
+                    for (int y = box.getMinY(); y <= box.getMaxY() + 1; y++) {
+                        BlockEntity be = world.getBlockEntity(new BlockPos(x, y, z));
+                        if (be instanceof Inventory inv && !storages.contains(inv)) {
+                            storages.add(inv);
+                        }
+                    }
+                }
             }
         }
-        if (available < amount) {
+
+        int total = 0;
+        for (Inventory inv : storages) {
+            for (int slot = 0; slot < inv.size(); slot++) {
+                ItemStack stack = inv.getStack(slot);
+                if (stack.isOf(targetItem)) {
+                    total += stack.getCount();
+                }
+            }
+        }
+        if (total < requiredAmount) {
             return false;
         }
-        int remaining = amount;
-        for (int i = 0; i < player.getInventory().size() && remaining > 0; i++) {
-            ItemStack s = player.getInventory().getStack(i);
-            if (s.isOf(item)) {
-                int take = Math.min(remaining, s.getCount());
-                s.decrement(take);
-                remaining -= take;
+
+        int remaining = requiredAmount;
+        for (Inventory inv : storages) {
+            boolean changed = false;
+            for (int slot = 0; slot < inv.size() && remaining > 0; slot++) {
+                ItemStack stack = inv.getStack(slot);
+                if (stack.isOf(targetItem)) {
+                    int take = Math.min(remaining, stack.getCount());
+                    stack.decrement(take);
+                    remaining -= take;
+                    changed = true;
+                }
+            }
+            if (changed) {
+                inv.markDirty();
+            }
+            if (remaining <= 0) {
+                break;
             }
         }
         return true;
