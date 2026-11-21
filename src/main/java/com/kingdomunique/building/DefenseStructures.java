@@ -26,7 +26,9 @@ final class DefenseStructures {
         // すそ：塔身の周りに内向きの階段
         for (int i = 1; i <= 3; i++) {
             b.set(i, 0, 0, stairs(Blocks.STONE_BRICK_STAIRS, Direction.SOUTH));
-            b.set(i, 0, 4, stairs(Blocks.STONE_BRICK_STAIRS, Direction.NORTH));
+            if (i != 2) {
+                b.set(i, 0, 4, stairs(Blocks.STONE_BRICK_STAIRS, Direction.NORTH));
+            }
             b.set(0, 0, i, stairs(Blocks.STONE_BRICK_STAIRS, Direction.EAST));
             b.set(4, 0, i, stairs(Blocks.STONE_BRICK_STAIRS, Direction.WEST));
         }
