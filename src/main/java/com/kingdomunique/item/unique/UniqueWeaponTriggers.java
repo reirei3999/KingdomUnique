@@ -151,7 +151,11 @@ public final class UniqueWeaponTriggers {
             player.giveItemStack(stack);
         }
 
-        String name = ContentRegistry.nameOf(id);
+        String name = ItemCatalog.entries().stream()
+                .filter(entry -> entry.id().equals(id))
+                .map(ItemCatalog.Entry::label)
+                .findFirst()
+                .orElse(ContentRegistry.nameOf(id));
         server.getPlayerManager().broadcast(
                 Text.literal("【神話の顕現】" + player.getName().getString()
                         + " が世界に一つだけの神話級武器《" + name + "》を手に入れた！")
