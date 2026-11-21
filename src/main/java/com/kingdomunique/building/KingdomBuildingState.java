@@ -42,9 +42,18 @@ public final class KingdomBuildingState extends PersistentState {
         public final Direction facing;
         public final BlockBox boundingBox;
         public final BlockPos specialCorePos;
+        /** 初期村で最初から建っている建物（人口上限には加算しない）。 */
+        public final boolean starter;
 
         public CompletedBuilding(UUID ownerUuid, BuildingType type, BlockPos origin,
                                  Direction facing, BlockBox boundingBox, BlockPos specialCorePos) {
+            this(ownerUuid, type, origin, facing, boundingBox, specialCorePos, false);
+        }
+
+        public CompletedBuilding(UUID ownerUuid, BuildingType type, BlockPos origin,
+                                 Direction facing, BlockBox boundingBox, BlockPos specialCorePos,
+                                 boolean starter) {
+            this.starter = starter;
             this.ownerUuid = ownerUuid;
             this.type = type;
             this.origin = origin;
@@ -89,9 +98,14 @@ public final class KingdomBuildingState extends PersistentState {
 
     public void add(UUID owner, BuildingType type, BlockPos origin, Direction facing,
                     BlockBox box, BlockPos core) {
+        add(owner, type, origin, facing, box, core, false);
+    }
+
+    public void add(UUID owner, BuildingType type, BlockPos origin, Direction facing,
+                    BlockBox box, BlockPos core, boolean starter) {
         completedBuildings.removeIf(b -> b.origin.equals(origin));
         completedBuildings.add(new CompletedBuilding(owner, type, origin.toImmutable(),
-                facing, box, core == null ? null : core.toImmutable()));
+                facing, box, core == null ? null : core.toImmutable(), starter));
         markDirty();
     }
 
@@ -117,7 +131,8 @@ public final class KingdomBuildingState extends PersistentState {
                 BlockPos core = c.contains("corePos")
                         ? BlockPos.fromLong(c.getLong("corePos")) : null;
                 state.completedBuildings.add(
-                        new CompletedBuilding(owner, type, origin, facing, box, core));
+                        new CompletedBuilding(owner, type, origin, facing, box, core,
+                                c.getBoolean("starter")));
             } catch (IllegalArgumentException ignored) {
                 // 削除された enum 名などは安全にスキップ。
             }
@@ -142,6 +157,9 @@ public final class KingdomBuildingState extends PersistentState {
             c.putInt("maxZ", b.boundingBox.getMaxZ());
             if (b.specialCorePos != null) {
                 c.putLong("corePos", b.specialCorePos.asLong());
+            }
+            if (b.starter) {
+                c.putBoolean("starter", true);
             }
             list.add(c);
         }

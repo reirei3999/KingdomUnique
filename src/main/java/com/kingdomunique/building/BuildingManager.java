@@ -273,21 +273,14 @@ public final class BuildingManager {
         com.kingdomunique.status.StatusManager.syncBuildingBoxesToWorld(world);
         return true;
     }
-    /** 設計図を使わずに建った建物（初期村など）を、完成済みの王国建物として登録する。 */
+    /** 初期村で最初から建っている建物を、完成済みの王国建物として登録する（人口上限には加算しない）。 */
     public static void registerExisting(ServerWorld world, ServerPlayerEntity owner, BuildingType type,
                                         net.minecraft.util.math.BlockPos origin,
                                         net.minecraft.util.math.Direction facing) {
-        KingdomBuildingState state = KingdomBuildingState.get(world);
-        boolean known = state.entries().stream()
-                .anyMatch(b -> b.origin.equals(origin) && b.type == type && b.ownerUuid.equals(owner.getUuid()));
         net.minecraft.util.math.BlockBox box = StructureRotationUtil.computeBoundingBox(origin, type, facing);
-        state.add(owner.getUuid(), type, origin, facing, box, null);
+        KingdomBuildingState.get(world).add(owner.getUuid(), type, origin, facing, box, null, true);
         CompletedBuildingsData.getOrCreate(world).add(origin, type, owner.getUuid());
         DefenseData.register(world, origin, type, owner.getUuid(), facing);
-        if (!known && type != BuildingType.TOWN_HALL && type != BuildingType.HERO_SANCTUARY
-                && type.getPopulationCapBonus() > 0) {
-            KingdomManager.addCapBonus(owner, type.getPopulationCapBonus());
-        }
     }
     /** チャンク未ロード・高度範囲外での配置を防ぐ（Gemini 提示のバグ③対策）。 */
     public static boolean canPlaceSafely(ServerWorld world, BlockPos pos) {

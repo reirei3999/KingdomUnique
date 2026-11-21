@@ -50,11 +50,11 @@ public final class PopulationManager {
         ServerLivingEntityEvents.AFTER_DEATH.register(PopulationManager::onEntityDeath);
     }
 
-    /** 住宅数から人口上限を再計算（初期10 + 住宅数*5、最大40）。 */
+    /** 住宅数から人口上限を再計算（初期10 + 住宅数*5、最大40）。初期村の家は数えない。 */
     public static int calculateMaxPopulation(ServerWorld world, UUID kingUuid) {
         KingdomBuildingState buildings = KingdomBuildingState.get(world);
         long houseCount = buildings.entries().stream()
-                .filter(b -> b.ownerUuid.equals(kingUuid) && b.type == BuildingType.HOUSE)
+                .filter(b -> b.ownerUuid.equals(kingUuid) && b.type == BuildingType.HOUSE && !b.starter)
                 .count();
         return Math.min(MAX_POPULATION_CAP, BASE_POPULATION_CAP + (int) (houseCount * CAP_PER_HOUSE));
     }
