@@ -1,7 +1,6 @@
 package com.kingdomunique.client;
 
 import com.kingdomunique.network.SelectionChoicePayload;
-import com.kingdomunique.registry.AbilityDescriptions;
 import com.kingdomunique.registry.ContentRegistry;
 import net.fabricmc.api.EnvType;
 import net.fabricmc.api.Environment;
@@ -10,31 +9,19 @@ import net.minecraft.client.MinecraftClient;
 import net.minecraft.client.gui.DrawContext;
 import net.minecraft.client.gui.screen.Screen;
 import net.minecraft.client.gui.widget.ButtonWidget;
-import net.minecraft.item.ItemStack;
 import net.minecraft.sound.SoundEvents;
 import net.minecraft.text.OrderedText;
 import net.minecraft.text.Text;
-import net.minecraft.util.Formatting;
 import org.lwjgl.glfw.GLFW;
 
 import java.util.List;
 
-/** バニラ風の半透明オーバーレイ＋カード型選択画面。 */
+/**
+ * ユニーク選択画面（Gemini 提示のホバー詳細プレビュー付き2ペインUI）。
+ * 世界排他でやり直しが効かないため、確定前に必ず効果と代償を確認できるようにする。
+ */
 @Environment(EnvType.CLIENT)
 public final class SelectionScreen extends Screen {
-
-    private static final int CARD_WIDTH = 150;
-    private static final int CARD_HEIGHT = 150;
-    private static final int CARD_GAP = 12;
-    private static final int FRAME_NORMAL = 0xFF8B0000;
-    private static final int FRAME_HIGHLIGHT = 0xFFFFF0A0;
-    // 半透明だと背面のぼかしが透けて文字が滲むため、カード背景は完全不透明にする。
-    private static final int CARD_BG = 0xFF1E1E1E;
-    private static final int TEXT_WHITE = 0xFFFFFFFF;
-    private static final int TEXT_SUBTLE = 0xFFFFFFFF;
-    private static final int TEXT_EFFECT = 0xFFFFFFFF;
-    private static final int TEXT_MERIT = 0xFF55FFFF;
-    private static final int TEXT_DEMERIT = 0xFFFF5555;
 
     private final ContentRegistry.Kind kind;
     private final List<String> optionIds;
@@ -44,49 +31,58 @@ public final class SelectionScreen extends Screen {
     public SelectionScreen(ContentRegistry.Kind kind, List<String> optionIds) {
         super(Text.literal(titleOf(kind)));
         this.kind = kind;
-        this.optionIds = List.copyOf(optionIds);
+        this.optionIds = optionIds == null || optionIds.isEmpty()
+                ? List.of("none") : List.copyOf(optionIds);
     }
 
     private static String titleOf(ContentRegistry.Kind kind) {
         return switch (kind) {
-            case ABILITY -> "能力の選択";
-            case RELIC -> "遺物の選択";
-            case CURSE -> "呪物の選択";
+            case ABILITY -> "§6§l✦ ユニーク能力覚醒（1つだけ獲得・世界排他）";
+            case RELIC -> "§b§l✦ 王国の遺物選択（1つだけ獲得・世界排他）";
+            case CURSE -> "§5§l✦ 禁断の呪物選択（1つだけ獲得・世界排他）";
         };
     }
 
     @Override
     protected void init() {
-        int centerX = this.width / 2;
-        int buttonY = cardTop() + CARD_HEIGHT + 16;
-        decideButton = this.addDrawableChild(ButtonWidget.builder(Text.literal("決定"), button -> decide())
-                .dimensions(centerX - 110, buttonY, 105, 20).build());
+        int[] p = panel();
+        int left = (this.width - p[0]) / 2;
+        int top = (this.height - p[1]) / 2;
+
+        decideButton = this.addDrawableChild(ButtonWidget.builder(
+                Text.literal("§a§lこの内容で確定する"), btn -> decide())
+                .dimensions(left + p[0] - 140, top + p[1] - 28, 130, 20).build());
         decideButton.active = false;
-        this.addDrawableChild(ButtonWidget.builder(Text.literal("閉じる"), button -> this.close())
-                .dimensions(centerX + 5, buttonY, 105, 20).build());
+
+        this.addDrawableChild(ButtonWidget.builder(
+                Text.literal("§7保留して閉じる"), btn -> this.close())
+                .dimensions(left + 10, top + p[1] - 28, 100, 20).build());
     }
 
-    private int cardTop() {
-        return Math.max(58, this.height / 2 - CARD_HEIGHT / 2 - 20);
+    /** {幅, 高さ} */
+    private int[] panel() {
+        return new int[]{Math.min(430, this.width - 20), Math.min(260, this.height - 20)};
     }
 
-    /** カード自体はボタンWidgetにしない（ボタン背景が内容を覆い隠すため）。 */
-    @Override
-    public boolean mouseClicked(double mouseX, double mouseY, int button) {
-        if (button == 0 && optionIds.size() > 0) {
-            int totalWidth = optionIds.size() * CARD_WIDTH + (optionIds.size() - 1) * CARD_GAP;
-            int startX = this.width / 2 - totalWidth / 2;
-            int top = cardTop();
-            for (int i = 0; i < optionIds.size(); i++) {
-                int x = startX + i * (CARD_WIDTH + CARD_GAP);
-                if (mouseX >= x && mouseX <= x + CARD_WIDTH
-                        && mouseY >= top && mouseY <= top + CARD_HEIGHT) {
-                    select(i);
-                    return true;
-                }
-            }
+    private int buttonY(int i) {
+        int[] p = panel();
+        int spacing = optionIds.size() >= 5 ? 28 : 34;
+        return (this.height - p[1]) / 2 + 34 + i * spacing;
+    }
+
+    private int buttonHeight() {
+        return optionIds.size() >= 5 ? 24 : 28;
+    }
+
+    /** カード（ボタン）をクリックしたら選択状態にする（まだ送信しない）。 */
+    private void select(int index) {
+        if (index < 0 || index >= optionIds.size()) {
+            return;
         }
-        return super.mouseClicked(mouseX, mouseY, button);
+        selectedIndex = index;
+        if (decideButton != null) {
+            decideButton.active = true;
+        }
     }
 
     /** 数字キー 1〜9 でも選択できる。 */
@@ -102,18 +98,15 @@ public final class SelectionScreen extends Screen {
         return super.keyPressed(keyCode, scanCode, modifiers);
     }
 
-    private void select(int index) {
-        selectedIndex = index;
-        if (decideButton != null) {
-            decideButton.active = true;
-        }
-    }
-
     private void decide() {
         if (selectedIndex < 0 || selectedIndex >= optionIds.size()) {
             return;
         }
         String chosen = optionIds.get(selectedIndex);
+        if ("none".equals(chosen)) {
+            this.close();
+            return;
+        }
         ClientPlayNetworking.send(new SelectionChoicePayload(kind, chosen));
         if (MinecraftClient.getInstance().player != null) {
             MinecraftClient.getInstance().player.playSound(
@@ -125,128 +118,127 @@ public final class SelectionScreen extends Screen {
         this.close();
     }
 
-    /**
-     * バニラのぼかし付き背景はやめて単色にする。
-     * ぼかされた背面が文字のフリンジとして滲むのを防ぐため。
-     */
     @Override
     public void renderBackground(DrawContext context, int mouseX, int mouseY, float delta) {
-        context.fill(0, 0, this.width, this.height, 0xFF0E0E12);
+        context.fill(0, 0, this.width, this.height, 0xFF0B0B10);
     }
 
     @Override
     public void render(DrawContext context, int mouseX, int mouseY, float delta) {
         this.renderBackground(context, mouseX, mouseY, delta);
-        context.getMatrices().push();
-        context.getMatrices().scale(1.0F, 1.0F, 1.0F);
-        context.drawCenteredTextWithShadow(this.textRenderer, this.title,
-                (int) (this.width / 2), (int) 18, 0xFFFFD700);
-        context.drawCenteredTextWithShadow(this.textRenderer,
-                Text.literal("カードをクリック（または数字キー）で選択 → 「決定」を押してください"),
-                (int) (this.width / 2), (int) 36, TEXT_SUBTLE);
 
-        if (optionIds.isEmpty()) {
-            context.drawCenteredTextWithShadow(this.textRenderer,
-                    Text.literal("このカテゴリには選択できるアイテムが残っていません。"),
-                    (int) (this.width / 2), (int) (this.height / 2), 0xFFFF6666);
-            context.getMatrices().pop();
-            super.render(context, mouseX, mouseY, delta);
-            return;
+        int[] p = panel();
+        int left = (this.width - p[0]) / 2;
+        int top = (this.height - p[1]) / 2;
+
+        // ホバー中候補をプレビュー対象に切り替える（未確定でも詳細が見える）。
+        int leftX = left + 10;
+        int btnW = 148;
+        for (int i = 0; i < optionIds.size(); i++) {
+            int y = buttonY(i);
+            if (mouseX >= leftX && mouseX <= leftX + btnW
+                    && mouseY >= y && mouseY <= y + buttonHeight()) {
+                selectedIndex = i;
+                if (decideButton != null) {
+                    decideButton.active = true;
+                }
+            }
         }
-        context.getMatrices().pop();
 
-        int totalWidth = optionIds.size() * CARD_WIDTH + (optionIds.size() - 1) * CARD_GAP;
-        int startX = this.width / 2 - totalWidth / 2;
-        int top = cardTop();
+        int previewIndex = selectedIndex < 0 ? 0 : Math.min(selectedIndex, optionIds.size() - 1);
+        UniqueLoreRegistry.UniqueInfo info = UniqueLoreRegistry.getOrFallback(optionIds.get(previewIndex));
+        int theme = themeColor(info.category());
 
+        context.fill(left, top, left + p[0], top + p[1], 0xEC0B1120);
+        drawBorder(context, left, top, p[0], p[1], theme);
+        context.fill(left + 1, top + 1, left + p[0] - 1, top + 25, 0xFF1E293B);
+        context.drawTextWithShadow(this.textRenderer, Text.literal(titleOf(kind)),
+                left + 10, top + 8, 0xFFFFFF);
+
+        // 左：候補ボタン（自前描画、ボタンWidgetの背景に覆われないようにする）。
         for (int i = 0; i < optionIds.size(); i++) {
             String id = optionIds.get(i);
-            int x = startX + i * (CARD_WIDTH + CARD_GAP);
-            boolean hovered = mouseX >= x && mouseX <= x + CARD_WIDTH
-                    && mouseY >= top && mouseY <= top + CARD_HEIGHT;
-            drawCard(context, id, x, top, hovered || i == selectedIndex, i);
+            UniqueLoreRegistry.UniqueInfo e = UniqueLoreRegistry.getOrFallback(id);
+            int y = buttonY(i);
+            context.fill(leftX, y, leftX + btnW, y + buttonHeight(), 0xFF161B26);
+            drawBorder(context, leftX, y, btnW, buttonHeight(),
+                    i == previewIndex ? theme : 0xFF475569);
+            context.drawTextWithShadow(this.textRenderer,
+                    Text.literal("§e[" + (i + 1) + "] §f" + e.name()), leftX + 6, y + 6, 0xFFFFFF);
         }
 
-        context.getMatrices().push();
-        context.getMatrices().scale(1.0F, 1.0F, 1.0F);
-        String status = selectedIndex < 0
-                ? "未選択 — カードをクリックしてください"
-                : "選択中: " + ContentRegistry.nameOf(optionIds.get(selectedIndex)) + " — 「決定」で確定";
-        context.drawCenteredTextWithShadow(this.textRenderer, Text.literal(status),
-                (int) (this.width / 2), (int) (cardTop() + CARD_HEIGHT + 4),
-                selectedIndex < 0 ? 0xFFFF6666 : 0xFF55FF55);
-        context.getMatrices().pop();
+        int dividerX = left + 166;
+        context.fill(dividerX, top + 30, dividerX + 1, top + p[1] - 34, 0x5094A3B8);
+
+        // 右：詳細プレビュー。
+        int detailX = dividerX + 10;
+        int detailY = top + 34;
+        int detailW = (left + p[0]) - detailX - 10;
+
+        context.drawItem(info.icon(), detailX, detailY);
+        context.drawTextWithShadow(this.textRenderer, Text.literal("§f§l" + info.name()),
+                detailX + 22, detailY + 1, 0xFFFFFF);
+        context.drawTextWithShadow(this.textRenderer, Text.literal("§e[" + info.category() + "]"),
+                detailX + 22, detailY + 11, 0xFFFFFF);
+        detailY += 24;
+        context.drawTextWithShadow(this.textRenderer,
+                Text.literal("§7条件: §f" + info.triggerInfo()), detailX, detailY, 0xFFFFFF);
+        detailY += 13;
+        context.fill(detailX, detailY, detailX + detailW, detailY + 1, 0x40FFFFFF);
+        detailY += 6;
+
+        for (String line : info.descriptionLines()) {
+            String formatted = line.replace("【代償】", "§c【代償】§f");
+            for (OrderedText wrapped : this.textRenderer.wrapLines(Text.literal(formatted), detailW)) {
+                if (detailY > top + p[1] - 34) {
+                    break;
+                }
+                context.drawTextWithShadow(this.textRenderer, wrapped, detailX, detailY, 0xE2E8F0);
+                detailY += 11;
+            }
+            detailY += 2;
+        }
 
         super.render(context, mouseX, mouseY, delta);
     }
 
-    private void drawCard(DrawContext context, String id, int x, int y, boolean highlight, int index) {
-        int frame = highlight ? FRAME_HIGHLIGHT : frameColor();
-
-        // 影→本体→枠→ヘッダー→フッターでカードの厚みを出す（等倍・整数座標）。
-        context.fill(x + 3, y + 3, x + CARD_WIDTH + 3, y + CARD_HEIGHT + 3, 0x88000000);
-        context.fill(x, y, x + CARD_WIDTH, y + CARD_HEIGHT, CARD_BG);
-        context.fill(x + 2, y + 2, x + CARD_WIDTH - 2, y + 16, 0xFF2A2A30);
-        context.fill(x + 2, y + 16, x + CARD_WIDTH - 2, y + 17, frame);
-        context.fill(x, y, x + CARD_WIDTH, y + 2, frame);
-        context.fill(x, y + CARD_HEIGHT - 2, x + CARD_WIDTH, y + CARD_HEIGHT, frame);
-        context.fill(x, y, x + 2, y + CARD_HEIGHT, frame);
-        context.fill(x + CARD_WIDTH - 2, y, x + CARD_WIDTH, y + CARD_HEIGHT, frame);
-        if (highlight) {
-            context.fill(x + 3, y + 3, x + CARD_WIDTH - 3, y + 5, FRAME_HIGHLIGHT);
-            context.fill(x + 3, y + CARD_HEIGHT - 5, x + CARD_WIDTH - 3, y + CARD_HEIGHT - 3, FRAME_HIGHLIGHT);
-        }
-
-        // アイコンは等倍（16x16）でくっきり描画する。
-        ItemStack icon = SelectionIcons.iconFor(id);
-        if (!icon.isEmpty()) {
-            int ix = (int) (x + CARD_WIDTH / 2.0F) - 8;
-            int iy = y + 30;
-            context.fill(ix - 3, iy - 3, ix + 19, iy + 19, 0xFF000000);
-            context.drawItem(icon, ix, iy);
-        }
-
-        // テキストは Z オフセットを付けず、描画順で手前に重ねる（等倍・整数座標）。
-        context.drawTextWithShadow(this.textRenderer,
-                Text.literal("[" + (index + 1) + "]").formatted(Formatting.YELLOW),
-                (int) (x + 6), (int) (y + 6), 0xFFFFFF55);
-        context.drawCenteredTextWithShadow(this.textRenderer,
-                Text.literal(ContentRegistry.nameOf(id)).formatted(Formatting.BOLD, Formatting.WHITE),
-                (int) (x + CARD_WIDTH / 2), (int) (y + 78), TEXT_WHITE);
-
-        String[] effects = SelectionIcons.effectsFor(id);
-        int meritCount = kind == ContentRegistry.Kind.CURSE ? SelectionIcons.meritLineCount(id) : effects.length;
-        int textY = y + 94;
-        int limitY = y + CARD_HEIGHT - 20;
-        for (int i = 0; i < effects.length; i++) {
-            int color = kind == ContentRegistry.Kind.CURSE
-                    ? (i < meritCount ? TEXT_MERIT : TEXT_DEMERIT)
-                    : TEXT_EFFECT;
-            List<OrderedText> lines = this.textRenderer.wrapLines(
-                    Text.literal("・" + effects[i].replace("_", "")), CARD_WIDTH - 12);
-            for (OrderedText line : lines) {
-                if (textY > limitY) {
-                    break;
+    /** 選択中カードをクリックで確定する（自前描画ボタンなので mouseClicked で拾う）。 */
+    @Override
+    public boolean mouseClicked(double mouseX, double mouseY, int button) {
+        int[] p = panel();
+        int left = (this.width - p[0]) / 2;
+        int top = (this.height - p[1]) / 2;
+        if (button == 0 && mouseX >= leftX(left) && mouseX <= leftX(left) + 148) {
+            for (int i = 0; i < optionIds.size(); i++) {
+                int y = buttonY(i);
+                if (mouseY >= y && mouseY <= y + buttonHeight()) {
+                    select(i);
+                    return true;
                 }
-                // 影なしの等倍描画にしてフリンジをなくす。
-                context.drawText(this.textRenderer, line, (int) (x + 6), (int) textY, color, false);
-                textY += 12;
             }
         }
-
-        context.fill(x + 2, y + CARD_HEIGHT - 19, x + CARD_WIDTH - 2,
-                y + CARD_HEIGHT - 2, 0xFF1A1A20);
-        context.drawText(this.textRenderer,
-                Text.literal(AbilityDescriptions.controlHint(id)),
-                x + 6, y + CARD_HEIGHT - 15, 0xFFFFDD55, false);
+        return super.mouseClicked(mouseX, mouseY, button);
     }
 
-    private int frameColor() {
-        return switch (kind) {
-            case ABILITY -> 0xFFAAAA55;
-            case RELIC -> 0xFF55CCFF;
-            case CURSE -> FRAME_NORMAL;
-        };
+    private static int leftX(int left) {
+        return left + 10;
+    }
+
+    private static int themeColor(String category) {
+        if (category.contains("呪物")) {
+            return 0xFFA855F7;
+        }
+        if (category.contains("遺物")) {
+            return 0xFF38BDF8;
+        }
+        return 0xFFE5B84B;
+    }
+
+    private static void drawBorder(DrawContext context, int x, int y, int w, int h, int color) {
+        context.fill(x, y, x + w, y + 1, color);
+        context.fill(x, y + h - 1, x + w, y + h, color);
+        context.fill(x, y, x + 1, y + h, color);
+        context.fill(x + w - 1, y, x + w, y + h, color);
     }
 
     @Override
