@@ -10,7 +10,8 @@
       "com.kingdomunique.soldier.SoldierOrderGameTest",
       "com.kingdomunique.world.VillagePlacementGameTest",
       "com.kingdomunique.world.CitizenMovementGameTest",
-      "com.kingdomunique.effect.GoldenScaleGameTest"
+      "com.kingdomunique.effect.GoldenScaleGameTest",
+      "com.kingdomunique.trade.CitizenMerchantGameTest"
     ]
   },
   "depends": {
