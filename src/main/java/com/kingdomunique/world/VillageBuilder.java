@@ -82,10 +82,10 @@ public final class VillageBuilder {
 
     /** バイオームに応じたバニラ村のジグソー生成。 */
     public static boolean buildVillage(ServerWorld world, BlockPos center) {
-        return buildVillage(world, center, List.of());
+        return buildVillageCount(world, center, List.of()) > 0;
     }
 
-    private static boolean buildVillage(ServerWorld world, BlockPos center, List<BlockBox> reserved) {
+    private static int buildVillageCount(ServerWorld world, BlockPos center, List<BlockBox> reserved) {
         Identifier poolId = selectVillagePoolByBiome(world, center);
         Registry<StructurePool> registry =
                 world.getRegistryManager().get(RegistryKeys.TEMPLATE_POOL);
@@ -95,7 +95,7 @@ public final class VillageBuilder {
             startPool = registry.getEntry(poolId);
         }
         if (startPool.isEmpty()) {
-            return false;
+            return 0;
         }
         try {
             ChunkGenerator generator = world.getChunkManager().getChunkGenerator();
@@ -111,7 +111,7 @@ public final class VillageBuilder {
                             StructurePoolAliasLookup.EMPTY, DimensionPadding.NONE,
                             StructureLiquidSettings.IGNORE_WATERLOGGING);
             if (position.isEmpty()) {
-                return false;
+                return 0;
             }
             List<StructurePiece> pieces = position.get().generate().toList().pieces();
             List<StructurePiece> placed = new ArrayList<>();
@@ -131,7 +131,7 @@ public final class VillageBuilder {
                 if (fits) {
                     placed.add(piece);
                 } else if (placed.isEmpty()) {
-                    return false;
+                    return 0;
                 }
             }
             BlockBox box = new BlockBox(center.getX() - MAX_VILLAGE_RADIUS, world.getBottomY(),
@@ -141,11 +141,12 @@ public final class VillageBuilder {
                 piece.generate(world, world.getStructureAccessor(), generator,
                         world.getRandom(), box, new ChunkPos(center), center);
             }
-            return !placed.isEmpty();
+            return (int) placed.stream().filter(piece -> piece instanceof PoolStructurePiece pool
+                    && pool.getPoolElement().getProjection() == StructurePool.Projection.RIGID).count();
         } catch (Throwable t) {
             com.kingdomunique.KingdomUniqueMod.LOGGER.error(
                     "[KingdomUnique] Jigsaw village generation failed.", t);
-            return false;
+            return 0;
         }
     }
     private static Identifier selectVillagePoolByBiome(ServerWorld world, BlockPos pos) {
@@ -176,6 +177,9 @@ public final class VillageBuilder {
     public record StarterBuilding(BuildingType type, BlockPos origin, Direction facing) {
     }
 
+    public record VillageResult(List<StarterBuilding> buildings, int placedBuildings) {
+    }
+
     /** 井戸を囲む初期村の建物（井戸からの建物中心のずれ）。役場は井戸の北に建つ。 */
     private static final Object[][] STARTER_LAYOUT = {
             {BuildingType.HOUSE, 14, -2},
@@ -192,6 +196,11 @@ public final class VillageBuilder {
     /** 所有者付きで初期村を生成し、村人を国民（建築士含む）として割り当てる。 */
     public static List<StarterBuilding> generateStarterVillage(ServerWorld world, int centerX, int centerZ,
                                                                java.util.UUID owner) {
+        return generateVillage(world, centerX, centerZ, owner).buildings();
+    }
+
+    public static VillageResult generateVillage(ServerWorld world, int centerX, int centerZ,
+                                                 java.util.UUID owner) {
         forceLoadChunks(world, centerX, centerZ);
         int baseY = surfaceY(world, centerX, centerZ);
         BlockPos hallOrigin = TownHallBuilder.findVillageOrigin(world, centerX, centerZ);
@@ -201,20 +210,25 @@ public final class VillageBuilder {
         }
 
         List<StarterBuilding> buildings = buildKingdomVillage(world, centerX, centerZ, reserved);
+        int placedBuildings = buildings.size();
         if (buildings.isEmpty()) {
             com.kingdomunique.KingdomUniqueMod.LOGGER.warn(
                     "[KingdomUnique] No room for kingdom buildings at ({}, {}); using vanilla village.",
                     centerX, centerZ);
-            if (!buildVillage(world, new BlockPos(centerX, baseY, centerZ), reserved)) {
-                buildTemplateVillage(world, centerX, centerZ, reserved);
+            placedBuildings = buildVillageCount(world, new BlockPos(centerX, baseY, centerZ), reserved);
+            if (placedBuildings == 0) {
+                placedBuildings = buildTemplateVillage(world, centerX, centerZ, reserved);
             }
         }
         if (hallOrigin != null) {
             TownHallBuilder.buildVillageTownHall(world, hallOrigin);
             buildings.add(0, new StarterBuilding(BuildingType.TOWN_HALL, hallOrigin.north(), Direction.SOUTH));
+            placedBuildings++;
         }
-        ensureVillagers(world, centerX, baseY, centerZ, owner, hallOrigin);
-        return buildings;
+        if (placedBuildings > 0) {
+            ensureVillagers(world, centerX, baseY, centerZ, owner, hallOrigin);
+        }
+        return new VillageResult(buildings, placedBuildings);
     }
 
     /** 初期村の建物を所有者の王国の完成済み建物として登録する（同じ建物の再登録は加算しない）。 */
@@ -278,7 +292,7 @@ public final class VillageBuilder {
         return buildings;
     }
 
-    private static void buildTemplateVillage(ServerWorld world, int centerX, int centerZ,
+    private static int buildTemplateVillage(ServerWorld world, int centerX, int centerZ,
                                              List<BlockBox> reserved) {
         StructureTemplateManager manager = world.getStructureTemplateManager();
         boolean well = placeVillageTemplate(manager, world, WELL, centerX, centerZ, reserved);
@@ -301,14 +315,15 @@ public final class VillageBuilder {
             }
         }
         if (placed == 0) {
-            buildLegacyHouse(world, centerX - 8, centerZ - 8, Blocks.RED_BED, reserved);
-            buildLegacyHouse(world, centerX + 8, centerZ - 8, Blocks.BLUE_BED, reserved);
-            buildLegacyHouse(world, centerX, centerZ + 8, Blocks.GREEN_BED, reserved);
+            if (buildLegacyHouse(world, centerX - 8, centerZ - 8, Blocks.RED_BED, reserved)) placed++;
+            if (buildLegacyHouse(world, centerX + 8, centerZ - 8, Blocks.BLUE_BED, reserved)) placed++;
+            if (buildLegacyHouse(world, centerX, centerZ + 8, Blocks.GREEN_BED, reserved)) placed++;
         }
         BlockPos farm = reservePlot(world, centerX - 12, centerZ + 9, 7, 5, reserved);
         if (farm != null) {
             buildFarm(world, farm.getX() + 3, farm.getY() - 1, farm.getZ());
         }
+        return placed;
     }
 
     private static boolean placeVillageTemplate(StructureTemplateManager manager, ServerWorld world,
@@ -408,13 +423,15 @@ public final class VillageBuilder {
         }
     }
 
-    private static void buildLegacyHouse(ServerWorld world, int x, int z, Block bed,
+    private static boolean buildLegacyHouse(ServerWorld world, int x, int z, Block bed,
                                          List<BlockBox> reserved) {
         int size = HOUSE_RADIUS * 2 + 1;
         BlockPos plot = reservePlot(world, x - HOUSE_RADIUS, z - HOUSE_RADIUS, size, size + 1, reserved);
         if (plot != null) {
             buildHouse(world, plot.getX() + HOUSE_RADIUS, plot.getY() - 1, plot.getZ() + HOUSE_RADIUS, bed);
+            return true;
         }
+        return false;
     }
 
     private static void buildWell(ServerWorld world, int x, int y, int z) {

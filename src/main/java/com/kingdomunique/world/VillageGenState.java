@@ -61,9 +61,10 @@ public final class VillageGenState extends PersistentState {
 
     /** 村の生成予定エントリ。 */
     public static final class VillageEntry {
-        public final int x;
-        public final int z;
+        public int x;
+        public int z;
         public boolean built;
+        long retryAfter;
 
         public VillageEntry(int x, int z, boolean built) {
             this.x = x;

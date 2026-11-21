@@ -3,6 +3,7 @@ package com.kingdomunique.world;
 import com.kingdomunique.building.BuildingType;
 import com.kingdomunique.building.KingdomBuildingState;
 import com.kingdomunique.building.StructureRotationUtil;
+import com.kingdomunique.data.WorldUniqueData;
 import com.kingdomunique.kingdom.KingdomData;
 import com.kingdomunique.kingdom.KingdomManager;
 import com.mojang.authlib.GameProfile;
@@ -11,6 +12,9 @@ import net.fabricmc.fabric.api.gametest.v1.FabricGameTest;
 import net.minecraft.block.Block;
 import net.minecraft.block.Blocks;
 import net.minecraft.network.packet.c2s.common.SyncedClientOptions;
+import net.minecraft.nbt.NbtCompound;
+import net.minecraft.nbt.NbtElement;
+import net.minecraft.registry.tag.BiomeTags;
 import net.minecraft.server.network.ServerPlayerEntity;
 import net.minecraft.server.world.ServerWorld;
 import net.minecraft.text.Text;
@@ -19,11 +23,130 @@ import net.minecraft.test.GameTest;
 import net.minecraft.test.TestContext;
 import net.minecraft.util.math.BlockPos;
 import net.minecraft.util.math.ChunkPos;
+import net.minecraft.world.biome.BiomeKeys;
 
+import java.util.ArrayList;
 import java.util.List;
 import java.util.UUID;
 
 public final class VillagePlacementGameTest {
+    @GameTest(templateName = FabricGameTest.EMPTY_STRUCTURE, batchId = "water_village_relocation")
+    public void worldVillageRelocatesFromBrokenIceToLand(TestContext context) {
+        ServerWorld world = context.getWorld();
+        BlockPos planned = context.getAbsolutePos(new BlockPos(800, 180, 800));
+        for (int x = -112; x <= 144; x++) {
+            for (int z = -112; z <= 112; z++) {
+                world.setBlockState(planned.add(x, 0, z),
+                        (x % 8 == 0 ? Blocks.WATER : Blocks.ICE).getDefaultState(), Block.NOTIFY_LISTENERS);
+            }
+        }
+        for (int x = 72; x <= 128; x++) {
+            for (int z = -32; z <= 32; z++) {
+                world.setBlockState(planned.add(x, 0, z), Blocks.STONE.getDefaultState(), Block.NOTIFY_LISTENERS);
+            }
+        }
+        VillageGenState state = VillageGenState.get(world);
+        WorldUniqueData unique = WorldUniqueData.getOrCreate(world);
+        var beforeSites = List.copyOf(unique.getVillageSites());
+        var sites = new ArrayList<>(beforeSites);
+        sites.add(new WorldUniqueData.VillageSite(planned.getX(), planned.getZ()));
+        var entry = new VillageGenState.VillageEntry(planned.getX(), planned.getZ(), false);
+        state.pendingVillages.add(entry);
+        unique.setVillageSites(sites);
+        try {
+            int placed = WorldInitializer.tryBuildVillage(world, entry, 128);
+            context.assertTrue(placed > 0 && entry.built, "Relocated village must have actual buildings");
+            context.assertTrue(entry.x >= planned.getX() + 72 && entry.x <= planned.getX() + 128
+                            && Math.abs(entry.z - planned.getZ()) <= 32,
+                    "Village center must move from broken ice onto the dry land patch");
+            context.assertTrue(unique.getVillageSites().contains(new WorldUniqueData.VillageSite(entry.x, entry.z))
+                            && !unique.getVillageSites().contains(
+                                    new WorldUniqueData.VillageSite(planned.getX(), planned.getZ())),
+                    "Protection and chest sites must follow the relocated center");
+            var saved = state.writeNbt(new NbtCompound(), world.getRegistryManager())
+                    .getList("villages", NbtElement.COMPOUND_TYPE);
+            var savedEntry = saved.getCompound(saved.size() - 1);
+            context.assertTrue(savedEntry.getInt("x") == entry.x && savedEntry.getInt("z") == entry.z
+                            && savedEntry.getBoolean("built"), "Relocated position and completion must persist");
+            context.assertTrue(WorldInitializer.tryBuildVillage(world, entry, 128) == 0,
+                    "Completed entries must not generate a second village");
+        } finally {
+            state.pendingVillages.remove(entry);
+            state.markDirty();
+            unique.setVillageSites(beforeSites);
+        }
+        context.complete();
+    }
+
+    @GameTest(templateName = FabricGameTest.EMPTY_STRUCTURE, batchId = "water_village_empty")
+    public void waterVillageWithoutLandStaysPending(TestContext context) {
+        ServerWorld world = context.getWorld();
+        BlockPos center = context.getAbsolutePos(new BlockPos(1600, 180, 800));
+        for (int x = -272; x <= 272; x++) {
+            for (int z = -272; z <= 272; z++) {
+                world.setBlockState(center.add(x, 0, z), Blocks.WATER.getDefaultState(), Block.NOTIFY_LISTENERS);
+            }
+        }
+        var entry = new VillageGenState.VillageEntry(center.getX(), center.getZ(), false);
+        context.assertTrue(WorldInitializer.tryBuildVillage(world, entry, 256) == 0 && !entry.built,
+                "A world village with no suitable land must remain unbuilt");
+        context.assertTrue(entry.x == center.getX() && entry.z == center.getZ()
+                        && entry.retryAfter > world.getTime(), "Failed searches must retain their site and back off");
+        long retryAfter = entry.retryAfter;
+        context.assertTrue(WorldInitializer.tryBuildVillage(world, entry, 256) == 0
+                        && entry.retryAfter == retryAfter, "The cooldown must prevent immediate repeated searches");
+        var result = VillageBuilder.generateVillage(world, center.getX(), center.getZ(), null);
+        context.assertTrue(result.placedBuildings() == 0 && result.buildings().isEmpty(),
+                "All-water generation must report zero buildings, including fallback placements");
+        UUID owner = UUID.randomUUID();
+        ServerPlayerEntity player = new ServerPlayerEntity(world.getServer(), world,
+                new GameProfile(owner, "water_starter_test"), SyncedClientOptions.createDefault());
+        KingdomData data = KingdomData.getOrCreate(world);
+        var info = new KingdomData.KingdomInfo(center.getX(), center.getZ(), 0, 10, 0,
+                false, 0, true, 100, false, "");
+        data.put(owner, info);
+        try {
+            StarterSpawn.ensureVillage(player, world, data, info);
+            context.assertFalse(data.get(owner).villageGenerated(),
+                    "An unsuccessful starter village must not be flagged generated");
+            context.assertTrue(PlayerSpawnData.getOrCreate(world).get(owner) == null,
+                    "A failed starter village must not save a misleading spawn");
+        } finally {
+            data.remove(owner);
+        }
+        context.complete();
+    }
+
+    @GameTest(templateName = FabricGameTest.EMPTY_STRUCTURE, batchId = "water_village_biomes")
+    public void aquaticBiomesAreRejectedEvenOnSolidIce(TestContext context) {
+        ServerWorld world = context.getWorld();
+        BlockPos center = context.getAbsolutePos(new BlockPos(2400, 180, 800));
+        for (int x = -40; x <= 40; x++) {
+            for (int z = -48; z <= 40; z++) {
+                world.setBlockState(center.add(x, 0, z), Blocks.ICE.getDefaultState(), Block.NOTIFY_LISTENERS);
+            }
+        }
+        context.assertTrue(VillageSiteFinder.suitableCenter(world, center.getX(), center.getZ()) != null,
+                "Flat solid ice in a non-aquatic biome must still pass the terrain checks");
+        for (var biome : List.of(BiomeKeys.OCEAN, BiomeKeys.FROZEN_OCEAN, BiomeKeys.DEEP_FROZEN_OCEAN,
+                BiomeKeys.RIVER, BiomeKeys.FROZEN_RIVER)) {
+            BlockPos min = center.add(-4, -4, -4);
+            BlockPos max = center.add(4, 4, 4);
+            world.getServer().getCommandManager().executeWithPrefix(
+                    world.getServer().getCommandSource().withWorld(world).withSilent(),
+                    "fillbiome " + min.getX() + " " + min.getY() + " " + min.getZ() + " "
+                            + max.getX() + " " + max.getY() + " " + max.getZ() + " " + biome.getValue());
+            context.assertTrue(world.getBiome(center.up()).matchesKey(biome),
+                    "The biome fixture must actually be applied: " + biome.getValue());
+            context.assertTrue(world.getBiome(center.up()).isIn(BiomeTags.IS_OCEAN)
+                            || world.getBiome(center.up()).isIn(BiomeTags.IS_RIVER),
+                    "The aquatic fixture must have the expected biome tags");
+            context.assertTrue(VillageSiteFinder.suitableCenter(world, center.getX(), center.getZ()) == null,
+                    "Aquatic biome must be rejected even with a solid ice surface: " + biome.getValue());
+        }
+        context.complete();
+    }
+
     @GameTest(templateName = FabricGameTest.EMPTY_STRUCTURE, batchId = "starter_village")
     public void registeringKingdomVillageForceLoadsItsChunks(TestContext context) {
         ServerWorld world = context.getWorld();
