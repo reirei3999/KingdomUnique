@@ -106,38 +106,43 @@ public final class VillagePlacementGameTest {
             public void sendMessage(Text message, boolean overlay) {
             }
         };
-        KingdomData.getOrCreate(world.getServer().getOverworld()).put(uuid, new KingdomData.KingdomInfo(
-                center.getX(), center.getZ(), 0, 10, 0, false, 0, true, 100, true, ""));
+        KingdomData kingdom = KingdomData.getOrCreate(world.getServer().getOverworld());
+        try {
+            kingdom.put(uuid, new KingdomData.KingdomInfo(
+                    center.getX(), center.getZ(), 0, 10, 0, false, 0, true, 100, true, ""));
 
-        List<VillageBuilder.StarterBuilding> buildings =
-                VillageBuilder.generateStarterVillage(world, center.getX(), center.getZ(), uuid);
-        long houses = buildings.stream().filter(b -> b.type() == BuildingType.HOUSE).count();
-        context.assertTrue(buildings.stream().anyMatch(b -> b.type() == BuildingType.TOWN_HALL),
-                "The starter village must contain the town hall");
-        context.assertTrue(houses == 3, "The starter village must build three blueprint houses, got " + houses);
-        context.assertTrue(buildings.stream().anyMatch(b -> b.type() == BuildingType.BLACKSMITH),
-                "The starter village must build the blueprint blacksmith");
-        for (int a = 0; a < buildings.size(); a++) {
-            BlockBox first = box(buildings.get(a));
-            for (int b = a + 1; b < buildings.size(); b++) {
-                BlockBox second = box(buildings.get(b));
-                context.assertFalse(first.intersectsXZ(second.getMinX(), second.getMinZ(),
-                        second.getMaxX(), second.getMaxZ()), "Starter buildings must not overlap");
+            List<VillageBuilder.StarterBuilding> buildings =
+                    VillageBuilder.generateStarterVillage(world, center.getX(), center.getZ(), uuid);
+            long houses = buildings.stream().filter(b -> b.type() == BuildingType.HOUSE).count();
+            context.assertTrue(buildings.stream().anyMatch(b -> b.type() == BuildingType.TOWN_HALL),
+                    "The starter village must contain the town hall");
+            context.assertTrue(houses == 3, "The starter village must build three blueprint houses, got " + houses);
+            context.assertTrue(buildings.stream().anyMatch(b -> b.type() == BuildingType.BLACKSMITH),
+                    "The starter village must build the blueprint blacksmith");
+            for (int a = 0; a < buildings.size(); a++) {
+                BlockBox first = box(buildings.get(a));
+                for (int b = a + 1; b < buildings.size(); b++) {
+                    BlockBox second = box(buildings.get(b));
+                    context.assertFalse(first.intersectsXZ(second.getMinX(), second.getMinZ(),
+                            second.getMaxX(), second.getMaxZ()), "Starter buildings must not overlap");
+                }
             }
-        }
 
-        VillageBuilder.registerStarterBuildings(world, player, buildings, center);
-        VillageBuilder.registerStarterBuildings(world, player, buildings, center);
-        KingdomBuildingState state = KingdomBuildingState.get(world);
-        context.assertTrue(state.hasCompletedBuilding(uuid, BuildingType.TOWN_HALL),
-                "The starter town hall must satisfy the palace prerequisite");
-        context.assertTrue(state.entries().stream()
-                        .filter(b -> b.ownerUuid.equals(uuid) && b.type == BuildingType.HOUSE).count() == houses,
-                "Every starter house must be registered once");
-        int cap = KingdomManager.getOrCreate(player).populationCap();
-        context.assertTrue(cap == 10, "Starter houses must not raise the population cap, got " + cap);
-        int max = com.kingdomunique.kingdom.PopulationManager.calculateMaxPopulation(world, uuid);
-        context.assertTrue(max == 10, "Starter houses must not count toward the growth cap, got " + max);
+            VillageBuilder.registerStarterBuildings(world, player, buildings, center);
+            VillageBuilder.registerStarterBuildings(world, player, buildings, center);
+            KingdomBuildingState state = KingdomBuildingState.get(world);
+            context.assertTrue(state.hasCompletedBuilding(uuid, BuildingType.TOWN_HALL),
+                    "The starter town hall must satisfy the palace prerequisite");
+            context.assertTrue(state.entries().stream()
+                            .filter(b -> b.ownerUuid.equals(uuid) && b.type == BuildingType.HOUSE).count() == houses,
+                    "Every starter house must be registered once");
+            int cap = KingdomManager.getOrCreate(player).populationCap();
+            context.assertTrue(cap == 10, "Starter houses must not raise the population cap, got " + cap);
+            int max = com.kingdomunique.kingdom.PopulationManager.calculateMaxPopulation(world, uuid);
+            context.assertTrue(max == 10, "Starter houses must not count toward the growth cap, got " + max);
+        } finally {
+            kingdom.remove(uuid);
+        }
         context.complete();
     }
 
