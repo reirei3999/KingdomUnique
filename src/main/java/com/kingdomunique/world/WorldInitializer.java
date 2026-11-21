@@ -100,7 +100,7 @@ public final class WorldInitializer {
         if (updated) {
             state.markDirty();
         }
-        com.kingdomunique.item.unique.UniqueWeaponManager.distributeToVillages(world);
+        com.kingdomunique.item.unique.UniqueWeaponManager.clearVillageChestWeapons(world);
     }
 
     /** 周辺9x9チャンクが読み込まれているか（村の端が途切れないように）。 */
