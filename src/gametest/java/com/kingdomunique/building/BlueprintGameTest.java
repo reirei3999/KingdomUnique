@@ -421,7 +421,7 @@ public final class BlueprintGameTest {
         context.complete();
     }
 
-    @GameTest(templateName = FabricGameTest.EMPTY_STRUCTURE)
+    @GameTest(templateName = FabricGameTest.EMPTY_STRUCTURE, batchId = "hero_sanctuary")
     public void heroSanctuaryStartsAndCompletesWithItsCore(TestContext context) {
         ServerWorld world = context.getWorld();
         BlockPos pos = context.getAbsolutePos(new BlockPos(0, 8, 0));
