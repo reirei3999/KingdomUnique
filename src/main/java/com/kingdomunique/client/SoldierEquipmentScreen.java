@@ -1,19 +1,16 @@
 package com.kingdomunique.client;
 
+import com.kingdomunique.soldier.SoldierCombatHandler;
 import com.kingdomunique.soldier.SoldierEquipmentScreenHandler;
-import com.kingdomunique.util.EnhancementUtil;
 import net.fabricmc.api.EnvType;
 import net.fabricmc.api.Environment;
 import net.minecraft.client.gui.DrawContext;
 import net.minecraft.client.gui.screen.ingame.HandledScreen;
 import net.minecraft.client.gui.screen.ingame.InventoryScreen;
-import net.minecraft.component.DataComponentTypes;
-import net.minecraft.component.type.AttributeModifiersComponent;
 import net.minecraft.entity.EquipmentSlot;
 import net.minecraft.entity.attribute.EntityAttributes;
 import net.minecraft.entity.passive.VillagerEntity;
 import net.minecraft.entity.player.PlayerInventory;
-import net.minecraft.item.ItemStack;
 import net.minecraft.screen.slot.Slot;
 import net.minecraft.text.Text;
 import net.minecraft.util.math.MathHelper;
@@ -78,27 +75,7 @@ public final class SoldierEquipmentScreen extends HandledScreen<SoldierEquipment
     }
 
     private double attackDamage() {
-        ItemStack weapon = handler.getSlot(0).getStack();
-        if (weapon.isEmpty()) {
-            return 2.0;
-        }
-        double[] damage = {1.0};
-        weapon.applyAttributeModifiers(EquipmentSlot.MAINHAND, (attribute, modifier) -> {
-            if (attribute.equals(EntityAttributes.GENERIC_ATTACK_DAMAGE)) {
-                damage[0] += modifier.value();
-            }
-        });
-        boolean[] enhancedModifiers = {false};
-        AttributeModifiersComponent modifiers = weapon.get(DataComponentTypes.ATTRIBUTE_MODIFIERS);
-        if (modifiers != null) {
-            modifiers.applyModifiers(EquipmentSlot.MAINHAND, (attribute, modifier) -> {
-                if (attribute.equals(EntityAttributes.GENERIC_ATTACK_DAMAGE)) {
-                    enhancedModifiers[0] = true;
-                }
-            });
-        }
-        double multiplier = enhancedModifiers[0] ? 1.0 : EnhancementUtil.multiplier(EnhancementUtil.getLevel(weapon));
-        return Math.max(2.0, damage[0] * multiplier);
+        return SoldierCombatHandler.calculateWeaponDamage(handler.getSlot(0).getStack());
     }
 
     private static void panel(DrawContext context, int x, int y, int width, int height, int color, boolean inset) {
