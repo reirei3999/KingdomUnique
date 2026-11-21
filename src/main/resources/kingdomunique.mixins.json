@@ -20,6 +20,7 @@
     "RangedDamageMixin",
     "StatusEffectMixin",
     "UniqueWeaponMixin",
+    "VillagerBreedTaskMixin",
     "VillagerProfessionMixin"
   ],
   "client": [],

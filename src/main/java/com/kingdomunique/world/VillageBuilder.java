@@ -152,8 +152,10 @@ public final class VillageBuilder {
         boolean jigsaw = buildVillage(world, new BlockPos(centerX, baseY, centerZ));
         if (jigsaw) {
             // バニラ村の広場北側に王国の集会所（タウンホール）を配置する。
-            TownHallBuilder.buildTownHall(world, new BlockPos(centerX - 5, baseY, centerZ - 14));
-            ensureVillagers(world, centerX, baseY, centerZ, owner);
+            BlockPos hallOrigin = new BlockPos(centerX - 5, baseY, centerZ - 14);
+            TownHallBuilder.buildTownHall(world, hallOrigin);
+            // 初期村人はホール内に集合させる（人口は王国システムで管理）。
+            ensureVillagers(world, centerX, baseY, centerZ, owner, hallOrigin);
             com.kingdomunique.KingdomUniqueMod.LOGGER.info("[KingdomUnique] Generated jigsaw village at ({}, {}).",
                     centerX, centerZ);
             return;
@@ -397,8 +399,14 @@ public final class VillageBuilder {
             com.kingdomunique.entity.CitizenVillager.ROLE_FARMER
     };
 
-    /** 村人をちょうど6人に調整し、王国民として役割を割り当てる。 */
+    /** 村人をちょうど6人に調整し、王国民として役割を割り当てる（ホール未指定は村中央）。 */
     public static void ensureVillagers(ServerWorld world, int x, int y, int z, java.util.UUID owner) {
+        ensureVillagers(world, x, y, z, owner, null);
+    }
+
+    /** 村人をちょうど6人に調整し、王国民として役割を割り当てる。hallOrigin 指定時はホール内に集合させる。 */
+    public static void ensureVillagers(ServerWorld world, int x, int y, int z, java.util.UUID owner,
+                                       BlockPos hallOrigin) {
         List<VillagerEntity> existing = world.getEntitiesByClass(VillagerEntity.class,
                 new net.minecraft.util.math.Box(x - RADIUS, y - 4, z - RADIUS,
                         x + RADIUS, y + 10, z + RADIUS), v -> v.isAlive());
@@ -410,12 +418,23 @@ public final class VillageBuilder {
                 continue;
             }
             float angle = (float) (i * Math.PI * 2.0D / Math.max(1, missing));
-            double vx = x + 2.5D + Math.cos(angle) * 2.5D;
-            double vz = z + 2.5D + Math.sin(angle) * 2.5D;
-            BlockPos safe = findSafeGround(world, (int) Math.floor(vx), (int) Math.floor(vz), y + 1);
+            double vx;
+            double vz;
+            int groundY;
+            if (hallOrigin != null) {
+                // タウンホール（11x13）の内部に円状に集合させる。
+                vx = hallOrigin.getX() + 5.5D + Math.cos(angle) * 2.0D;
+                vz = hallOrigin.getZ() + 6.5D + Math.sin(angle) * 2.0D;
+                groundY = hallOrigin.getY();
+            } else {
+                vx = x + 2.5D + Math.cos(angle) * 2.5D;
+                vz = z + 2.5D + Math.sin(angle) * 2.5D;
+                groundY = y + 1;
+            }
+            BlockPos safe = findSafeGround(world, (int) Math.floor(vx), (int) Math.floor(vz), groundY);
             villager.refreshPositionAndAngles(
                     safe == null ? vx : safe.getX() + 0.5D,
-                    safe == null ? y + 1 : safe.getY(),
+                    safe == null ? groundY : safe.getY(),
                     safe == null ? vz : safe.getZ() + 0.5D, 0.0F, 0.0F);
             villager.setPersistent();
             world.spawnEntity(villager);
