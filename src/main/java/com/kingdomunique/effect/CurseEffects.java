@@ -123,12 +123,12 @@ public final class CurseEffects {
         return has(player, CurseRegistry.SHACKLES);
     }
 
-    /** 混乱サイコロ：攻撃ごとの倍率（0.7〜2.7、期待値1.7）。 */
+    /** 混乱サイコロ：攻撃ごとの倍率（0.2〜2.7、期待値1.45）。 */
     public static double rollChaosMultiplier(ServerPlayerEntity player) {
         if (!has(player, CurseRegistry.CHAOS)) {
             return 1.0D;
         }
-        return 0.7D + player.getRandom().nextDouble() * 2.0D;
+        return 0.2D + player.getRandom().nextDouble() * 2.5D;
     }
 
     /** 与ダメージの追加倍率（狂戦士は属性で既に反映済みのため1.0）。 */

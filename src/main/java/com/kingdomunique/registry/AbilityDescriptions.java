@@ -151,7 +151,7 @@ public final class AbilityDescriptions {
                     "・味方や随伴者を連れられない"
             };
             case "chaos_dice" -> new String[]{
-                    "・攻撃ごとにダメージ0.7〜2.7倍（期待値1.7倍）"
+                    "・攻撃ごとにダメージ0.2〜2.7倍（期待値1.45倍）"
             };
             case "gravity_shackles" -> new String[]{
                     "・被ダメージ60%カット",

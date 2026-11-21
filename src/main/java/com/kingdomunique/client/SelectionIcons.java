@@ -72,7 +72,7 @@ public final class SelectionIcons {
             case "ring_of_gluttony" -> new String[]{"撃破で一時強化", "空腹3倍・0で猛毒"};
             case "glass_cannon" -> new String[]{"攻撃/採掘2.5倍", "最大HP10固定"};
             case "crown_of_solitude" -> new String[]{"移動1.2倍・他1.5倍", "随伴不可"};
-            case "chaos_dice" -> new String[]{"ダメージ0.7〜2.7倍"};
+            case "chaos_dice" -> new String[]{"ダメージ0.2〜2.7倍"};
             case "gravity_shackles" -> new String[]{"被ダメ60%カット", "ジャンプ不可・速度0.8倍"};
             case "immoral_contract" -> new String[]{"国民コスト0", "国民死亡で呪いダメージ"};
             case "void_lantern" -> new String[]{"暗所で透明化・攻撃2倍", "明所で防御半減"};
