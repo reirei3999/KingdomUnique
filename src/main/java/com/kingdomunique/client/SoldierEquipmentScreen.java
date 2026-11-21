@@ -9,6 +9,7 @@ import net.minecraft.client.gui.screen.ingame.HandledScreen;
 import net.minecraft.client.gui.screen.ingame.InventoryScreen;
 import net.minecraft.component.DataComponentTypes;
 import net.minecraft.component.type.AttributeModifiersComponent;
+import net.minecraft.entity.EquipmentSlot;
 import net.minecraft.entity.attribute.EntityAttributes;
 import net.minecraft.entity.passive.VillagerEntity;
 import net.minecraft.entity.player.PlayerInventory;
@@ -63,19 +64,16 @@ public final class SoldierEquipmentScreen extends HandledScreen<SoldierEquipment
         context.fill(left + 1, y + 64, left + 1 + filled, y + 69, 0xFF579F45);
         context.drawText(textRenderer, "攻撃力  " + String.format(Locale.ROOT, "%.1f", attackDamage()),
                 left, y + 79, 0xFF303030, false);
-        double armor = 0.0;
-        for (int i = 1; i < 5; i++) {
-            AttributeModifiersComponent modifiers = handler.getSlot(i).getStack()
-                    .get(DataComponentTypes.ATTRIBUTE_MODIFIERS);
-            if (modifiers != null) {
-                for (AttributeModifiersComponent.Entry entry : modifiers.modifiers()) {
-                    if (entry.attribute().equals(EntityAttributes.GENERIC_ARMOR)) {
-                        armor += entry.modifier().value();
-                    }
+        double[] armor = {0.0};
+        EquipmentSlot[] armorSlots = {EquipmentSlot.HEAD, EquipmentSlot.CHEST, EquipmentSlot.LEGS, EquipmentSlot.FEET};
+        for (int i = 0; i < armorSlots.length; i++) {
+            handler.getSlot(i + 1).getStack().applyAttributeModifiers(armorSlots[i], (attribute, modifier) -> {
+                if (attribute.equals(EntityAttributes.GENERIC_ARMOR)) {
+                    armor[0] += modifier.value();
                 }
-            }
+            });
         }
-        context.drawText(textRenderer, "防御力  " + String.format(Locale.ROOT, "%.1f", armor),
+        context.drawText(textRenderer, "防御力  " + String.format(Locale.ROOT, "%.1f", armor[0]),
                 left, y + 95, 0xFF303030, false);
     }
 
@@ -84,16 +82,23 @@ public final class SoldierEquipmentScreen extends HandledScreen<SoldierEquipment
         if (weapon.isEmpty()) {
             return 2.0;
         }
-        double damage = 1.0;
+        double[] damage = {1.0};
+        weapon.applyAttributeModifiers(EquipmentSlot.MAINHAND, (attribute, modifier) -> {
+            if (attribute.equals(EntityAttributes.GENERIC_ATTACK_DAMAGE)) {
+                damage[0] += modifier.value();
+            }
+        });
+        boolean[] enhancedModifiers = {false};
         AttributeModifiersComponent modifiers = weapon.get(DataComponentTypes.ATTRIBUTE_MODIFIERS);
         if (modifiers != null) {
-            for (AttributeModifiersComponent.Entry entry : modifiers.modifiers()) {
-                if (entry.attribute().equals(EntityAttributes.GENERIC_ATTACK_DAMAGE)) {
-                    damage += entry.modifier().value();
+            modifiers.applyModifiers(EquipmentSlot.MAINHAND, (attribute, modifier) -> {
+                if (attribute.equals(EntityAttributes.GENERIC_ATTACK_DAMAGE)) {
+                    enhancedModifiers[0] = true;
                 }
-            }
+            });
         }
-        return Math.max(2.0, damage * EnhancementUtil.multiplier(EnhancementUtil.getLevel(weapon)));
+        double multiplier = enhancedModifiers[0] ? 1.0 : EnhancementUtil.multiplier(EnhancementUtil.getLevel(weapon));
+        return Math.max(2.0, damage[0] * multiplier);
     }
 
     private static void panel(DrawContext context, int x, int y, int width, int height, int color, boolean inset) {
