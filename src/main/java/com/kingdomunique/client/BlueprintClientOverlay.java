@@ -1,6 +1,7 @@
 package com.kingdomunique.client;
 
 import com.kingdomunique.building.BlueprintBlock;
+import com.kingdomunique.client.ui.KuTheme;
 import com.kingdomunique.network.BlueprintInfoPayload;
 import com.kingdomunique.network.RequestBlueprintInfoPayload;
 import net.fabricmc.api.EnvType;
@@ -67,7 +68,9 @@ public final class BlueprintClientOverlay {
                     new Box(minX, minY, minZ,
                             focusPos.getX() + radius + 1, focusPos.getY() + 15,
                             focusPos.getZ() + radius + 1),
-                    0.30F, 0.85F, 1.0F, 0.85F);
+                    ((KuTheme.CYAN >> 16) & 0xFF) / 255.0F,
+                    ((KuTheme.CYAN >> 8) & 0xFF) / 255.0F,
+                    (KuTheme.CYAN & 0xFF) / 255.0F, 0.85F);
         });
     }
 

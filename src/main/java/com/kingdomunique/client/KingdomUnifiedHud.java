@@ -170,7 +170,7 @@ public final class KingdomUnifiedHud {
         if (focus != null && player.getWorld().getBlockState(focus).getBlock() instanceof BlueprintBlock) {
             List<String> serverLines = BlueprintClientOverlay.getLines();
             if (!serverLines.isEmpty()) {
-                title = "§b📐 " + BlueprintClientOverlay.getBuildingName();
+                title = "📐 " + BlueprintClientOverlay.getBuildingName();
                 lines.addAll(serverLines);
             }
         }
@@ -178,7 +178,7 @@ public final class KingdomUnifiedHud {
         if (title == null) {
             BuildingType held = getHeldBlueprint(player);
             if (held != null) {
-                title = "§b📐 " + held.getDisplayName() + " §7必要資材";
+                title = "📐 " + held.getDisplayName() + " 必要資材";
                 for (var entry : held.materials().entrySet()) {
                     int owned = countItem(player, entry.getKey());
                     lines.add(entry.getKey().getName().getString() + " " + owned + "/" + entry.getValue());
@@ -189,20 +189,24 @@ public final class KingdomUnifiedHud {
             return;
         }
 
-        int rowHeight = 14;
-        int headerHeight = 18;
-        int panelWidth = 168;
+        int rowHeight = 16;
+        int headerHeight = 28;
+        int panelWidth = Math.max(168, tr.getWidth(title) + 16);
+        for (String line : lines) {
+            panelWidth = Math.max(panelWidth, tr.getWidth(line) + 24);
+        }
         int panelHeight = headerHeight + lines.size() * rowHeight + 6;
         int topY = screenHeight - 8 - panelHeight;
         int x = 8;
 
-        context.fill(x, topY, x + panelWidth, topY + panelHeight, KuTheme.withAlpha(KuTheme.PANEL, 0xA8));
-        KuTheme.drawBorder(context, x, topY, panelWidth, panelHeight, KuTheme.CYAN);
-        context.drawTextWithShadow(tr, Text.literal(title), x + 6, topY + 4, KuTheme.PRIMARY);
+        KuTheme.drawPanel(context, x, topY, panelWidth, panelHeight, KuTheme.CYAN);
+        context.drawTextWithShadow(tr, Text.literal(title), x + 8, topY + 8, KuTheme.CYAN);
+        KuTheme.drawSlot(context, x + 6, topY + headerHeight - 2,
+                panelWidth - 12, lines.size() * rowHeight + 4);
 
         int y = topY + headerHeight;
         for (String line : lines) {
-            int color = KuTheme.PRIMARY;
+            int color = KuTheme.BODY;
             if (line.matches(".*\\s\\d+/\\d+.*")) {
                 String[] parts = line.split("\\s+");
                 String last = parts[parts.length - 1];
@@ -217,7 +221,7 @@ public final class KingdomUnifiedHud {
                     }
                 }
             }
-            context.drawTextWithShadow(tr, Text.literal(line), x + 6, y, color);
+            context.drawTextWithShadow(tr, Text.literal(line), x + 12, y + 3, color);
             y += rowHeight;
         }
     }
