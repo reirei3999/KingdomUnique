@@ -147,6 +147,66 @@ public final class BlueprintGameTest {
     }
 
     @GameTest(templateName = FabricGameTest.EMPTY_STRUCTURE)
+    public void reloadedTownHallAcceptsFullOakPlankRequirement(TestContext context) {
+        ServerWorld world = context.getWorld();
+        BlockPos pos = context.getAbsolutePos(new BlockPos(0, 8, 0));
+        ServerPlayerEntity player = player(world);
+        BlueprintBlock block = ModBlocks.TOWN_HALL;
+        BlueprintBlockEntity original = place(block, world, pos, player);
+        var lookup = world.getRegistryManager();
+        var restored = (BlueprintBlockEntity) BlockEntity.createFromNbt(pos, block.getDefaultState(),
+                original.createNbtWithIdentifyingData(lookup), lookup);
+        context.assertTrue(restored != null, "The town hall blueprint must deserialize");
+        world.addBlockEntity(restored);
+
+        ItemStack planks = new ItemStack(Items.OAK_PLANKS, 64);
+        deposit(block, world, pos, player, planks);
+        context.assertTrue(planks.isEmpty(), "A reloaded town hall must accept all 64 oak planks, not the house's 24");
+        context.assertEquals(restored.countOf(Items.OAK_PLANKS), 64, "All deposited oak planks must be stored");
+        context.assertFalse(restored.isReady(), "Planks alone must not start construction");
+
+        ItemStack extra = new ItemStack(Items.OAK_PLANKS);
+        deposit(block, world, pos, player, extra);
+        context.assertEquals(extra.getCount(), 1, "Oak planks beyond the recipe must not be consumed");
+        ItemStack unrelated = new ItemStack(Items.DIRT);
+        deposit(block, world, pos, player, unrelated);
+        context.assertEquals(unrelated.getCount(), 1, "Unrelated materials must not be consumed");
+        context.assertFalse(restored.insert(ItemStack.EMPTY), "Empty stacks must not be accepted");
+        context.complete();
+    }
+
+    @GameTest(templateName = FabricGameTest.EMPTY_STRUCTURE)
+    public void everyReloadedBlueprintAcceptsItsOwnRecipe(TestContext context) {
+        ServerWorld world = context.getWorld();
+        BlockPos pos = context.getAbsolutePos(new BlockPos(0, 8, 0));
+        BlueprintBlock[] blocks = {ModBlocks.HOUSE, ModBlocks.BARRACKS, ModBlocks.BLACKSMITH,
+                ModBlocks.TOWN_HALL, ModBlocks.WATCHTOWER, ModBlocks.GATE, ModBlocks.WALL,
+                ModBlocks.HERO_SANCTUARY, ModBlocks.GRANARY, ModBlocks.INFIRMARY, ModBlocks.MARKET,
+                ModBlocks.ARSENAL, ModBlocks.TRAINING_GROUND, ModBlocks.ROYAL_PALACE};
+        var lookup = world.getRegistryManager();
+        for (BlueprintBlock block : blocks) {
+            BlueprintBlockEntity original = (BlueprintBlockEntity) block.createBlockEntity(pos, block.getDefaultState());
+            var restored = (BlueprintBlockEntity) BlockEntity.createFromNbt(pos, block.getDefaultState(),
+                    original.createNbtWithIdentifyingData(lookup), lookup);
+            context.assertTrue(restored != null && restored.buildingType() == block.getType(),
+                    "Reload must preserve the recipe for " + block.getType());
+            block.getType().materials().forEach((item, count) -> {
+                int remaining = count;
+                while (remaining > 0) {
+                    int size = Math.min(remaining, item.getMaxCount());
+                    ItemStack stack = new ItemStack(item, size);
+                    context.assertTrue(restored.insert(stack) && stack.isEmpty(),
+                            "Reloaded " + block.getType() + " must accept its full " + item + " requirement");
+                    remaining -= size;
+                }
+            });
+            context.assertTrue(restored.hasAllMaterials(block.getType(), 1.0),
+                    "Reloaded " + block.getType() + " must have room for the entire recipe");
+        }
+        context.complete();
+    }
+
+    @GameTest(templateName = FabricGameTest.EMPTY_STRUCTURE)
     public void townHallStartsWhenSurvivalPlayerInsertsLastMaterial(TestContext context) {
         ServerWorld world = context.getWorld();
         BlockPos pos = context.getAbsolutePos(new BlockPos(0, 8, 0));
