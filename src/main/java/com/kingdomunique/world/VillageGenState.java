@@ -65,6 +65,7 @@ public final class VillageGenState extends PersistentState {
         public int z;
         public boolean built;
         long retryAfter;
+        int searchCursor;
 
         public VillageEntry(int x, int z, boolean built) {
             this.x = x;

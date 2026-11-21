@@ -54,7 +54,13 @@ public final class VillagePlacementGameTest {
         state.pendingVillages.add(entry);
         unique.setVillageSites(sites);
         try {
-            int placed = WorldInitializer.tryBuildVillage(world, entry, 128);
+            context.assertTrue(WorldInitializer.tryBuildVillage(world, entry, 128) == 0
+                            && entry.searchCursor == 1 && entry.retryAfter == 0,
+                    "One search step must inspect only the planned center, without exhausting the search");
+            int placed = 0;
+            for (int step = 1; step < 81 && !entry.built; step++) {
+                placed = WorldInitializer.tryBuildVillage(world, entry, 128);
+            }
             context.assertTrue(placed > 0 && entry.built, "Relocated village must have actual buildings");
             context.assertTrue(entry.x >= planned.getX() + 72 && entry.x <= planned.getX() + 128
                             && Math.abs(entry.z - planned.getZ()) <= 32,
@@ -88,8 +94,14 @@ public final class VillagePlacementGameTest {
             }
         }
         var entry = new VillageGenState.VillageEntry(center.getX(), center.getZ(), false);
-        context.assertTrue(WorldInitializer.tryBuildVillage(world, entry, 256) == 0 && !entry.built,
-                "A world village with no suitable land must remain unbuilt");
+        for (int step = 0; step < 289; step++) {
+            context.assertTrue(WorldInitializer.tryBuildVillage(world, entry, 256) == 0 && !entry.built,
+                    "A world village with no suitable land must remain unbuilt");
+            if (step < 288) {
+                context.assertTrue(entry.searchCursor == step + 1 && entry.retryAfter == 0,
+                        "Each tick must advance exactly one candidate and defer cooldown until exhaustion");
+            }
+        }
         context.assertTrue(entry.x == center.getX() && entry.z == center.getZ()
                         && entry.retryAfter > world.getTime(), "Failed searches must retain their site and back off");
         long retryAfter = entry.retryAfter;
