@@ -96,10 +96,11 @@ final class DefenseStructures {
         b.set(1, 12, 2, stairs(Blocks.DEEPSLATE_TILE_STAIRS, Direction.EAST));
         b.set(3, 12, 2, stairs(Blocks.DEEPSLATE_TILE_STAIRS, Direction.WEST));
         b.set(2, 12, 2, slab(Blocks.DEEPSLATE_TILE_SLAB, SlabType.BOTTOM));
-        b.set(2, 10, 2, Blocks.BELL.getDefaultState().with(BellBlock.ATTACHMENT, Attachment.CEILING)
+        b.set(3, 10, 1, Blocks.BELL.getDefaultState().with(BellBlock.ATTACHMENT, Attachment.CEILING)
                 .with(BellBlock.FACING, Direction.SOUTH));
         b.set(1, 10, 1, hangingLantern(Blocks.LANTERN));
         b.set(3, 10, 3, hangingLantern(Blocks.LANTERN));
+        b.set(1, 10, 3, hangingLantern(Blocks.LANTERN));
         return b.placements();
     }
 
