@@ -22,7 +22,9 @@ import net.minecraft.util.math.BlockPos;
 import net.minecraft.world.World;
 
 import java.util.UUID;
+import java.util.Arrays;
 import java.util.concurrent.ThreadLocalRandom;
+import java.util.stream.Collectors;
 
 /** 王国政策の変更・効果・コマンドを管理する。 */
 public final class PolicyManager {
@@ -72,7 +74,9 @@ public final class PolicyManager {
                                     StringArgumentType.getString(context, "choice"));
                             if (policy == null) {
                                 player.sendMessage(Text.literal(
-                                        "§c[政策] 選択肢は rich / industry / border のいずれかです。"), false);
+                                        "§c[政策] 選択肢は " + Arrays.stream(Policy.values())
+                                                .map(Policy::commandName).collect(Collectors.joining(" / "))
+                                                + " のいずれかです。"), false);
                                 return 0;
                             }
                             return setPolicy(player, policy) ? 1 : 0;
