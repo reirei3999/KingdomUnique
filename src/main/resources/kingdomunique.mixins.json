@@ -23,7 +23,9 @@
     "VillagerBreedTaskMixin",
     "VillagerProfessionMixin"
   ],
-  "client": [],
+  "client": [
+    "client.VillagerRendererMixin"
+  ],
   "injectors": {
     "defaultRequire": 1
   }
