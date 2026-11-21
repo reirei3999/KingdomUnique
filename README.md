@@ -68,6 +68,12 @@ gradlew build
 
 ステップ6時点で Gradle 8.8 による `./gradlew build` を実行し、`BUILD SUCCESSFUL` を確認済みです（`kingdomunique-0.1.0.jar` が生成されます）。
 
+## GitHub リリース
+
+大きな変更をリリースする際は、`gradle.properties` の `mod_version` を PR で更新してください。リポジトリのオーナーがその PR を `main` にマージすると、GitHub Actions が `v<バージョン>` のリリースを自動で作成し、配布用 JAR と自動生成されたリリースノートを公開します。
+
+バージョンが変わらない場合や、同じタグがすでにある場合は公開しません。失敗した場合は、Actions から元の実行を再実行できます。
+
 ## ステップ1の内容
 
 1. **エントリポイント**: `KingdomUniqueMod` / `KingdomUniqueClientMod`
