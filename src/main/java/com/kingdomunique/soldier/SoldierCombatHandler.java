@@ -97,7 +97,7 @@ public final class SoldierCombatHandler {
     }
 
     /** 強化段階（1.1^N）が反映された AttributeModifiers から攻撃力を算出する。 */
-    private static float calculateWeaponDamage(ItemStack weapon) {
+    public static float calculateWeaponDamage(ItemStack weapon) {
         if (weapon.isEmpty()) {
             return 2.0f;
         }
