@@ -38,11 +38,14 @@ public final class StatusScreen extends Screen {
         this.cooldownTicks = payload.cooldownTicks();
         this.miningRange = payload.miningRange();
 
-        if (activeAbilityId != null && !activeAbilityId.isEmpty()) {
+        // Gemini 修正: ユニーク武器のID（excalibur 等）は確認画面に出さない。
+        // kindOf() が null のIDは能力・遺物・呪物ではないため除外する。
+        if (activeAbilityId != null && !activeAbilityId.isEmpty()
+                && ContentRegistry.kindOf(activeAbilityId) != null) {
             displayIds.add(activeAbilityId);
         }
         for (String id : payload.ownedIds()) {
-            if (!displayIds.contains(id)) {
+            if (ContentRegistry.kindOf(id) != null && !displayIds.contains(id)) {
                 displayIds.add(id);
             }
         }

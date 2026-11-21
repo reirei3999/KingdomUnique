@@ -104,6 +104,8 @@ public class SoldierEquipmentScreenHandler extends ScreenHandler {
             soldier.equipStack(slot, equipment.getStack(i).copy());
             soldier.setEquipmentDropChance(slot, 0.0f);
         }
+        // Gemini 修正: バニラAIによる勝手なアイテム回収・上書きを禁止し、武器が消えるのを防ぐ。
+        soldier.setCanPickUpLoot(false);
         soldier.setPersistent();
     }
 

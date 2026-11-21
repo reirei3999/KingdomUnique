@@ -45,7 +45,8 @@ public final class SoldierCombatHandler {
     }
 
     private static void onWorldTick(ServerWorld world) {
-        if (world.getTime() % 20L != 0L) {
+        // Gemini 修正: 0.5秒ごとに高頻度判定し、逃走AIを解除して確実に戦闘させる。
+        if (world.getTime() % 10L != 0L) {
             return;
         }
         for (Entity entity : world.iterateEntities()) {
@@ -55,25 +56,39 @@ public final class SoldierCombatHandler {
                     || !soldier.isAlive()) {
                 continue;
             }
-            ItemStack weapon = soldier.getMainHandStack();
-            if (weapon.isEmpty()) {
-                continue;
-            }
-            LivingEntity target = findNearestEnemy(world, soldier, 16.0D);
+            // 武器が消えないよう自動拾得を禁止する。
+            soldier.setCanPickUpLoot(false);
+
+            LivingEntity target = findNearestEnemy(world, soldier, 18.0D);
             if (target == null) {
+                soldier.setTarget(null);
                 continue;
             }
+            // バニラ村人の逃走状態を解除して戦闘ターゲットへロック。
+            soldier.setTarget(target);
+            soldier.getBrain().forget(net.minecraft.entity.ai.brain.MemoryModuleType.AVOID_TARGET);
             soldier.getLookControl().lookAt(target, 30.0f, 30.0f);
 
-            if (weapon.getItem() instanceof RangedWeaponItem || weapon.getItem() instanceof TridentItem) {
-                performRangedAttack(world, soldier, target, weapon);
+            ItemStack weapon = soldier.getMainHandStack();
+            boolean melee = !(weapon.getItem() instanceof RangedWeaponItem)
+                    && !(weapon.getItem() instanceof TridentItem);
+            // 攻撃・射撃は1秒ごと（20tick）に実行。
+            boolean attackTick = world.getTime() % 20L == 0L;
+
+            if (!melee) {
+                if (attackTick) {
+                    performRangedAttack(world, soldier, target, weapon);
+                }
                 continue;
             }
-            if (soldier.squaredDistanceTo(target) <= 9.0D) {
-                soldier.swingHand(Hand.MAIN_HAND);
-                target.damage(world.getDamageSources().mobAttack(soldier), calculateWeaponDamage(weapon));
+            double distSq = soldier.squaredDistanceTo(target);
+            if (distSq <= 10.24D) {
+                if (attackTick) {
+                    soldier.swingHand(Hand.MAIN_HAND);
+                    target.damage(world.getDamageSources().mobAttack(soldier), calculateWeaponDamage(weapon));
+                }
             } else {
-                soldier.getNavigation().startMovingTo(target, 0.75D);
+                soldier.getNavigation().startMovingTo(target, 1.05D);
             }
         }
     }

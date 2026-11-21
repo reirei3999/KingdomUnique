@@ -172,34 +172,44 @@ public final class EnhancementUtil {
             result.set(DataComponentTypes.MAX_DAMAGE, scaledMax);
         }
 
-        // 強化後も名前が斜体にならないように明示的にスタイルを上書きする。
-        // Gemini 修正: 既存の「 +数字」を剥がしてから新しい段階を1つだけ付ける
-        // （「+5 +6 +7」のように末尾が増殖するバグを防ぐ）。
+        // Gemini 修正: 既存の称号・「 +数字」をすべて剥がしてベース名を取り出す
+        // （「+5 +6 +7」や称号の重複増殖を防ぐ）。
         Text existingName = result.get(DataComponentTypes.CUSTOM_NAME);
         String plainName = existingName == null ? "" : existingName.getString();
-        plainName = plainName.replaceAll("(?:\\s*\\+\\d+)+$", "").trim();
-        String title = "";
-        if (plainName.startsWith("[神域] ")) {
-            title = "[神域] ";
-            plainName = plainName.substring(5);
-        } else if (plainName.startsWith("[精錬] ")) {
-            title = "[精錬] ";
-            plainName = plainName.substring(5);
-        }
-        if (targetLevel >= 10) {
-            title = "[神域] ";
-        } else if (targetLevel >= 5 && title.isEmpty()) {
-            title = "[精錬] ";
-        }
+        plainName = plainName.replaceAll("^【[^】]+】\\s*", "")
+                .replaceAll("^\\[[^\\]]+\\]\\s*", "")
+                .replaceAll("(?:\\s*\\+\\d+)+$", "")
+                .trim();
         if (plainName.isEmpty()) {
             plainName = result.getItem().getName().getString();
         }
-        MutableText baseName = Text.literal(plainName)
-                .styled(style -> style.withItalic(false));
-        Text suffix = Text.literal(" +" + targetLevel)
-                .styled(style -> style.withColor(Formatting.GRAY).withItalic(false));
-        result.set(DataComponentTypes.CUSTOM_NAME,
-                Text.literal(title).append(baseName).append(suffix));
+
+        // 強化段階に応じた称号とカラー（名工=水色 / 英雄級=紫+水色 / 神話級=紫）。
+        String titlePrefix = "";
+        Formatting titleColor = Formatting.WHITE;
+        Formatting plusColor = Formatting.AQUA;
+        if (targetLevel >= 15) {
+            titlePrefix = "【神話級】";
+            titleColor = Formatting.LIGHT_PURPLE;
+            plusColor = Formatting.LIGHT_PURPLE;
+        } else if (targetLevel >= 10) {
+            titlePrefix = "【英雄級】";
+            titleColor = Formatting.LIGHT_PURPLE;
+            plusColor = Formatting.AQUA;
+        } else if (targetLevel >= 5) {
+            titlePrefix = "【名工】";
+            titleColor = Formatting.AQUA;
+            plusColor = Formatting.AQUA;
+        }
+
+        // 斜体（イタリック）を明示的に無効化して組み立てる。
+        MutableText finalName = Text.empty().styled(style -> style.withItalic(false));
+        if (!titlePrefix.isEmpty()) {
+            finalName.append(Text.literal(titlePrefix).formatted(titleColor));
+        }
+        finalName.append(Text.literal(plainName).formatted(Formatting.WHITE));
+        finalName.append(Text.literal(" +" + targetLevel).formatted(plusColor));
+        result.set(DataComponentTypes.CUSTOM_NAME, finalName);
 
         return result;
     }
