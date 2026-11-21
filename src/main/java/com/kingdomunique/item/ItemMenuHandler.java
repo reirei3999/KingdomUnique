@@ -210,6 +210,11 @@ public final class ItemMenuHandler {
                 capacity += Math.max(0, slot.getMaxCount() - slot.getCount());
             }
         }
+        for (ItemStack slot : player.getInventory().offHand) {
+            if (ItemStack.areItemsAndComponentsEqual(slot, stack)) {
+                capacity += Math.max(0, slot.getMaxCount() - slot.getCount());
+            }
+        }
         if (capacity < quantity) {
             reject(player, id, requestId, "所持品がいっぱいです。空きを作ってからもう一度クリック");
             return;
