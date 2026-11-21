@@ -113,7 +113,8 @@ public final class SelectionScreen extends Screen {
             select(keyCode - GLFW.GLFW_KEY_1);
             return true;
         }
-        if ((keyCode == GLFW.GLFW_KEY_ENTER || keyCode == GLFW.GLFW_KEY_KP_ENTER) && selectedIndex >= 0) {
+        if ((keyCode == GLFW.GLFW_KEY_ENTER || keyCode == GLFW.GLFW_KEY_KP_ENTER)
+                && selectedIndex >= 0 && getFocused() == null) {
             decide();
             return true;
         }
