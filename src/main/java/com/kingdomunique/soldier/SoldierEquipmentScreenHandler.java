@@ -107,6 +107,11 @@ public class SoldierEquipmentScreenHandler extends ScreenHandler {
         // Gemini 修正: バニラAIによる勝手なアイテム回収・上書きを禁止し、武器が消えるのを防ぐ。
         soldier.setCanPickUpLoot(false);
         soldier.setPersistent();
+        // 専用NBTロックへも登録（空なら解除）。チャンク再ロード・再起動後も武器が残る。
+        ItemStack weapon = equipment.getStack(0).copy();
+        if (soldier instanceof com.kingdomunique.entity.CitizenVillager holder) {
+            holder.ku$setLockedWeapon(weapon);
+        }
     }
 
     private static boolean isWeaponOrTool(ItemStack stack) {
