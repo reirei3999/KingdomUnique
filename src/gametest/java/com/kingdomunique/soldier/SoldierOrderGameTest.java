@@ -122,7 +122,7 @@ public final class SoldierOrderGameTest {
                 visible, "A nearer hidden enemy must not block acquisition of a visible target");
         visible.setPosition(soldier.getX() + 1.5D, soldier.getY(), soldier.getZ());
         visible.setTarget(soldier);
-        visible.tryAttack(soldier);
+        context.assertTrue(visible.tryAttack(soldier), "The visible husk must land its opening hit outside village protection");
         context.runAtTick(85, () -> {
             context.assertTrue(soldier.getHealth() < soldier.getMaxHealth(), "The active enemy must damage the soldier");
             context.assertTrue(visible.getHealth() < visible.getMaxHealth(), "The soldier must fight the active enemy");
