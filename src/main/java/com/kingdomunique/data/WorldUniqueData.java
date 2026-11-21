@@ -51,6 +51,9 @@ public class WorldUniqueData extends PersistentState {
     /** 黄金の天秤: プレイヤーUUID -> 最後に収益を受け取った日。 */
     private final Map<UUID, Long> goldenScalePayoutDays = new HashMap<>();
 
+    /** 不死鳥の羽根: プレイヤーUUID -> 最後に蘇生した日（再ログイン・再起動で回数が戻らないように保存）。 */
+    private final Map<UUID, Long> phoenixReviveDays = new HashMap<>();
+
     public WorldUniqueData() {
     }
 
@@ -90,14 +93,26 @@ public class WorldUniqueData extends PersistentState {
         }
         initialized = nbt.getBoolean("initialized");
 
-        NbtCompound payoutsNbt = nbt.getCompound("golden_scale_payouts");
-        for (String key : payoutsNbt.getKeys()) {
+        readDays(nbt.getCompound("golden_scale_payouts"), goldenScalePayoutDays);
+        readDays(nbt.getCompound("phoenix_revives"), phoenixReviveDays);
+    }
+
+    private static void readDays(NbtCompound daysNbt, Map<UUID, Long> target) {
+        for (String key : daysNbt.getKeys()) {
             try {
-                goldenScalePayoutDays.put(UUID.fromString(key), payoutsNbt.getLong(key));
+                target.put(UUID.fromString(key), daysNbt.getLong(key));
             } catch (IllegalArgumentException ignored) {
                 // 壊れたキーは無視する。
             }
         }
+    }
+
+    private static NbtCompound writeDays(Map<UUID, Long> days) {
+        NbtCompound daysNbt = new NbtCompound();
+        for (Map.Entry<UUID, Long> entry : days.entrySet()) {
+            daysNbt.putLong(entry.getKey().toString(), entry.getValue());
+        }
+        return daysNbt;
     }
 
     public static WorldUniqueData getOrCreate(ServerWorld world) {
@@ -128,11 +143,8 @@ public class WorldUniqueData extends PersistentState {
         nbt.put("village_sites", sitesNbt);
         nbt.putBoolean("initialized", initialized);
 
-        NbtCompound payoutsNbt = new NbtCompound();
-        for (Map.Entry<UUID, Long> entry : goldenScalePayoutDays.entrySet()) {
-            payoutsNbt.putLong(entry.getKey().toString(), entry.getValue());
-        }
-        nbt.put("golden_scale_payouts", payoutsNbt);
+        nbt.put("golden_scale_payouts", writeDays(goldenScalePayoutDays));
+        nbt.put("phoenix_revives", writeDays(phoenixReviveDays));
         return nbt;
     }
 
@@ -254,11 +266,20 @@ public class WorldUniqueData extends PersistentState {
 
     /** 黄金の天秤の収益をその日に未受領なら受領済みにして true を返す。 */
     public boolean claimGoldenScalePayout(UUID playerUuid, long day) {
-        Long last = goldenScalePayoutDays.get(playerUuid);
+        return claimDay(goldenScalePayoutDays, playerUuid, day);
+    }
+
+    /** 不死鳥の羽根の蘇生をその日に未使用なら使用済みにして true を返す。 */
+    public boolean claimPhoenixRevive(UUID playerUuid, long day) {
+        return claimDay(phoenixReviveDays, playerUuid, day);
+    }
+
+    private boolean claimDay(Map<UUID, Long> days, UUID playerUuid, long day) {
+        Long last = days.get(playerUuid);
         if (last != null && last == day) {
             return false;
         }
-        goldenScalePayoutDays.put(playerUuid, day);
+        days.put(playerUuid, day);
         markDirty();
         return true;
     }

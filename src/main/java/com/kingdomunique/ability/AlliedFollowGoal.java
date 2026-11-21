@@ -28,14 +28,20 @@ public final class AlliedFollowGoal extends Goal {
         return owner != null && owner.isAlive() ? owner : null;
     }
 
+    /** 戦闘中は移動・視線をバニラの攻撃Goalへ譲る。 */
+    private boolean inCombat() {
+        LivingEntity target = mob.getTarget();
+        return target != null && target.isAlive();
+    }
+
     @Override
     public boolean canStart() {
-        return owner() != null;
+        return owner() != null && !inCombat();
     }
 
     @Override
     public boolean shouldContinue() {
-        return mob.isAlive() && !mob.isRemoved() && owner() != null;
+        return mob.isAlive() && !mob.isRemoved() && owner() != null && !inCombat();
     }
 
     @Override

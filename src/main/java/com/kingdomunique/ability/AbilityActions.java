@@ -199,6 +199,7 @@ public final class AbilityActions {
                     GRAVITY_FALL_HALF, -0.5D, EntityAttributeModifier.Operation.ADD_MULTIPLIED_TOTAL));
         }
         target.setNoGravity(true);
+        target.addCommandTag(AbilityPassives.GRAVITY_HELD_TAG);
         state.setGravityTarget(target.getUuid());
         state.setGravityReleaseAt(now + (target instanceof PlayerEntity ? GRAVITY_PLAYER_HOLD_MS : GRAVITY_MOB_HOLD_MS));
         player.sendMessage(Text.literal("§d[重力操作] " + target.getName().getString() + " を拘束しました。"), true);

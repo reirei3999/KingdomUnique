@@ -47,4 +47,18 @@ public final class GoldenScaleGameTest {
                 "The next day's payout must be available after a reload");
         context.complete();
     }
+
+    @GameTest(templateName = FabricGameTest.EMPTY_STRUCTURE)
+    public void phoenixReviveSurvivesRestart(TestContext context) {
+        var overworld = context.getWorld().getServer().getWorld(World.OVERWORLD);
+        WorldUniqueData saved = WorldUniqueData.getOrCreate(overworld);
+        UUID player = UUID.randomUUID();
+        context.assertTrue(saved.claimPhoenixRevive(player, 5L), "The first revive of the day must be allowed");
+        WorldUniqueData reloaded = new WorldUniqueData(
+                saved.writeNbt(new NbtCompound(), overworld.getRegistryManager()));
+        context.assertFalse(reloaded.claimPhoenixRevive(player, 5L),
+                "Relogging or restarting must not grant a second revive on the same day");
+        context.assertTrue(reloaded.claimPhoenixRevive(player, 6L), "The next day's revive must be available");
+        context.complete();
+    }
 }

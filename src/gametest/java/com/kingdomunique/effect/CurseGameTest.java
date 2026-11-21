@@ -62,6 +62,10 @@ public final class CurseGameTest {
         data.releaseId(player.getUuid(), CurseRegistry.GLASS_CANNON);
         CurseEffects.applyAttributes(player);
         context.assertTrue(player.getMaxHealth() == 20.0F, "Max health must return to 20 without the curse");
+
+        player.getAttributeInstance(EntityAttributes.GENERIC_MAX_HEALTH).setBaseValue(40.0D);
+        CurseEffects.applyAttributes(player);
+        context.assertTrue(player.getMaxHealth() == 40.0F, "An admin-set max health must not be overwritten");
         context.complete();
     }
 

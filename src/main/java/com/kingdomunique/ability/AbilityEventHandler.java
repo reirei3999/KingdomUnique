@@ -33,10 +33,14 @@ public final class AbilityEventHandler {
         });
 
         ServerPlayConnectionEvents.DISCONNECT.register((handler, server) -> {
+            AbilityPassives.dropHeld(handler.getPlayer());
             AbilityState.remove(handler.getPlayer().getUuid());
         });
 
-        ServerEntityEvents.ENTITY_LOAD.register((entity, world) -> AlliedMobManager.restore(entity));
+        ServerEntityEvents.ENTITY_LOAD.register((entity, world) -> {
+            AlliedMobManager.restore(entity);
+            AbilityPassives.restoreGravity(entity);
+        });
         ServerEntityEvents.ENTITY_UNLOAD.register((entity, world) -> AlliedMobManager.forget(entity.getUuid()));
 
         ServerPlayNetworking.registerGlobalReceiver(AbilityKeyPayload.ID, (payload, context) -> {

@@ -39,6 +39,9 @@ public final class AbilityPassives {
 
     private static final double FERTILITY_CHANCE_PER_COLUMN_PER_SECOND = 0.15D;
 
+    /** 重力操作で拘束中の対象に付けるタグ（拘束状態のまま保存された場合の復旧用）。 */
+    public static final String GRAVITY_HELD_TAG = "kingdomunique_gravity_held";
+
     private AbilityPassives() {
     }
 
@@ -172,6 +175,10 @@ public final class AbilityPassives {
             return;
         }
 
+        if (!player.isAlive()) {
+            dropHeld(player);
+            return;
+        }
         long now = System.currentTimeMillis();
         if (now >= state.getGravityReleaseAt()) {
             releaseGravity(player, target);
@@ -222,7 +229,38 @@ public final class AbilityPassives {
         }
     }
 
+    /** 持ち主の切断・死亡時など、投擲せずに拘束中の対象を解放する。 */
+    public static void dropHeld(ServerPlayerEntity holder) {
+        PlayerAbilityState state = AbilityState.get(holder.getUuid());
+        UUID targetUuid = state.getGravityTarget();
+        if (targetUuid == null) {
+            return;
+        }
+        state.setGravityTarget(null);
+        for (ServerWorld world : holder.getServer().getWorlds()) {
+            if (world.getEntity(targetUuid) instanceof net.minecraft.entity.LivingEntity target) {
+                clearGravity(target);
+                return;
+            }
+        }
+    }
+
+    /** 再起動などで拘束状態のまま保存された対象は、読み込み時に重力を戻す。 */
+    public static void restoreGravity(net.minecraft.entity.Entity entity) {
+        if (!entity.getCommandTags().contains(GRAVITY_HELD_TAG)
+                || !(entity instanceof net.minecraft.entity.LivingEntity living)) {
+            return;
+        }
+        for (PlayerAbilityState state : AbilityState.all().values()) {
+            if (entity.getUuid().equals(state.getGravityTarget())) {
+                return;
+            }
+        }
+        clearGravity(living);
+    }
+
     private static void clearGravity(net.minecraft.entity.LivingEntity target) {
+        target.removeCommandTag(GRAVITY_HELD_TAG);
         target.setNoGravity(false);
         EntityAttributeInstance instance = target.getAttributeInstance(EntityAttributes.GENERIC_FALL_DAMAGE_MULTIPLIER);
         if (instance != null) {

@@ -255,7 +255,11 @@ public final class KingdomManager {
         // Gemini 修正: 戦時索敵用の識別タグを付与する。
         hero.addCommandTag("kingdom_hero");
         hero.addCommandTag("owner_" + player.getUuid().toString());
-        world.spawnEntity(hero);
+        if (!world.spawnEntity(hero)) {
+            // 召喚に失敗した場合は回数を消費しない。
+            player.sendMessage(Text.literal("§c[英雄] 召喚に失敗しました。場所を変えて再度お試しください。"), false);
+            return;
+        }
 
         world.setWeather(0, 200, true, true);
         player.getServer().getPlayerManager().broadcast(
@@ -270,9 +274,7 @@ public final class KingdomManager {
     public static void togglePossession(ServerPlayerEntity player) {
         UUID current = POSSESSING.get(player.getUuid());
         if (current != null) {
-            player.setCameraEntity(player);
-            player.removeStatusEffect(StatusEffects.INVISIBILITY);
-            POSSESSING.remove(player.getUuid());
+            clearPossession(player);
             player.sendMessage(Text.literal("§7[憑依] 本体へ意識を戻しました。"), true);
             return;
         }
@@ -300,15 +302,20 @@ public final class KingdomManager {
             return null;
         }
         if (!(player.getServerWorld().getEntity(uuid) instanceof HeroEntity hero) || !hero.isAlive()) {
-            POSSESSING.remove(player.getUuid());
-            player.setCameraEntity(player);
+            clearPossession(player);
             return null;
         }
         return hero;
     }
 
+    /** 憑依を終了し、視点・透明化・重力（憑依中は本体を浮かせて固定している）を元に戻す。 */
     public static void clearPossession(ServerPlayerEntity player) {
-        POSSESSING.remove(player.getUuid());
+        if (POSSESSING.remove(player.getUuid()) == null) {
+            return;
+        }
+        player.setCameraEntity(player);
+        player.removeStatusEffect(StatusEffects.INVISIBILITY);
+        player.setNoGravity(false);
     }
 
     /** 王国名を返す（未設定なら「無名の王国」）。 */

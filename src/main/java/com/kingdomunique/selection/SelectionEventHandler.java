@@ -1,5 +1,6 @@
 package com.kingdomunique.selection;
 
+import com.kingdomunique.data.WorldUniqueData;
 import com.kingdomunique.effect.CurseEffects;
 import com.kingdomunique.effect.RelicEffects;
 import com.kingdomunique.network.SelectionChoicePayload;
@@ -32,7 +33,6 @@ public final class SelectionEventHandler {
 
     private static final long GLUTTONY_TICKS = 200L;
     private static final Map<UUID, Long> GLUTTONY_UNTIL = new ConcurrentHashMap<>();
-    private static final Map<UUID, Long> PHOENIX_LAST = new ConcurrentHashMap<>();
     private static final long DAY = 24000L;
 
     private SelectionEventHandler() {
@@ -115,7 +115,6 @@ public final class SelectionEventHandler {
         ServerPlayConnectionEvents.DISCONNECT.register((handler, server) -> {
             SelectionManager.remove(handler.getPlayer());
             GLUTTONY_UNTIL.remove(handler.getPlayer().getUuid());
-            PHOENIX_LAST.remove(handler.getPlayer().getUuid());
         });
 
         ServerPlayNetworking.registerGlobalReceiver(SelectionChoicePayload.ID, (payload, context) -> {
@@ -162,13 +161,8 @@ public final class SelectionEventHandler {
     }
 
     private static void checkCitizens(ServerPlayerEntity player) {
+        // 国民（王国データの人口）だけを数える。周辺の未所属村人は含めない。
         int count = com.kingdomunique.kingdom.KingdomManager.getOrCreate(player).population();
-        if (count < 15) {
-            count = player.getServerWorld().getEntitiesByClass(
-                    net.minecraft.entity.passive.VillagerEntity.class,
-                    player.getBoundingBox().expand(256.0D),
-                    villager -> villager.isAlive()).size();
-        }
         SelectionManager.onCitizenCountReached(player, count);
     }
 
@@ -190,14 +184,32 @@ public final class SelectionEventHandler {
         }
     }
 
-    /** 守護の結界石：王国範囲内の敵対Mobを除去する。 */
+    /**
+     * 守護の結界石：自国領土内に自然湧きした敵対Mobを除去する。
+     * 襲撃軍・名前付き・味方化Mobなどの永続Mobとボスは対象外（襲撃の無効化や味方の消滅を防ぐ）。
+     */
     private static void blockHostileSpawns(ServerPlayerEntity player) {
-        if (!RelicEffects.isHostileSpawnBlocked(player)) {
+        if (player.getServer().getTicks() % 20 != 0 || !RelicEffects.isHostileSpawnBlocked(player)) {
             return;
         }
-        ServerWorld world = player.getServerWorld();
-        for (HostileEntity hostile : world.getEntitiesByClass(HostileEntity.class,
-                player.getBoundingBox().expand(128.0D), h -> h.isAlive())) {
+        ServerWorld world = player.getServer().getWorld(World.OVERWORLD);
+        if (world == null) {
+            return;
+        }
+        UUID owner = player.getUuid();
+        net.minecraft.util.math.BlockPos center = com.kingdomunique.kingdom.KingdomManager.centerOf(world, owner);
+        if (center == null) {
+            return;
+        }
+        int radius = com.kingdomunique.kingdom.KingdomManager.territoryRadius(world, owner);
+        net.minecraft.util.math.Box box = new net.minecraft.util.math.Box(
+                center.getX() - radius, world.getBottomY(), center.getZ() - radius,
+                center.getX() + radius, world.getTopY(), center.getZ() + radius);
+        for (HostileEntity hostile : world.getEntitiesByClass(HostileEntity.class, box,
+                h -> h.isAlive() && !h.isPersistent()
+                        && !com.kingdomunique.ability.AlliedMobManager.isAlly(h)
+                        && com.kingdomunique.ability.AbilityActions.canLift(h)
+                        && com.kingdomunique.kingdom.KingdomManager.isInTerritory(world, owner, h.getPos()))) {
             hostile.discard();
         }
     }
@@ -215,12 +227,7 @@ public final class SelectionEventHandler {
                     player.getServerWorld().getTime() + GLUTTONY_TICKS);
         }
 
-        if (CurseEffects.has(player, CurseRegistry.CONTRACT)
-                && entity instanceof net.minecraft.entity.passive.VillagerEntity) {
-            float curse = Math.max(player.getHealth(), player.getMaxHealth()) / 2.0F;
-            player.damage(player.getDamageSources().magic(), curse);
-            player.sendMessage(Text.literal("§5[背徳の契約書] 国民の死が呪いとなって襲いました。"), false);
-        }
+        // 背徳の契約書の呪いは KingdomEventHandler.onDeath（国民の死亡時）で一元処理する。
     }
 
     /** 不死鳥の羽根：1日1回、死亡をキャンセルして全回復。 */
@@ -232,11 +239,10 @@ public final class SelectionEventHandler {
             return true;
         }
         long day = player.getServerWorld().getTimeOfDay() / DAY;
-        Long last = PHOENIX_LAST.get(player.getUuid());
-        if (last != null && last == day) {
+        ServerWorld overworld = player.getServer().getWorld(World.OVERWORLD);
+        if (overworld == null || !WorldUniqueData.getOrCreate(overworld).claimPhoenixRevive(player.getUuid(), day)) {
             return true;
         }
-        PHOENIX_LAST.put(player.getUuid(), day);
         player.setHealth(player.getMaxHealth());
         player.getHungerManager().setFoodLevel(20);
         player.sendMessage(Text.literal("§6[不死鳥の羽根] あなたは灰の中から蘇りました。"), false);

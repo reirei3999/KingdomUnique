@@ -28,6 +28,7 @@ public final class CurseEffects {
     private static final Identifier VOID_DARK_DAMAGE = id("void_dark_damage");
     private static final Identifier VOID_LIGHT_ARMOR = id("void_light_armor");
     private static final Identifier DESTRUCTION_MINING = id("destruction_mining");
+    private static final Identifier GLASS_HEALTH = id("glass_health");
 
     private static final double GLASS_CANNON_MAX_HEALTH = 10.0D;
     private static final double DEFAULT_MAX_HEALTH = 20.0D;
@@ -75,13 +76,20 @@ public final class CurseEffects {
         multiply(player, EntityAttributes.GENERIC_FALL_DAMAGE_MULTIPLIER, SHACKLES_DAMAGE, false, 0.0D);
         multiply(player, EntityAttributes.PLAYER_BLOCK_BREAK_SPEED, DESTRUCTION_MINING, false, 0.0D);
 
-        // 硝子の大砲：所持中は最大HP10、手放したら通常の20へ戻す。
+        // 硝子の大砲：所持中だけ補正で最大HPを10にする（基礎値には触れないので、手放せば元の値へ戻る）。
         EntityAttributeInstance health = player.getAttributeInstance(EntityAttributes.GENERIC_MAX_HEALTH);
         if (health != null) {
-            double base = glass ? GLASS_CANNON_MAX_HEALTH : DEFAULT_MAX_HEALTH;
-            if (health.getBaseValue() != base) {
-                health.setBaseValue(base);
-                player.setHealth(Math.min(player.getHealth(), player.getMaxHealth()));
+            // 旧版は基礎値そのものを10へ書き換えていたため、その状態だけを通常の20へ戻す。
+            if (!glass && health.getBaseValue() == GLASS_CANNON_MAX_HEALTH) {
+                health.setBaseValue(DEFAULT_MAX_HEALTH);
+            }
+            health.removeModifier(GLASS_HEALTH);
+            if (glass) {
+                health.addTemporaryModifier(new EntityAttributeModifier(GLASS_HEALTH,
+                        GLASS_CANNON_MAX_HEALTH - health.getValue(), EntityAttributeModifier.Operation.ADD_VALUE));
+            }
+            if (player.getHealth() > player.getMaxHealth()) {
+                player.setHealth(player.getMaxHealth());
             }
         }
     }

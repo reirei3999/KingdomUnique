@@ -41,6 +41,18 @@ public final class GravityControlGameTest {
         context.complete();
     }
 
+    @GameTest(templateName = FabricGameTest.EMPTY_STRUCTURE)
+    public void staleHeldMobFallsAfterReload(TestContext context) {
+        var zombie = context.spawnEntity(EntityType.ZOMBIE, new BlockPos(1, 2, 1));
+        zombie.setNoGravity(true);
+        zombie.addCommandTag(AbilityPassives.GRAVITY_HELD_TAG);
+        AbilityPassives.restoreGravity(zombie);
+        context.assertFalse(zombie.hasNoGravity(), "A mob saved mid-hold must fall again once nobody holds it");
+        context.assertFalse(zombie.getCommandTags().contains(AbilityPassives.GRAVITY_HELD_TAG),
+                "The hold marker must be removed");
+        context.complete();
+    }
+
     private static ServerPlayerEntity player(ServerWorld world) {
         return new ServerPlayerEntity(world.getServer(), world,
                 new GameProfile(UUID.randomUUID(), "gravity_test"), SyncedClientOptions.createDefault()) {

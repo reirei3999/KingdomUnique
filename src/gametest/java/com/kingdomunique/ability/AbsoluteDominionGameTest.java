@@ -57,6 +57,27 @@ public final class AbsoluteDominionGameTest {
         context.complete();
     }
 
+    @GameTest(templateName = FabricGameTest.EMPTY_STRUCTURE)
+    public void revivedRaiderLeavesTheRaidAndIsNotAnEnemy(TestContext context) {
+        ServerWorld world = context.getWorld();
+        ServerPlayerEntity player = player(world);
+        ZombieEntity raider = context.spawnEntity(EntityType.ZOMBIE, new BlockPos(1, 2, 1));
+        raider.addCommandTag("ku_raid_" + player.getUuid());
+        raider.damage(world.getDamageSources().playerAttack(player), 1000.0F);
+        context.assertTrue(AlliedMobManager.tryRevive(raider, player, world), "The raider must be revivable");
+
+        ZombieEntity revived = world.getEntitiesByClass(ZombieEntity.class,
+                        new Box(context.getAbsolutePos(BlockPos.ORIGIN)).expand(8.0D),
+                        z -> z.isAlive() && z != raider)
+                .stream().findFirst().orElseThrow();
+        context.assertFalse(revived.getCommandTags().stream().anyMatch(tag -> tag.startsWith("ku_raid_")),
+                "A revived raider must no longer count toward the raid");
+        ZombieEntity guard = context.spawnEntity(EntityType.ZOMBIE, new BlockPos(4, 2, 4));
+        context.assertFalse(com.kingdomunique.war.KingdomWarTargetHelper.isValidEnemy(world, guard, null, revived),
+                "Kingdom units must not treat allies as enemies");
+        context.complete();
+    }
+
     private static ServerPlayerEntity player(ServerWorld world) {
         return new ServerPlayerEntity(world.getServer(), world,
                 new GameProfile(UUID.randomUUID(), "dominion_test"), SyncedClientOptions.createDefault()) {

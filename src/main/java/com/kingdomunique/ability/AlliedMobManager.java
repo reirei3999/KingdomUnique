@@ -19,6 +19,7 @@ public final class AlliedMobManager {
     private static final String ALLY_TAG = "kingdomunique_ally";
     /** 所有者UUIDをエンティティのコマンドタグへ保存し、再起動後も復元できるようにする。 */
     private static final String OWNER_TAG_PREFIX = "kingdomunique_ally_owner:";
+    private static final String RAID_TAG_PREFIX = "ku_raid_";
 
     /** Mob UUID -> 所有者 UUID。 */
     private static final Map<UUID, UUID> ALLIES = new ConcurrentHashMap<>();
@@ -94,6 +95,8 @@ public final class AlliedMobManager {
             return false;
         }
         mob.readNbt(nbt);
+        // 襲撃軍への所属は引き継がない（防衛完了判定を妨げないため）。
+        mob.getCommandTags().removeIf(tag -> tag.startsWith(RAID_TAG_PREFIX));
         mob.refreshPositionAndAngles(pos.x, pos.y, pos.z, dead.getYaw(), dead.getPitch());
         mob.setHealth(Math.max(1.0F, mob.getMaxHealth() * 0.5F));
         if (world.spawnEntity(mob)) {
