@@ -4,6 +4,8 @@ import com.kingdomunique.building.BuildingManager;
 import com.kingdomunique.building.ModBlocks;
 import com.kingdomunique.component.ModDataComponents;
 import com.kingdomunique.item.unique.PoseidonWhirlpool;
+import com.kingdomunique.item.unique.UniqueArmorEffects;
+import com.kingdomunique.item.unique.UniqueArmorTriggers;
 import com.kingdomunique.item.unique.UniqueWeaponManager;
 import com.kingdomunique.item.unique.UniqueWeaponTriggers;
 import com.kingdomunique.item.unique.UniqueWeapons;
@@ -33,6 +35,7 @@ public final class FinalEventHandler {
                 (payload, context) -> UniqueWeaponManager.fireLightArrowWithCooldown(context.player()));
 
         ServerLivingEntityEvents.AFTER_DEATH.register(FinalEventHandler::onDeath);
+        UniqueArmorEffects.register();
     }
 
     private static void onTick(MinecraftServer server) {
@@ -42,6 +45,8 @@ public final class FinalEventHandler {
         UniqueWeaponManager.tickEffects(server);
         UniqueWeaponManager.tickLightArrows(server);
         for (ServerPlayerEntity player : server.getPlayerManager().getPlayerList()) {
+            UniqueArmorTriggers.tick(player);
+            UniqueArmorEffects.tick(player);
             UniqueWeapons.POSEIDON_TRIDENT.tickHolder(player);
         }
         server.getWorlds().forEach(PoseidonWhirlpool::tick);
@@ -55,6 +60,7 @@ public final class FinalEventHandler {
         if (!(source.getAttacker() instanceof ServerPlayerEntity player)) {
             return;
         }
+        UniqueArmorTriggers.onKill(player, entity, source);
         UniqueWeaponTriggers.onKill(player, entity);
         ItemStack held = player.getMainHandStack();
         String id = held.get(ModDataComponents.UNIQUE_WEAPON_ID);

@@ -1,5 +1,6 @@
 package com.kingdomunique.mixin;
 
+import com.kingdomunique.item.unique.UniqueArmorEffects;
 import com.kingdomunique.util.EnhancementUtil;
 import net.minecraft.entity.player.PlayerEntity;
 import net.minecraft.item.ItemStack;
@@ -66,6 +67,13 @@ public abstract class AnvilScreenHandlerMixin implements EnhancementUtil.AnvilTr
         accessor.ku$output().setStack(0, enhancement.stack());
         levelCost.set(enhancement.levelCost());
         ci.cancel();
+    }
+
+    @Inject(method = "updateResult", at = @At(value = "INVOKE",
+            target = "Lnet/minecraft/screen/Property;get()I", ordinal = 1))
+    private void kingdomUnique$discountAnvil(CallbackInfo ci) {
+        levelCost.set(UniqueArmorEffects.discountLevels(((ForgingScreenHandlerAccessor) this).ku$player(),
+                levelCost.get()));
     }
 
     /**

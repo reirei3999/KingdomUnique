@@ -7,6 +7,8 @@ import com.kingdomunique.data.WorldUniqueData;
 import com.kingdomunique.building.ModBlocks;
 import com.kingdomunique.entity.ModEntities;
 import com.kingdomunique.item.ModItems;
+import com.kingdomunique.item.unique.CooledLavaBlock;
+import com.kingdomunique.item.unique.UniqueArmors;
 import com.kingdomunique.item.unique.UniqueWeapons;
 import com.kingdomunique.kingdom.KingdomEventHandler;
 import com.kingdomunique.registry.UniqueContentRegistry;
@@ -84,6 +86,8 @@ public class KingdomUniqueMod implements ModInitializer {
         // ステップ6: 設計図ブロック・一点モノ武器・最終統合イベントを登録する。
         ModBlocks.initialize();
         UniqueWeapons.initialize();
+        UniqueArmors.initialize();
+        CooledLavaBlock.initialize();
         com.kingdomunique.item.unique.ApolloBowItem.registerEvents();
         FinalEventHandler.register();
 

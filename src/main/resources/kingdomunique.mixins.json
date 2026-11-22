@@ -7,6 +7,11 @@
     "LootChestOriginMixin",
     "AnvilScreenHandlerMixin",
     "AnvilTransferMixin",
+    "ArmorAttributesMixin",
+    "ArmorEnchantingMixin",
+    "ArmorEntityMixin",
+    "ArmorPlayerMixin",
+    "ArmorTravelMixin",
     "AreaMiningMixin",
     "BowShotMixin",
     "CitizenVillagerMixin",
@@ -34,11 +39,14 @@
     "SmithingTransformRecipeMixin",
     "StormRaidMixin",
     "UniqueWeaponMixin",
+    "VaultUnlockMixin",
     "VillagerBreedTaskMixin",
     "VillagerProfessionMixin",
     "WeaponAttackMixin"
   ],
   "client": [
+    "client.ArmorElytraRendererMixin",
+    "client.ArmorVeilRendererMixin",
     "client.VillagerRendererMixin"
   ],
   "injectors": {

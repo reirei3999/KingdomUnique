@@ -1,6 +1,7 @@
 package com.kingdomunique.util;
 
 import com.kingdomunique.component.ModDataComponents;
+import com.kingdomunique.item.unique.UniqueArmorItem;
 import com.kingdomunique.registry.UniqueContentRegistry;
 import net.minecraft.component.DataComponentTypes;
 import net.minecraft.component.type.AttributeModifierSlot;
@@ -101,7 +102,8 @@ public final class EnhancementUtil {
         if (!isEnhanceable(left) || !isEnhanceable(right)) {
             return null;
         }
-        if (left.getItem() != right.getItem()) {
+        if (left.getItem() instanceof UniqueArmorItem armor
+                ? !armor.acceptsEnhancementMaterial(right) : left.getItem() != right.getItem()) {
             return null;
         }
 
