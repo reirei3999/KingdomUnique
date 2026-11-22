@@ -25,6 +25,7 @@ import net.minecraft.test.GameTest;
 import net.minecraft.test.TestContext;
 import net.minecraft.text.Text;
 import net.minecraft.util.math.BlockPos;
+import net.minecraft.world.Heightmap;
 
 import java.util.Set;
 import java.util.UUID;
@@ -72,7 +73,7 @@ public final class KingdomRelicsGameTest {
         var world = context.getWorld();
         var player = player(world);
         var ownership = WorldUniqueData.getOrCreate(world);
-        BlockPos center = prepareLanding(context);
+        BlockPos center = prepareSnowyLanding(context);
         var assassin = context.spawnMob(ModEntities.HERO, new BlockPos(2, 2, 2));
         assassin.setOwnerUuid(player.getUuid());
         assassin.setHeroClass(HeroClass.ASSASSIN);
@@ -88,7 +89,7 @@ public final class KingdomRelicsGameTest {
             context.assertFalse(KingdomRelicEffects.recall(player), "Recall is denied while possessing an assassin");
             KingdomManager.togglePossession(player);
             context.assertTrue(KingdomRelicEffects.recall(player), "First recall succeeds after setting a base");
-            context.assertEquals(player.getBlockPos().withY(0), center.withY(0), "Recall lands at the kingdom center");
+            context.assertEquals(player.getBlockPos(), center, "Recall lands on the snowy kingdom center");
             context.assertFalse(KingdomRelicEffects.recall(player), "Second recall on the same day fails");
             world.setTimeOfDay(time + 24000L);
             context.assertTrue(KingdomRelicEffects.recall(player), "Recall works again the next day");
@@ -107,7 +108,7 @@ public final class KingdomRelicsGameTest {
         var ownership = WorldUniqueData.getOrCreate(world);
         UUID owner = UUID.randomUUID();
         UUID enemy = UUID.randomUUID();
-        BlockPos center = prepareLanding(context);
+        BlockPos center = prepareSnowyLanding(context);
         setCenter(world, owner, center);
         long time = world.getTimeOfDay();
         KingdomGuardianEntity guardian = null;
@@ -116,6 +117,7 @@ public final class KingdomRelicsGameTest {
             context.assertTrue(ownership.claimId(owner, RelicRegistry.GUARDIAN_EGG), "Claim guardian egg");
             guardian = KingdomRelicEffects.spawnGuardian(world, owner);
             context.assertTrue(guardian != null && guardian.isAlive(), "Guardian spawns at the base");
+            context.assertEquals(guardian.getBlockPos(), center, "Guardian spawns on the snowy kingdom center");
             context.assertTrue(KingdomRelicEffects.spawnGuardian(world, owner) == null, "Only one guardian spawns");
             var creeper = context.spawnMob(EntityType.CREEPER, new BlockPos(3, 2, 3));
             context.assertTrue(KingdomRelicEffects.isTerritoryEnemy(world, guardian, owner, creeper),
@@ -151,10 +153,13 @@ public final class KingdomRelicsGameTest {
         }
     }
 
-    private static BlockPos prepareLanding(TestContext context) {
-        var pos = new BlockPos(2, 1, 2);
-        context.setBlockState(pos, Blocks.STONE);
-        return context.getAbsolutePos(pos.up());
+    private static BlockPos prepareSnowyLanding(TestContext context) {
+        var world = context.getWorld();
+        var column = context.getAbsolutePos(new BlockPos(2, 2, 2));
+        BlockPos surface = world.getTopPosition(Heightmap.Type.MOTION_BLOCKING_NO_LEAVES, column);
+        world.setBlockState(surface.down(), Blocks.STONE.getDefaultState());
+        world.setBlockState(surface, Blocks.SNOW.getDefaultState());
+        return surface;
     }
 
     private static void setCenter(ServerWorld world, UUID owner, BlockPos center) {

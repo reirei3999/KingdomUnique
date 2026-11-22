@@ -209,6 +209,10 @@ public final class KingdomRelicEffects {
             if (canLand(world, entity, surface)) {
                 return surface;
             }
+            BlockPos below = surface.down();
+            if (world.getBlockState(below).isOf(Blocks.SNOW) && canLand(world, entity, below)) {
+                return below;
+            }
         }
         return null;
     }
@@ -221,8 +225,9 @@ public final class KingdomRelicEffects {
         }
         BlockPos floor = pos.down();
         var ground = world.getBlockState(floor);
+        var feet = world.getBlockState(pos);
         return ground.isSolidBlock(world, floor) && !ground.isOf(Blocks.MAGMA_BLOCK)
-                && !ground.isOf(Blocks.CACTUS) && world.isAir(pos)
+                && !ground.isOf(Blocks.CACTUS) && (feet.isAir() || feet.isOf(Blocks.SNOW) && feet.isReplaceable())
                 && world.isSpaceEmpty(entity, box) && !world.containsFluid(box);
     }
 
