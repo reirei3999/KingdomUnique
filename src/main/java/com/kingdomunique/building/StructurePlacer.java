@@ -11,7 +11,9 @@ import net.minecraft.util.math.Direction;
 
 import java.util.ArrayList;
 import java.util.Comparator;
+import java.util.LinkedHashMap;
 import java.util.List;
+import java.util.Map;
 
 /**
  * 完了時に設計図の構造物を配置する。
@@ -89,8 +91,10 @@ public final class StructurePlacer {
             case TRAINING_GROUND -> list.addAll(CivicStructures.trainingGround());
             case ROYAL_PALACE -> list.addAll(GrandStructures.royalPalace());
         }
-        list.sort(Comparator.comparingInt(p -> p.local().getY()));
-        return list;
+        Map<BlockPos, Placement> finalPlacements = new LinkedHashMap<>();
+        list.forEach(p -> finalPlacements.put(p.local(), p));
+        return finalPlacements.values().stream()
+                .sorted(Comparator.comparingInt(p -> p.local().getY())).toList();
     }
 
     /** 閉じた門扉のワールド座標。 */
