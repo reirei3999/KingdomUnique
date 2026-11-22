@@ -73,7 +73,7 @@ final class DefenseStructures {
                 boolean edge = x == 0 || x == 4 || z == 0 || z == 4;
                 boolean corner = (x == 0 || x == 4) && (z == 0 || z == 4);
                 if (corner) {
-                    b.fill(x, 9, z, x, 10, z, Blocks.SPRUCE_LOG.getDefaultState());
+                    b.fill(x, 9, z, x, 12, z, Blocks.SPRUCE_LOG.getDefaultState());
                 } else if (edge) {
                     b.set(x, 9, z, Blocks.SPRUCE_FENCE.getDefaultState());
                 }
@@ -81,26 +81,26 @@ final class DefenseStructures {
         }
         // 屋根（軒の段 → 中段 → 頂）
         for (int i = 0; i <= 4; i++) {
-            b.set(i, 11, 0, stairs(Blocks.DEEPSLATE_TILE_STAIRS, Direction.SOUTH));
-            b.set(i, 11, 4, stairs(Blocks.DEEPSLATE_TILE_STAIRS, Direction.NORTH));
+            b.set(i, 13, 0, stairs(Blocks.DEEPSLATE_TILE_STAIRS, Direction.SOUTH));
+            b.set(i, 13, 4, stairs(Blocks.DEEPSLATE_TILE_STAIRS, Direction.NORTH));
         }
         for (int i = 1; i <= 3; i++) {
-            b.set(0, 11, i, stairs(Blocks.DEEPSLATE_TILE_STAIRS, Direction.EAST));
-            b.set(4, 11, i, stairs(Blocks.DEEPSLATE_TILE_STAIRS, Direction.WEST));
+            b.set(0, 13, i, stairs(Blocks.DEEPSLATE_TILE_STAIRS, Direction.EAST));
+            b.set(4, 13, i, stairs(Blocks.DEEPSLATE_TILE_STAIRS, Direction.WEST));
         }
-        b.fill(1, 11, 1, 3, 11, 3, Blocks.SPRUCE_PLANKS.getDefaultState());
+        b.fill(1, 13, 1, 3, 13, 3, Blocks.SPRUCE_PLANKS.getDefaultState());
         for (int i = 1; i <= 3; i++) {
-            b.set(i, 12, 1, stairs(Blocks.DEEPSLATE_TILE_STAIRS, Direction.SOUTH));
-            b.set(i, 12, 3, stairs(Blocks.DEEPSLATE_TILE_STAIRS, Direction.NORTH));
+            b.set(i, 14, 1, stairs(Blocks.DEEPSLATE_TILE_STAIRS, Direction.SOUTH));
+            b.set(i, 14, 3, stairs(Blocks.DEEPSLATE_TILE_STAIRS, Direction.NORTH));
         }
-        b.set(1, 12, 2, stairs(Blocks.DEEPSLATE_TILE_STAIRS, Direction.EAST));
-        b.set(3, 12, 2, stairs(Blocks.DEEPSLATE_TILE_STAIRS, Direction.WEST));
-        b.set(2, 12, 2, slab(Blocks.DEEPSLATE_TILE_SLAB, SlabType.BOTTOM));
-        b.set(3, 10, 1, Blocks.BELL.getDefaultState().with(BellBlock.ATTACHMENT, Attachment.CEILING)
+        b.set(1, 14, 2, stairs(Blocks.DEEPSLATE_TILE_STAIRS, Direction.EAST));
+        b.set(3, 14, 2, stairs(Blocks.DEEPSLATE_TILE_STAIRS, Direction.WEST));
+        b.set(2, 14, 2, slab(Blocks.DEEPSLATE_TILE_SLAB, SlabType.BOTTOM));
+        b.set(3, 12, 1, Blocks.BELL.getDefaultState().with(BellBlock.ATTACHMENT, Attachment.CEILING)
                 .with(BellBlock.FACING, Direction.SOUTH));
-        b.set(1, 10, 1, hangingLantern(Blocks.LANTERN));
-        b.set(3, 10, 3, hangingLantern(Blocks.LANTERN));
-        b.set(1, 10, 3, hangingLantern(Blocks.LANTERN));
+        b.set(1, 12, 1, hangingLantern(Blocks.LANTERN));
+        b.set(3, 12, 3, hangingLantern(Blocks.LANTERN));
+        b.set(1, 12, 3, hangingLantern(Blocks.LANTERN));
         return b.placements();
     }
 
@@ -140,6 +140,12 @@ final class DefenseStructures {
             b.set(tx + 1, 3, 1, Blocks.IRON_BARS.getDefaultState());
             b.set(tx + 1, 4, 4, Blocks.RED_WALL_BANNER.getDefaultState().with(WallBannerBlock.FACING, Direction.SOUTH));
         }
+        b.fill(1, 0, 1, 1, 5, 1, Blocks.STONE_BRICKS.getDefaultState());
+        b.fill(1, 0, 0, 1, 5, 0,
+                Blocks.LADDER.getDefaultState().with(LadderBlock.FACING, Direction.NORTH));
+        b.set(1, 6, 1, Blocks.AIR.getDefaultState());
+        b.set(lo - 1, 6, 2, Blocks.AIR.getDefaultState());
+        b.set(hi + 1, 6, 2, Blocks.AIR.getDefaultState());
         // アーチと歩廊
         for (int z = 1; z <= 3; z++) {
             b.set(lo, 3, z, stairsTop(Blocks.STONE_BRICK_STAIRS, Direction.WEST));
@@ -194,6 +200,8 @@ final class DefenseStructures {
         b.set(3, 4, 2, Blocks.IRON_BARS.getDefaultState());
         b.set(3, 2, 2, Blocks.CHISELED_STONE_BRICKS.getDefaultState());
         b.set(3, 4, 0, Blocks.LANTERN.getDefaultState());
+        b.fill(1, 0, 0, 1, 3, 0,
+                Blocks.LADDER.getDefaultState().with(LadderBlock.FACING, Direction.NORTH));
         return b.placements();
     }
 }

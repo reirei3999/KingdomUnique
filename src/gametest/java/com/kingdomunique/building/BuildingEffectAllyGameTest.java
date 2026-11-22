@@ -2,6 +2,8 @@ package com.kingdomunique.building;
 
 import com.kingdomunique.data.WorldUniqueData;
 import com.kingdomunique.entity.CitizenVillager;
+import com.kingdomunique.entity.HeroEntity;
+import com.kingdomunique.entity.ModEntities;
 import com.kingdomunique.war.KingdomDiplomacyState;
 import com.mojang.authlib.GameProfile;
 import net.fabricmc.fabric.api.gametest.v1.FabricGameTest;
@@ -131,6 +133,62 @@ public final class BuildingEffectAllyGameTest {
             diplomacy.setRelation(owner.getUuid(), enemy.getUuid(), KingdomDiplomacyState.Relation.NEUTRAL);
         }
         context.complete();
+    }
+
+    @GameTest(templateName = FabricGameTest.EMPTY_STRUCTURE, batchId = "training_ground")
+    public void trainingGroundOnlyTrainsOwnerAndAlliedHeroes(TestContext context) {
+        ServerWorld world = context.getWorld();
+        for (int x = 0; x <= 6; x++) {
+            for (int z = 0; z <= 2; z++) {
+                context.setBlockState(x, 1, z, Blocks.STONE);
+            }
+        }
+        var owner = player(world, "training_owner");
+        var ally = player(world, "training_ally");
+        var enemy = player(world, "training_enemy");
+        var neutral = player(world, "training_neutral");
+        KingdomDiplomacyState diplomacy = KingdomDiplomacyState.get(world);
+        diplomacy.setRelation(owner.getUuid(), ally.getUuid(), KingdomDiplomacyState.Relation.ALLY);
+        diplomacy.setRelation(owner.getUuid(), enemy.getUuid(), KingdomDiplomacyState.Relation.WAR);
+        try {
+            HeroEntity ownHero = hero(context, 1, owner);
+            HeroEntity allyHero = hero(context, 2, ally);
+            HeroEntity enemyHero = hero(context, 3, enemy);
+            HeroEntity neutralHero = hero(context, 4, neutral);
+            HeroEntity unownedHero = hero(context, 5, null);
+
+            Box area = new Box(context.getAbsolutePos(BlockPos.ORIGIN)).stretch(7.0D, 4.0D, 3.0D);
+            BuildingEffectHandler.applyTrainingGround(world, owner.getUuid(), area);
+
+            for (HeroEntity friend : new HeroEntity[]{ownHero, allyHero}) {
+                context.assertTrue(friend.hasStatusEffect(StatusEffects.STRENGTH),
+                        "Own and allied heroes must be trained at the training ground");
+            }
+            for (HeroEntity other : new HeroEntity[]{enemyHero, neutralHero, unownedHero}) {
+                context.assertFalse(other.hasStatusEffect(StatusEffects.STRENGTH),
+                        "Enemy, neutral and unowned heroes must not be trained at the training ground");
+            }
+
+            context.assertTrue(BuildingEffectHandler.receivesTraining(world, owner.getUuid(), owner),
+                    "The owner must be trained by their own training ground");
+            for (ServerPlayerEntity king : new ServerPlayerEntity[]{ally, enemy, neutral}) {
+                context.assertFalse(BuildingEffectHandler.receivesTraining(world, owner.getUuid(), king),
+                        "Other kings must not be trained by the owner's training ground");
+            }
+        } finally {
+            diplomacy.setRelation(owner.getUuid(), ally.getUuid(), KingdomDiplomacyState.Relation.NEUTRAL);
+            diplomacy.setRelation(owner.getUuid(), enemy.getUuid(), KingdomDiplomacyState.Relation.NEUTRAL);
+        }
+        context.complete();
+    }
+
+    private static HeroEntity hero(TestContext context, int x, ServerPlayerEntity king) {
+        HeroEntity hero = context.spawnEntity(ModEntities.HERO, x + 0.5f, 2.0f, 1.5f);
+        hero.setAiDisabled(true);
+        if (king != null) {
+            hero.setOwnerUuid(king.getUuid());
+        }
+        return hero;
     }
 
     private static VillagerEntity soldier(TestContext context, int x, ServerPlayerEntity king) {

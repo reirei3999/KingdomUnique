@@ -84,8 +84,10 @@ public final class KingdomRelicsGameTest {
             FabricDefaultAttributeRegistry.register(ModEntities.HERO, HeroEntity.createHeroAttributes());
         }
         var assassin = context.spawnMob(ModEntities.HERO, new BlockPos(2, 2, 2));
+        assassin.refreshPositionAndAngles(center, 0, 0);
         assassin.setOwnerUuid(player.getUuid());
         assassin.setHeroClass(HeroClass.ASSASSIN);
+        assassin.refreshPositionAndAngles(center, 0, 0);
         player.refreshPositionAndAngles(center.add(2, 0, 0), 0, 0);
         long time = world.getTimeOfDay();
         try {
@@ -94,7 +96,7 @@ public final class KingdomRelicsGameTest {
             context.assertFalse(KingdomRelicEffects.recall(player), "Recall fails without a base");
             setCenter(world, player.getUuid(), center);
             KingdomManager.togglePossession(player);
-            context.assertEquals(KingdomManager.possessedHero(player), assassin, "Assassin possession is active");
+            context.assertTrue(KingdomManager.possessedHero(player) == assassin, "Assassin possession is active");
             context.assertFalse(KingdomRelicEffects.recall(player), "Recall is denied while possessing an assassin");
             KingdomManager.togglePossession(player);
             context.assertTrue(KingdomRelicEffects.recall(player), "First recall succeeds after setting a base");

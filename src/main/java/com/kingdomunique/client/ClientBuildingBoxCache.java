@@ -28,13 +28,10 @@ public final class ClientBuildingBoxCache {
         return snapshot != null && snapshot.dimension().equals(world.getRegistryKey().getValue()) ? snapshot : null;
     }
 
-    /** BuildingValidator と同じく、周囲1マス余白を含めて既存／建築中と重複するか判定する。 */
+    /** BuildingValidator と同じく、既存／建築中の範囲とブロックが重なるか判定する。 */
     public static boolean intersectsExistingBuilding(BuildingBoxesSyncPayload snapshot, BlockBox candidateBox) {
-        BlockBox padded = new BlockBox(
-                candidateBox.getMinX() - 1, candidateBox.getMinY(), candidateBox.getMinZ() - 1,
-                candidateBox.getMaxX() + 1, candidateBox.getMaxY(), candidateBox.getMaxZ() + 1);
         for (BlockBox existing : snapshot.occupiedBoxes()) {
-            if (padded.intersects(existing)) {
+            if (candidateBox.intersects(existing)) {
                 return true;
             }
         }

@@ -176,6 +176,8 @@ public final class TownHallBuilder {
                         Blocks.DEEPSLATE_TILE_SLAB.getDefaultState(), Block.NOTIFY_LISTENERS);
             }
         }
+        world.set(origin.add(5, 10, 3), Blocks.STONE_BRICKS.getDefaultState(),
+                Block.NOTIFY_LISTENERS);
         world.set(origin.add(5, 11, 3), Blocks.BELL.getDefaultState(),
                 Block.NOTIFY_LISTENERS);
 

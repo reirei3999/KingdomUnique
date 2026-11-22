@@ -196,7 +196,9 @@ final class HomeStructures {
         b.set(3, 0, 2, Blocks.CHEST.getDefaultState().with(ChestBlock.FACING, Direction.SOUTH));
         b.set(4, 0, 2, Blocks.BARREL.getDefaultState());
         b.set(2, 0, 4, Blocks.STONECUTTER.getDefaultState());
+        b.fill(x1, 3, 3, x2, 3, 3, log(Blocks.DARK_OAK_LOG, Direction.Axis.X));
         b.set(3, 2, 3, hangingLantern(Blocks.LANTERN));
+        b.set(3, 3, zf + 1, Blocks.DARK_OAK_LOG.getDefaultState());
         b.set(3, 2, zf + 1, hangingLantern(Blocks.LANTERN));
         b.set(3, -1, 6, Blocks.DIRT_PATH.getDefaultState());
         b.set(3, -1, 7, Blocks.DIRT_PATH.getDefaultState());

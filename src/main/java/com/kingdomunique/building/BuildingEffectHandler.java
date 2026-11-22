@@ -82,15 +82,7 @@ public final class BuildingEffectHandler {
                         }
                     }
                     case ARSENAL -> applyArsenal(world, entry.owner(), area);
-                    case TRAINING_GROUND -> {
-                        for (LivingEntity trainee : world.getEntitiesByClass(LivingEntity.class, area,
-                                e -> e.isAlive() && (e instanceof HeroEntity
-                                        || e instanceof ServerPlayerEntity
-                                        && e.getUuid().equals(entry.owner())))) {
-                            trainee.addStatusEffect(new StatusEffectInstance(
-                                    StatusEffects.STRENGTH, 120, 0, true, false));
-                        }
-                    }
+                    case TRAINING_GROUND -> applyTrainingGround(world, entry.owner(), area);
                     case ROYAL_PALACE -> {
                         ServerPlayerEntity owner = server.getPlayerManager().getPlayer(entry.owner());
                         if (owner != null && area.contains(owner.getPos())) {
@@ -127,6 +119,15 @@ public final class BuildingEffectHandler {
         }
     }
 
+    /** 英雄訓練場：範囲内の所有者本人と、所有者陣営の英雄（同盟国を含む）に攻撃力上昇を付与する。 */
+    static void applyTrainingGround(ServerWorld world, UUID owner, Box area) {
+        for (LivingEntity trainee : world.getEntitiesByClass(LivingEntity.class, area,
+                e -> receivesTraining(world, owner, e))) {
+            trainee.addStatusEffect(new StatusEffectInstance(
+                    StatusEffects.STRENGTH, 120, 0, true, false));
+        }
+    }
+
     static boolean receivesInfirmary(ServerWorld world, UUID owner, LivingEntity entity) {
         return entity.isAlive() && (entity instanceof ServerPlayerEntity
                 || entity instanceof VillagerEntity
@@ -137,6 +138,16 @@ public final class BuildingEffectHandler {
     static boolean receivesArsenal(ServerWorld world, UUID owner, LivingEntity entity) {
         return entity.isAlive() && (entity instanceof VillagerEntity || entity instanceof HeroEntity)
                 && isAllyOf(world, owner, entity);
+    }
+
+    static boolean receivesTraining(ServerWorld world, UUID owner, LivingEntity entity) {
+        if (!entity.isAlive()) {
+            return false;
+        }
+        if (entity instanceof ServerPlayerEntity) {
+            return entity.getUuid().equals(owner);
+        }
+        return entity instanceof HeroEntity && isAllyOf(world, owner, entity);
     }
 
     /** 建築所有者と同じ王国、または戦争中でない同盟国に属するエンティティか。所属のない者は対象外。 */
