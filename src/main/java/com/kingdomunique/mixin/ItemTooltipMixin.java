@@ -184,6 +184,18 @@ public abstract class ItemTooltipMixin {
                     "~攻撃ヒット20%で敵を0.5秒完全停止",
                     "停止中はAI・移動がロックされる"
             };
+            case "kusanagi" -> new String[]{
+                    "#左クリック：前方に範囲ダメージとノックバック（CT 10秒）",
+                    "~雨天時は威力 ×1.5"
+            };
+            case "poseidon_trident" -> new String[]{
+                    "#水中で移動・攻撃速度上昇",
+                    "~投擲の着弾点に敵を引き寄せ、拘束する渦潮（CT 20秒）"
+            };
+            case "twilight_scythe" -> new String[]{
+                    "#攻撃で敵の最大体力の5%の追加ダメージ",
+                    "~夜間は与えたダメージの10%を回復"
+            };
             default -> new String[]{"#世界で唯一の強力な武器"};
         };
     }

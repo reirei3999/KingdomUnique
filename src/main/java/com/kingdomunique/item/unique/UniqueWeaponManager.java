@@ -182,6 +182,9 @@ public final class UniqueWeaponManager {
             case "muramasa" -> new ItemStack(UniqueWeapons.MURAMASA);
             case "apollo_bow" -> new ItemStack(UniqueWeapons.APOLLO_BOW);
             case "mjolnir" -> new ItemStack(UniqueWeapons.MJOLNIR);
+            case "kusanagi" -> new ItemStack(UniqueWeapons.KUSANAGI);
+            case "poseidon_trident" -> new ItemStack(UniqueWeapons.POSEIDON_TRIDENT);
+            case "twilight_scythe" -> new ItemStack(UniqueWeapons.TWILIGHT_SCYTHE);
             default -> new ItemStack(UniqueWeapons.CHRONOS_DAGGER);
         };
     }
