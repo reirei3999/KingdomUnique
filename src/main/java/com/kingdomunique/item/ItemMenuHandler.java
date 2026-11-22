@@ -88,15 +88,21 @@ public final class ItemMenuHandler {
                             lines.add(entry.getKey().getName().getString() + " " + have + "/" + needed);
                         }
                         if (be.hasAllMaterials(type, multiplier)) {
-                            // 資材が揃うと自動で着工するため、未着工なら建築条件で拒否されている。
-                            lines.add("状態: 着工できません");
-                            com.kingdomunique.building.BuildData.getOrCreate(world).sites().stream()
-                                    .filter(site -> site.pos().equals(payload.pos()))
-                                    .findFirst()
-                                    .flatMap(site -> com.kingdomunique.building.BuildingValidator
-                                            .validate(world, site))
-                                    .ifPresent(error -> lines.add(error.getString()));
-                            lines.add("条件を直して素手で右クリックで着工");
+                            // 資材が揃うと自動で着工するため、未着工なら建築条件で拒否された現場。
+                            java.util.Optional<net.minecraft.text.Text> error =
+                                    com.kingdomunique.building.BuildData.getOrCreate(world).sites().stream()
+                                            .filter(site -> site.pos().equals(payload.pos()))
+                                            .findFirst()
+                                            .flatMap(site -> com.kingdomunique.building.BuildingValidator
+                                                    .validate(world, site));
+                            if (error.isPresent()) {
+                                lines.add("状態: 着工できません");
+                                lines.add(error.get().getString());
+                                lines.add("条件を直して素手で右クリックで着工");
+                            } else {
+                                lines.add("状態: 着工待ち");
+                                lines.add("素手で右クリックで着工");
+                            }
                         } else {
                             lines.add("状態: 資材待ち");
                         }
