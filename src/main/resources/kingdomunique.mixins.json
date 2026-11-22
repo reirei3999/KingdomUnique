@@ -28,6 +28,7 @@
     "PoseidonTridentMixin",
     "PhantomSpawnerMixin",
     "RangedDamageMixin",
+    "ServerPlayerDamageMixin",
     "StatusEffectMixin",
     "SpawnRestrictionMixin",
     "SmithingTransformRecipeMixin",
