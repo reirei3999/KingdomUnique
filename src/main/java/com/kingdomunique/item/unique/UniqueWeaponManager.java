@@ -177,11 +177,15 @@ public final class UniqueWeaponManager {
 
     private static ItemStack uniqueStack(String id) {
         return switch (id) {
+            case "trishula" -> new ItemStack(UniqueWeapons.TRISHULA);
             case "excalibur" -> new ItemStack(UniqueWeapons.EXCALIBUR);
             case "gae_bolg" -> new ItemStack(UniqueWeapons.GAE_BOLG);
             case "muramasa" -> new ItemStack(UniqueWeapons.MURAMASA);
             case "apollo_bow" -> new ItemStack(UniqueWeapons.APOLLO_BOW);
             case "mjolnir" -> new ItemStack(UniqueWeapons.MJOLNIR);
+            case "kusanagi" -> new ItemStack(UniqueWeapons.KUSANAGI);
+            case "poseidon_trident" -> new ItemStack(UniqueWeapons.POSEIDON_TRIDENT);
+            case "twilight_scythe" -> new ItemStack(UniqueWeapons.TWILIGHT_SCYTHE);
             default -> new ItemStack(UniqueWeapons.CHRONOS_DAGGER);
         };
     }

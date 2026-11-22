@@ -139,8 +139,10 @@ final class CivicStructures {
         b.set(5, 0, 4, Blocks.CHEST.getDefaultState().with(ChestBlock.FACING, Direction.SOUTH));
         b.set(4, 2, 3, Blocks.BELL.getDefaultState().with(BellBlock.ATTACHMENT, Attachment.CEILING)
                 .with(BellBlock.FACING, Direction.SOUTH));
-        b.set(2, 2, 3, hangingLantern(Blocks.LANTERN));
-        b.set(6, 2, 3, hangingLantern(Blocks.LANTERN));
+        for (int x : new int[]{2, 6}) {
+            b.set(x, 4, 3, log(Blocks.STRIPPED_SPRUCE_LOG, Direction.Axis.X));
+            b.set(x, 3, 3, hangingLantern(Blocks.LANTERN));
+        }
         b.set(0, 0, 6, Blocks.BARREL.getDefaultState());
         b.set(8, 0, 6, Blocks.COMPOSTER.getDefaultState());
         b.set(8, 0, 0, Blocks.HAY_BLOCK.getDefaultState());

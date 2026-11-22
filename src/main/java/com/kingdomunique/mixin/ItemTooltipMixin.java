@@ -137,6 +137,7 @@ public abstract class ItemTooltipMixin {
 
     private static String flavor(String id) {
         return switch (id) {
+            case "trishula" -> "炎を越え、着弾の地へ導く三叉槍。";
             case "excalibur" -> "王の威光を宿す、選ばれし者の剣。";
             case "gae_bolg" -> "投げられし魔槍は、必ず獲物を追う。";
             case "muramasa" -> "飲み干すほどに強くなる、妖の刀。";
@@ -149,6 +150,13 @@ public abstract class ItemTooltipMixin {
 
     private static String[] lines(String id, ItemStack stack) {
         return switch (id) {
+            case "trishula" -> new String[]{
+                    "#プレイヤー以外への近接・投擲ダメージ ×2",
+                    "~右クリック: 投擲、着弾時に小爆発と安全な地点へのワープ",
+                    "~爆発はブロックと投擲者を傷つけない",
+                    "*ワープ後5秒間、炎上・落下ダメージ無効",
+                    "!クールタイム: 20秒"
+            };
             case "excalibur" -> new String[]{
                     "#王国領地内での攻撃力 ×1.8",
                     "~領地半径100マス（王城で200マス）",
@@ -183,6 +191,18 @@ public abstract class ItemTooltipMixin {
                     "#非常に速い攻撃速度",
                     "~攻撃ヒット20%で敵を0.5秒完全停止",
                     "停止中はAI・移動がロックされる"
+            };
+            case "kusanagi" -> new String[]{
+                    "#左クリック：前方に範囲ダメージとノックバック（CT 10秒）",
+                    "~雨天時は威力 ×1.5"
+            };
+            case "poseidon_trident" -> new String[]{
+                    "#水中で移動・攻撃速度上昇",
+                    "~投擲の着弾点に敵を引き寄せ、拘束する渦潮（CT 20秒）"
+            };
+            case "twilight_scythe" -> new String[]{
+                    "#攻撃で敵の最大体力の5%の追加ダメージ",
+                    "~夜間は与えたダメージの10%を回復"
             };
             default -> new String[]{"#世界で唯一の強力な武器"};
         };

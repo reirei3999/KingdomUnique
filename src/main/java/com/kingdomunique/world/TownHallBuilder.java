@@ -121,9 +121,9 @@ public final class TownHallBuilder {
         world.set(origin.add(6, 2, depth - 1), Blocks.OAK_STAIRS.getDefaultState()
                 .with(StairsBlock.FACING, Direction.WEST).with(StairsBlock.HALF, BlockHalf.TOP),
                 Block.NOTIFY_LISTENERS);
-        world.set(origin.add(5, 3, depth), Blocks.OAK_LOG.getDefaultState()
+        world.set(origin.add(5, 4, depth), Blocks.OAK_LOG.getDefaultState()
                 .with(PillarBlock.AXIS, Direction.Axis.Z), Block.NOTIFY_LISTENERS);
-        world.set(origin.add(5, 2, depth), Blocks.LANTERN.getDefaultState()
+        world.set(origin.add(5, 3, depth), Blocks.LANTERN.getDefaultState()
                 .with(LanternBlock.HANGING, true), Block.NOTIFY_LISTENERS);
 
         // 4. 切妻屋根（深層岩タイルの階段 ＋ 縁取りの石レンガ階段）

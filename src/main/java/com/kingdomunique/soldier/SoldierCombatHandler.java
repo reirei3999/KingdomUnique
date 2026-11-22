@@ -26,6 +26,7 @@ import java.util.List;
 /** 兵士が装備した武器（強化段階・遺物効果込み）で戦闘するAI。 */
 public final class SoldierCombatHandler {
 
+    private static final double PURSUIT_SPEED = 0.65D;
     private static final java.util.Set<VillagerEntity> SWEEPING = new java.util.HashSet<>();
 
     private SoldierCombatHandler() {
@@ -55,7 +56,8 @@ public final class SoldierCombatHandler {
             if (!(entity instanceof VillagerEntity soldier)
                     || !(soldier instanceof CitizenVillager citizen)
                     || !CitizenVillager.ROLE_SOLDIER.equals(citizen.ku$getRole())
-                    || !soldier.isAlive()) {
+                    || !soldier.isAlive()
+                    || com.kingdomunique.ability.TimeRulerAbility.isFrozen(soldier)) {
                 continue;
             }
             // 武器が消えないよう自動拾得を禁止する。
@@ -93,7 +95,7 @@ public final class SoldierCombatHandler {
                     target.damage(world.getDamageSources().mobAttack(soldier), calculateWeaponDamage(weapon));
                 }
             } else {
-                soldier.getNavigation().startMovingTo(target, 1.05D);
+                soldier.getNavigation().startMovingTo(target, PURSUIT_SPEED);
             }
         }
     }
@@ -112,7 +114,9 @@ public final class SoldierCombatHandler {
                 }
             }
         }
-        return (float) Math.max(2.0D, damage * EnhancementUtil.multiplier(EnhancementUtil.getLevel(weapon)));
+        double factor = weapon.getItem() instanceof RangedWeaponItem
+                ? EnhancementUtil.multiplier(EnhancementUtil.getLevel(weapon)) : 1.0D;
+        return (float) Math.max(2.0D, damage * factor);
     }
 
     /** 弓・クロスボウ・トライデントの射撃（強化倍率を威力へ反映）。 */

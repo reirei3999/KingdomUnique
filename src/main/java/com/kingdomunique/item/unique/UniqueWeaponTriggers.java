@@ -2,16 +2,20 @@ package com.kingdomunique.item.unique;
 
 import com.kingdomunique.component.ModDataComponents;
 import com.kingdomunique.data.PlayerStatsData;
+import com.kingdomunique.data.WeaponAcquisitionData;
 import com.kingdomunique.data.WorldUniqueData;
 import com.kingdomunique.item.ItemCatalog;
 import com.kingdomunique.kingdom.KingdomManager;
 import com.kingdomunique.registry.ContentRegistry;
+import net.minecraft.entity.Entity;
 import net.minecraft.entity.EntityType;
 import net.minecraft.entity.LightningEntity;
 import net.minecraft.entity.LivingEntity;
 import net.minecraft.entity.boss.WitherEntity;
 import net.minecraft.entity.boss.dragon.EnderDragonEntity;
-import net.minecraft.entity.mob.HostileEntity;
+import net.minecraft.entity.mob.ElderGuardianEntity;
+import net.minecraft.entity.mob.EndermanEntity;
+import net.minecraft.entity.passive.VillagerEntity;
 import net.minecraft.item.ItemStack;
 import net.minecraft.particle.ParticleTypes;
 import net.minecraft.server.MinecraftServer;
@@ -21,18 +25,22 @@ import net.minecraft.sound.SoundCategory;
 import net.minecraft.sound.SoundEvents;
 import net.minecraft.text.Text;
 import net.minecraft.util.Formatting;
+import net.minecraft.util.math.BlockPos;
 import net.minecraft.world.World;
+import net.minecraft.village.raid.Raid;
+import net.minecraft.world.gen.structure.OceanMonumentStructure;
 
 import java.util.HashMap;
 import java.util.Map;
 import java.util.UUID;
 
-/** 6種のユニーク武器の取得条件・排他付与・演出を管理する。 */
+/** ユニーク武器の取得条件・排他付与・演出を管理する。 */
 public final class UniqueWeaponTriggers {
 
     private static final int GA_BOLG_REQUIRED_TICKS = 60;
     private static final Map<UUID, Integer> GA_BOLG_PROGRESS = new HashMap<>();
     private static final int MURAMASA_KILLS = 100;
+    private static final String GUARDIAN_ORIGIN_PREFIX = "kingdomunique_monument_elder:";
 
     private UniqueWeaponTriggers() {
     }
@@ -77,6 +85,10 @@ public final class UniqueWeaponTriggers {
 
     /** キル時: ムラマサ（100体）・ミョルニル（Worthy/ドラゴン）・撃破数記録。 */
     public static void onKill(ServerPlayerEntity player, LivingEntity victim) {
+        if (victim instanceof WitherEntity) {
+            com.kingdomunique.data.TrishulaAcquisitionData.getOrCreate(player.getServerWorld())
+                    .recordWitherKill(player.getUuid());
+        }
         PlayerStatsData stats = PlayerStatsData.getOrCreate(player.getServerWorld());
         int total = stats.increment(player.getUuid());
         ItemStack held = player.getMainHandStack();
@@ -93,6 +105,54 @@ public final class UniqueWeaponTriggers {
                 && (victim instanceof WitherEntity || victim instanceof EnderDragonEntity)) {
             grant(player, "mjolnir");
         }
+
+        if (victim.getWorld() instanceof ServerWorld world && world.getRegistryKey() == World.OVERWORLD) {
+            if (victim instanceof EndermanEntity && !isClaimed(player, "twilight_scythe")
+                    && isOverworldNight(world) && world.getMoonPhase() == 4
+                    && WeaponAcquisitionData.getOrCreate(world).recordNewMoonKill(player.getUuid()) >= 20) {
+                grant(player, "twilight_scythe");
+            }
+            if (victim instanceof ElderGuardianEntity && !isClaimed(player, "poseidon_trident")) {
+                var monument = world.getStructureAccessor().getStructureContaining(monumentOrigin(victim),
+                        entry -> entry.value() instanceof OceanMonumentStructure);
+                if (monument.hasChildren() && WeaponAcquisitionData.getOrCreate(world).recordMonumentKill(
+                        player.getUuid(), monument.getPos().toLong(), victim.getUuid()) >= 3) {
+                    grant(player, "poseidon_trident");
+                }
+            }
+        }
+    }
+
+    public static void markMonumentGuardian(Entity guardian) {
+        guardian.addCommandTag(GUARDIAN_ORIGIN_PREFIX + guardian.getBlockPos().asLong());
+    }
+
+    private static BlockPos monumentOrigin(Entity guardian) {
+        for (String tag : guardian.getCommandTags()) {
+            if (tag.startsWith(GUARDIAN_ORIGIN_PREFIX)) {
+                try {
+                    return BlockPos.fromLong(Long.parseLong(tag.substring(GUARDIAN_ORIGIN_PREFIX.length())));
+                } catch (NumberFormatException ignored) {
+                }
+            }
+        }
+        return guardian.getBlockPos();
+    }
+
+    static boolean isOverworldNight(World world) {
+        long time = Math.floorMod(world.getTimeOfDay(), 24000);
+        return world.getRegistryKey() == World.OVERWORLD && time >= 13000 && time < 23000;
+    }
+
+    public static void onVillagerDeath(VillagerEntity villager, ServerWorld world) {
+        Raid raid = world.getRaidAt(villager.getBlockPos());
+        if (raid instanceof StormRaid stormRaid && !raid.isFinished()) {
+            stormRaid.ku$recordVillagerDeath();
+        }
+    }
+
+    public static void onStormRaidWon(ServerPlayerEntity player) {
+        grant(player, "kusanagi");
     }
 
     /** アポロンの太陽弓: 高度300以上・昼・上空を見上げて矢を放つ。 */
@@ -113,6 +173,29 @@ public final class UniqueWeaponTriggers {
     public static void onEnhanced(ServerPlayerEntity player, int newLevel) {
         if (newLevel >= 4 && !isClaimed(player, "chronos_dagger")) {
             grant(player, "chronos_dagger");
+        }
+    }
+
+    public static void onTrishulaBlockBreak(World world, net.minecraft.entity.player.PlayerEntity breaker,
+                                           net.minecraft.util.math.BlockPos pos,
+                                           net.minecraft.block.BlockState state,
+                                           net.minecraft.block.entity.BlockEntity blockEntity) {
+        if (!(world instanceof ServerWorld serverWorld) || world.getRegistryKey() != World.NETHER
+                || !(breaker instanceof ServerPlayerEntity player)
+                || !(blockEntity instanceof net.minecraft.block.entity.MobSpawnerBlockEntity spawner)
+                || isClaimed(player, "trishula")) {
+            return;
+        }
+        net.minecraft.nbt.NbtCompound nbt = spawner.getLogic().writeNbt(new net.minecraft.nbt.NbtCompound());
+        if (!"minecraft:blaze".equals(nbt.getCompound("SpawnData").getCompound("entity").getString("id"))
+                || !serverWorld.getStructureAccessor().getStructureContaining(pos,
+                entry -> entry.value() instanceof net.minecraft.world.gen.structure.NetherFortressStructure)
+                .hasChildren()) {
+            return;
+        }
+        if (com.kingdomunique.data.TrishulaAcquisitionData.getOrCreate(serverWorld)
+                .recordSpawner(player.getUuid(), pos.asLong()) >= 3) {
+            grant(player, "trishula");
         }
     }
 
@@ -148,7 +231,7 @@ public final class UniqueWeaponTriggers {
             // カタログに無くても登録済みIDなら必ず有効なスタックを生成する。
             com.kingdomunique.util.RewardUtil.grantPhysical(player, id);
         } else {
-            player.giveItemStack(stack);
+            com.kingdomunique.util.RewardUtil.deliver(player, stack);
         }
 
         String name = ItemCatalog.entries().stream()

@@ -25,10 +25,12 @@ public final class AbilityEventHandler {
     }
 
     public static void register() {
+        TimeRulerAbility.register();
         ServerTickEvents.END_SERVER_TICK.register(AbilityEventHandler::onTick);
 
         ServerPlayConnectionEvents.JOIN.register((handler, sender, server) -> {
             AbilityPassives.applyAttributes(handler.getPlayer());
+            AbilityActions.restoreCooldowns(handler.getPlayer());
         });
 
         ServerPlayConnectionEvents.DISCONNECT.register((handler, server) -> {
@@ -51,6 +53,7 @@ public final class AbilityEventHandler {
     private static void onTick(MinecraftServer server) {
         AbilityPassives.onServerTick(server);
         AbilityActions.tickDecoys(server);
+        TimeRulerAbility.tick(server);
     }
 
     /** 絶対支配：敵対Mob撃破時に25%で味方化して蘇生する。 */
