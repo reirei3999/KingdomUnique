@@ -23,6 +23,7 @@ import java.util.UUID;
 
 /** 完成建築の内政・防衛・英雄効果（Gemini 提示を既存システム向けに調整）。 */
 public final class BuildingEffectHandler {
+    private static long lastEvaluatedTime = Long.MIN_VALUE;
 
     private BuildingEffectHandler() {
     }
@@ -51,9 +52,11 @@ public final class BuildingEffectHandler {
     /** 完了済み建築の定期効果（5秒ごと）。 */
     public static void tick(MinecraftServer server) {
         for (ServerWorld world : server.getWorlds()) {
-            if (world.getRegistryKey() != World.OVERWORLD || world.getTime() % 100L != 0L) {
+            if (world.getRegistryKey() != World.OVERWORLD || world.getTime() % 100L != 0L
+                    || world.getTime() == lastEvaluatedTime) {
                 continue;
             }
+            lastEvaluatedTime = world.getTime();
             CompletedBuildingsData data = CompletedBuildingsData.getOrCreate(world);
             for (CompletedBuildingsData.Entry entry : data.entries()) {
                 Box area = new Box(entry.pos()).expand(32.0D, 16.0D, 32.0D);

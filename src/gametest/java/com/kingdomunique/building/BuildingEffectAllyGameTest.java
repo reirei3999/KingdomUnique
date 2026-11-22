@@ -44,6 +44,10 @@ public final class BuildingEffectAllyGameTest {
                     context.assertEquals(owner.getInventory().count(Items.EMERALD), expected,
                             "Market must pay exactly once per boundary from saved time " + savedTime
                                     + " at world time " + time);
+                    BuildingEffectHandler.tick(server);
+                    BuildingEffectHandler.tick(server);
+                    context.assertEquals(owner.getInventory().count(Items.EMERALD), expected,
+                            "Repeated calls at frozen world time " + time + " must not pay again");
                 }
                 data.entries().clear();
             }
@@ -53,6 +57,7 @@ public final class BuildingEffectAllyGameTest {
             context.assertEquals(owner.getInventory().count(Items.EMERALD), 0,
                     "No completed market must mean no payout");
             data.add(BlockPos.ORIGIN, BuildingType.MARKET, UUID.randomUUID());
+            properties.setTime(72000L);
             BuildingEffectHandler.tick(server);
             context.assertEquals(owner.getInventory().count(Items.EMERALD), 0,
                     "An offline owner's market must not pay another player");
