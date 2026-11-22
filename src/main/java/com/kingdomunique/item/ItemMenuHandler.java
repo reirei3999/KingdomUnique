@@ -87,10 +87,18 @@ public final class ItemMenuHandler {
                             int have = be.countOf(entry.getKey());
                             lines.add(entry.getKey().getName().getString() + " " + have + "/" + needed);
                         }
-                        boolean supplied = be.hasAllMaterials(type, multiplier);
-                        lines.add(supplied ? "状態: 建築士待ち" : "状態: 資材待ち");
-                        if (supplied) {
-                            lines.add("自国の建築士を現場の近くへ");
+                        if (be.hasAllMaterials(type, multiplier)) {
+                            // 資材が揃うと自動で着工するため、未着工なら建築条件で拒否されている。
+                            lines.add("状態: 着工できません");
+                            com.kingdomunique.building.BuildData.getOrCreate(world).sites().stream()
+                                    .filter(site -> site.pos().equals(payload.pos()))
+                                    .findFirst()
+                                    .flatMap(site -> com.kingdomunique.building.BuildingValidator
+                                            .validate(world, site))
+                                    .ifPresent(error -> lines.add(error.getString()));
+                            lines.add("条件を直して素手で右クリックで着工");
+                        } else {
+                            lines.add("状態: 資材待ち");
                         }
                         int estimate = (int) Math.max(20L,
                                 type.getBaseBuildTicks() * multiplier);
