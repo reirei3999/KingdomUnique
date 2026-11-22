@@ -75,7 +75,6 @@ public final class CurseEffects {
         boolean glass = has(player, CurseRegistry.GLASS_CANNON);
         boolean solitude = has(player, CurseRegistry.SOLITUDE);
         boolean shackles = has(player, CurseRegistry.SHACKLES);
-        boolean destruction = has(player, CurseRegistry.DESTRUCTION);
 
         multiply(player, EntityAttributes.GENERIC_ATTACK_DAMAGE, BERSERKER_DAMAGE, berserker, 0.6D);
         multiply(player, EntityAttributes.GENERIC_ATTACK_DAMAGE, GLASS_DAMAGE, glass, 1.5D);
@@ -89,7 +88,7 @@ public final class CurseEffects {
         multiply(player, EntityAttributes.GENERIC_MOVEMENT_SPEED, SHACKLES_SPEED, shackles, -0.2D);
         multiply(player, EntityAttributes.GENERIC_FALL_DAMAGE_MULTIPLIER, SHACKLES_DAMAGE, false, 0.0D);
         add(player, EntityAttributes.GENERIC_KNOCKBACK_RESISTANCE, SHACKLES_KNOCKBACK, shackles, 1.0D);
-        multiply(player, EntityAttributes.PLAYER_BLOCK_BREAK_SPEED, DESTRUCTION_MINING, destruction, 401.0D);
+        multiply(player, EntityAttributes.PLAYER_BLOCK_BREAK_SPEED, DESTRUCTION_MINING, false, 0.0D);
 
         EntityAttributeInstance health = player.getAttributeInstance(EntityAttributes.GENERIC_MAX_HEALTH);
         if (health != null) {

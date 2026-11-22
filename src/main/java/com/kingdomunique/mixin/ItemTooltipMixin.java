@@ -37,9 +37,9 @@ public abstract class ItemTooltipMixin {
         if (stack.isOf(ModItems.DESTRUCTION_PICKAXE)) {
             tooltip.add(Text.literal(""));
             tooltip.add(Text.literal("【呪物（カース）】").formatted(Formatting.DARK_RED, Formatting.BOLD));
-            tooltip.add(Text.literal("  どんな硬いブロックも一瞬で砕く。")
+            tooltip.add(Text.literal("  メインハンドに持っている間、採掘速度が大幅に上昇する。")
                     .formatted(Formatting.GRAY, Formatting.ITALIC));
-            tooltip.add(Text.literal("  破壊したブロックのドロップは消滅する")
+            tooltip.add(Text.literal("  このツルハシで壊したブロックのドロップは消滅する")
                     .formatted(Formatting.RED));
         }
 

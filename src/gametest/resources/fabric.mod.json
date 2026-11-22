@@ -22,6 +22,7 @@
       "com.kingdomunique.effect.NewCursesGameTest",
       "com.kingdomunique.effect.CurseGameTest",
       "com.kingdomunique.effect.SolitudeCrownGameTest",
+      "com.kingdomunique.effect.DestructionPickaxeGameTest",
       "com.kingdomunique.effect.ArmorEnhancementGameTest",
       "com.kingdomunique.effect.ArmorMigrationGameTest",
       "com.kingdomunique.data.AcquisitionGameTest",
