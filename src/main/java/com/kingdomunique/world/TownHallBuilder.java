@@ -18,7 +18,7 @@ public final class TownHallBuilder {
     private TownHallBuilder() {
     }
 
-    /** ブロックの書き込み先（ワールド直接、または設計図のローカル配置リスト）。 */
+    /** 設計図のローカル配置リストへの書き込み先。 */
     @FunctionalInterface
     public interface BlockSink {
         void set(BlockPos pos, BlockState state, int flags);
@@ -38,10 +38,6 @@ public final class TownHallBuilder {
 
     static BlockBox villageFootprint(BlockPos origin) {
         return VillageTerrain.footprint(origin.north(), WIDTH, DEPTH + 3);
-    }
-
-    static void buildVillageTownHall(ServerWorld world, BlockPos origin) {
-        build(origin, world::setBlockState);
     }
 
     private static void build(BlockPos origin, BlockSink world) {
