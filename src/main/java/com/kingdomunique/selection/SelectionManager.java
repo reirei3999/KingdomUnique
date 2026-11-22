@@ -1,5 +1,6 @@
 package com.kingdomunique.selection;
 
+import com.kingdomunique.data.AbilityUsageData;
 import com.kingdomunique.data.PendingSelectionState;
 import com.kingdomunique.data.WorldUniqueData;
 import com.kingdomunique.effect.RelicEffects;
@@ -7,6 +8,7 @@ import com.kingdomunique.effect.CurseEffects;
 import com.kingdomunique.network.OpenSelectionPayload;
 import com.kingdomunique.network.SelectionResultPayload;
 import com.kingdomunique.registry.ContentRegistry;
+import com.kingdomunique.registry.UniqueContentRegistry;
 import net.fabricmc.fabric.api.networking.v1.ServerPlayNetworking;
 import net.minecraft.server.network.ServerPlayerEntity;
 import net.minecraft.server.world.ServerWorld;
@@ -32,6 +34,20 @@ public final class SelectionManager {
         openFromTrigger(player, ContentRegistry.Kind.ABILITY, DIAMOND_OPTIONS);
     }
 
+    /** トリガーD: 古代都市の宝箱を初めて開けた（時の支配者・錬金術・天候操作から選ぶ）。 */
+    public static void onAncientCityChestOpened(ServerPlayerEntity player) {
+        List<String> options = uniqueData(player).getAvailableIds(UniqueContentRegistry.ANCIENT_CITY_ABILITY_IDS);
+        if (options.isEmpty()) {
+            return;
+        }
+        ServerWorld overworld = player.getServer().getWorld(World.OVERWORLD);
+        if (!AbilityUsageData.getOrCreate(overworld).recordAncientCityTrigger(player.getUuid())) {
+            return;
+        }
+        player.sendMessage(Text.literal("§3[KingdomUnique] 古代都市の宝箱に眠る力が目を覚ました……"), false);
+        openOptions(player, ContentRegistry.Kind.ABILITY, options);
+    }
+
     /** トリガーB: 国民15人達成（外部システムから呼ばれる判定用メソッド）。 */
     public static void onCitizenCountReached(ServerPlayerEntity player, int count) {
         if (count < 15) {
@@ -54,12 +70,15 @@ public final class SelectionManager {
     /** 未取得プールからランダムに選択肢を抽選し、GUIを開かせる。 */
     public static void openRandom(ServerPlayerEntity player, ContentRegistry.Kind kind, int count) {
         WorldUniqueData data = uniqueData(player);
-        List<String> available = data.getAvailableIds(ContentRegistry.idsOf(kind));
+        List<String> available = data.getAvailableIds(triggerPool(kind));
         if (available.isEmpty()) {
             player.sendMessage(Text.literal("§c[KingdomUnique] このカテゴリの未取得アイテムは残っていません。"), false);
             return;
         }
-        List<String> options = ContentRegistry.randomDistinct(available, count);
+        openOptions(player, kind, ContentRegistry.randomDistinct(available, count));
+    }
+
+    private static void openOptions(ServerPlayerEntity player, ContentRegistry.Kind kind, List<String> options) {
         pendingState(player).setPending(player.getUuid(), kind, options);
         PendingSelectionState.Pending head = pendingState(player).getPending(player.getUuid());
         if (head == null) {
@@ -173,7 +192,10 @@ public final class SelectionManager {
                 case RELIC -> RELIC_OPTIONS;
                 case CURSE -> CURSE_OPTIONS;
             };
-            options = ContentRegistry.randomDistinct(data.getAvailableIds(ContentRegistry.idsOf(pending.kind())), count);
+            boolean ancientCity = UniqueContentRegistry.ANCIENT_CITY_ABILITY_IDS.containsAll(pending.optionIds());
+            options = ancientCity
+                    ? data.getAvailableIds(UniqueContentRegistry.ANCIENT_CITY_ABILITY_IDS)
+                    : ContentRegistry.randomDistinct(data.getAvailableIds(triggerPool(pending.kind())), count);
         }
         pendingState(player).setPending(player.getUuid(), pending.kind(), options);
         if (options.isEmpty()) {
@@ -198,6 +220,10 @@ public final class SelectionManager {
             }
         }
         return false;
+    }
+
+    private static List<String> triggerPool(ContentRegistry.Kind kind) {
+        return kind == ContentRegistry.Kind.ABILITY ? UniqueContentRegistry.UNIQUE_IDS : ContentRegistry.idsOf(kind);
     }
 
     private static PendingSelectionState pendingState(ServerPlayerEntity player) {
