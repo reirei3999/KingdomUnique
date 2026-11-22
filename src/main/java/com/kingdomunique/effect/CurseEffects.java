@@ -230,7 +230,17 @@ public final class CurseEffects {
         }
         if (victim instanceof ServerPlayerEntity player && has(player, CurseRegistry.ENVY_MIRROR)
                 && attacker.isAlive()) {
-            attacker.damage(player.getDamageSources().thorns(player), healthLost * 0.3F);
+            attacker.damage(new EnvyReflectionDamage(player), healthLost * 0.3F);
+        }
+    }
+
+    public static boolean isEnvyReflection(DamageSource source) {
+        return source instanceof EnvyReflectionDamage;
+    }
+
+    private static final class EnvyReflectionDamage extends DamageSource {
+        private EnvyReflectionDamage(ServerPlayerEntity player) {
+            super(player.getDamageSources().thorns(player).getTypeRegistryEntry(), player);
         }
     }
 

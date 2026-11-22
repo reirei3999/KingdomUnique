@@ -2,6 +2,7 @@ package com.kingdomunique.effect;
 
 import com.kingdomunique.ability.AbilityActions;
 import com.kingdomunique.ability.AbilityPassives;
+import com.kingdomunique.ability.AbilityState;
 import com.kingdomunique.data.WorldUniqueData;
 import com.kingdomunique.entity.CitizenVillager;
 import com.kingdomunique.registry.ContentRegistry;
@@ -102,11 +103,20 @@ public final class NewCursesGameTest {
         var player = player(context);
         var data = claim(context, player, CurseRegistry.ENVY_MIRROR);
         try {
+            context.assertTrue(data.claimId(player.getUuid(), UniqueContentRegistry.SHADOW_STEP),
+                    "Shadow Step must be claimable");
+            var abilityState = AbilityState.get(player.getUuid());
+            abilityState.setShadowDamageBuff(true);
             var attacker = context.spawnEntity(EntityType.PIG, 1, 2, 2);
             var citizen = context.spawnEntity(EntityType.VILLAGER, 1, 2, 3);
             ((CitizenVillager) citizen).ku$setOwnerUuid(player.getUuid().toString());
             player.damage(world.getDamageSources().mobAttack(attacker), 10.0F);
             assertNear(context, attacker.getHealth(), 7.0D, "The attacker takes 30% of the HP lost");
+            context.assertTrue(abilityState.isShadowDamageBuff(), "Reflection does not consume Shadow Step");
+            var attackTarget = context.spawnEntity(EntityType.PIG, 2, 2, 2);
+            attackTarget.damage(world.getDamageSources().playerAttack(player), 4.0F);
+            assertNear(context, attackTarget.getHealth(), 4.0D, "The next attack still gets the Shadow Step bonus");
+            context.assertTrue(!abilityState.isShadowDamageBuff(), "An actual attack consumes Shadow Step");
             player.timeUntilRegen = 0;
             player.damage(world.getDamageSources().thorns(attacker), 1.0F);
             assertNear(context, attacker.getHealth(), 7.0D, "Thorns damage cannot bounce again");
@@ -128,6 +138,8 @@ public final class NewCursesGameTest {
             assertNear(context, player.getHealth(), health + 4.0D, "Self-applied instant healing still works");
         } finally {
             data.releaseId(player.getUuid(), CurseRegistry.ENVY_MIRROR);
+            data.releaseId(player.getUuid(), UniqueContentRegistry.SHADOW_STEP);
+            AbilityState.remove(player.getUuid());
         }
         context.complete();
     }

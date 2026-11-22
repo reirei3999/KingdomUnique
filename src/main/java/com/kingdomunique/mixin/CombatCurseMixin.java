@@ -37,7 +37,7 @@ public abstract class CombatCurseMixin {
                         attacker, self)) {
             return 0.0F;
         }
-        if (source.getAttacker() instanceof ServerPlayerEntity player) {
+        if (source.getAttacker() instanceof ServerPlayerEntity player && !CurseEffects.isEnvyReflection(source)) {
             amount *= (float) CurseEffects.rollChaosMultiplier(player);
         }
         if (self instanceof ServerPlayerEntity victim) {
