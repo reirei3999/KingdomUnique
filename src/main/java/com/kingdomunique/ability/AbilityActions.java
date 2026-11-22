@@ -1,5 +1,6 @@
 package com.kingdomunique.ability;
 
+import com.kingdomunique.data.AbilityUsageData;
 import com.kingdomunique.registry.AbilityDescriptions;
 import com.kingdomunique.effect.CurseEffects;
 import com.kingdomunique.registry.UniqueContentRegistry;
@@ -76,7 +77,8 @@ public final class AbilityActions {
 
         PlayerAbilityState state = AbilityState.get(player.getUuid());
         long now = player.getServerWorld().getTime();
-        long ready = state.getReadyTick(ability);
+        AbilityUsageData usage = usageData(player);
+        long ready = Math.max(state.getReadyTick(ability), usage.getReadyTick(player.getUuid(), ability));
         if (now < ready) {
             float remaining = (ready - now) / 20.0F;
             player.sendMessage(Text.literal("§c[KingdomUnique] クールタイム中です（残り "
@@ -90,12 +92,27 @@ public final class AbilityActions {
             case UniqueContentRegistry.SHADOW_STEP -> shadowStep(player);
             case UniqueContentRegistry.GRAVITY_CONTROL -> gravityControl(player);
             case UniqueContentRegistry.TRICKERY -> trickery(player);
+            case UniqueContentRegistry.TIME_RULER -> TimeRulerAbility.activate(player);
+            case UniqueContentRegistry.ALCHEMY -> AlchemyAbility.activate(player);
+            case UniqueContentRegistry.WEATHER_CONTROL -> WeatherControlAbility.activate(player);
             default -> false;
         };
         // 対象が見つからない等で失敗した場合はCTを消費しない。
         if (success) {
-            state.setReadyTick(ability, player.getServerWorld().getTime() + cooldown);
+            long readyAt = player.getServerWorld().getTime() + cooldown;
+            state.setReadyTick(ability, readyAt);
+            usage.setReadyTick(player.getUuid(), ability, readyAt);
         }
+    }
+
+    /** 再ログインでクールタイムが戻らないよう、保存済みの発動可能ティックを読み込む。 */
+    public static void restoreCooldowns(ServerPlayerEntity player) {
+        PlayerAbilityState state = AbilityState.get(player.getUuid());
+        usageData(player).getReadyTicks(player.getUuid()).forEach(state::setReadyTick);
+    }
+
+    private static AbilityUsageData usageData(ServerPlayerEntity player) {
+        return AbilityUsageData.getOrCreate(player.getServer().getWorld(World.OVERWORLD));
     }
 
     private static boolean rejectSealed(ServerPlayerEntity player) {
