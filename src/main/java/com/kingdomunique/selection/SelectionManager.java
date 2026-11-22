@@ -45,6 +45,13 @@ public final class SelectionManager {
         openFromTrigger(player, ContentRegistry.Kind.CURSE, CURSE_OPTIONS);
     }
 
+    public static void onAncientCityChestOpened(ServerPlayerEntity player) {
+        if (pendingState(player).recordAncientCityTrigger(player.getUuid())) {
+            player.sendMessage(Text.literal("§6[KingdomUnique] 古代都市の宝箱を初めて開きました！遺物を1つ選べます。"), false);
+            openRandom(player, ContentRegistry.Kind.RELIC, RELIC_OPTIONS);
+        }
+    }
+
     private static void openFromTrigger(ServerPlayerEntity player, ContentRegistry.Kind kind, int count) {
         if (pendingState(player).recordTrigger(player.getUuid(), kind)) {
             openRandom(player, kind, count);
@@ -60,12 +67,13 @@ public final class SelectionManager {
             return;
         }
         List<String> options = ContentRegistry.randomDistinct(available, count);
-        pendingState(player).setPending(player.getUuid(), kind, options);
+        boolean hadPending = pendingState(player).hasPending(player.getUuid());
+        pendingState(player).enqueuePending(player.getUuid(), kind, options);
         PendingSelectionState.Pending head = pendingState(player).getPending(player.getUuid());
         if (head == null) {
             return;
         }
-        if (head.kind() == kind) {
+        if (!hadPending) {
             sendScreen(player, kind, options);
         } else {
             player.sendMessage(Text.literal("§e[KingdomUnique] 新しい選択を保留しました。現在の選択を確定すると表示されます。"), false);
@@ -143,8 +151,6 @@ public final class SelectionManager {
         }
         state.clearPending(player.getUuid());
 
-        reopen(player);
-
         // 実体アイテムがある場合のみ安全に付与する（空気は渡さない）。
         com.kingdomunique.util.RewardUtil.grantPhysical(player, chosenId);
         RelicEffects.applyAttributes(player);
@@ -162,6 +168,7 @@ public final class SelectionManager {
                     + com.kingdomunique.registry.AbilityDescriptions.controlHint(chosenId)), false);
         }
         sendResult(player, kind, true, "獲得が確定しました。", List.of());
+        reopen(player);
     }
 
     static List<String> refreshOptions(ServerPlayerEntity player, PendingSelectionState.Pending pending) {
