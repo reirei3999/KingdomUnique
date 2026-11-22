@@ -129,7 +129,7 @@ public final class EnhancementUtil {
 
         double factor = multiplier(targetLevel - currentLevel);
 
-        AttributeModifiersComponent modifiers = result.get(DataComponentTypes.ATTRIBUTE_MODIFIERS);
+        AttributeModifiersComponent modifiers = effectiveModifiers(result);
         if (modifiers != null && !modifiers.modifiers().isEmpty()) {
             List<AttributeModifiersComponent.Entry> scaled = new ArrayList<>();
             for (AttributeModifiersComponent.Entry entry : modifiers.modifiers()) {
@@ -261,7 +261,7 @@ public final class EnhancementUtil {
         stack.set(ModDataComponents.DIVINE_ARMOR, armor);
         stack.set(ModDataComponents.DIVINE_TOUGHNESS, toughness);
 
-        AttributeModifiersComponent current = stack.get(DataComponentTypes.ATTRIBUTE_MODIFIERS);
+        AttributeModifiersComponent current = effectiveModifiers(stack);
         List<AttributeModifiersComponent.Entry> entries = new ArrayList<>();
         if (current != null) {
             for (AttributeModifiersComponent.Entry entry : current.modifiers()) {
@@ -345,7 +345,7 @@ public final class EnhancementUtil {
         if (!(stack.getItem() instanceof ArmorItem)) {
             return;
         }
-        AttributeModifiersComponent current = stack.get(DataComponentTypes.ATTRIBUTE_MODIFIERS);
+        AttributeModifiersComponent current = effectiveModifiers(stack);
         if (current != null && !current.modifiers().isEmpty()) {
             List<AttributeModifiersComponent.Entry> scaled = new ArrayList<>();
             for (AttributeModifiersComponent.Entry entry : current.modifiers()) {
@@ -366,6 +366,12 @@ public final class EnhancementUtil {
             stack.set(DataComponentTypes.MAX_DAMAGE,
                     Math.max(1, (int) Math.round(maxDamage * factor)));
         }
+    }
+
+    private static AttributeModifiersComponent effectiveModifiers(ItemStack stack) {
+        AttributeModifiersComponent modifiers = stack.get(DataComponentTypes.ATTRIBUTE_MODIFIERS);
+        return modifiers == null || modifiers.modifiers().isEmpty()
+                ? stack.getItem().getAttributeModifiers() : modifiers;
     }
 
     /** 強化結果。 */

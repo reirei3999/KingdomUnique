@@ -15,6 +15,7 @@
       "com.kingdomunique.effect.ChaliceGameTest",
       "com.kingdomunique.effect.BalanceGameTest",
       "com.kingdomunique.effect.SolitudeCrownGameTest",
+      "com.kingdomunique.effect.ArmorEnhancementGameTest",
       "com.kingdomunique.data.AcquisitionGameTest",
       "com.kingdomunique.data.PendingSelectionQueueGameTest",
       "com.kingdomunique.trade.CitizenMerchantGameTest",
