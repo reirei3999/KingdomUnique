@@ -8,6 +8,7 @@ import com.kingdomunique.client.SoldierEquipmentScreen;
 import com.kingdomunique.soldier.SoldierScreenHandlers;
 import com.kingdomunique.trade.CitizenMerchantScreenHandler;
 import net.minecraft.client.gui.screen.ingame.HandledScreens;
+import net.minecraft.client.render.entity.IronGolemEntityRenderer;
 import com.kingdomunique.client.render.HeroEntityRenderer;
 import com.kingdomunique.component.ModDataComponents;
 import com.kingdomunique.entity.ModEntities;
@@ -38,6 +39,7 @@ public class KingdomUniqueClientMod implements ClientModInitializer {
 
         // 英雄NPCのレンダラーを登録する（Bipedモデル＋防具/手持ち描画）。
         EntityRendererRegistry.register(ModEntities.HERO, HeroEntityRenderer::new);
+        EntityRendererRegistry.register(ModEntities.KINGDOM_GUARDIAN, IronGolemEntityRenderer::new);
 
         // 設計図の建材HUDと3Dプレビュー。
         BlueprintClientOverlay.initialize();

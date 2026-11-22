@@ -1,5 +1,6 @@
 package com.kingdomunique.command;
 
+import com.kingdomunique.effect.KingdomRelicEffects;
 import com.kingdomunique.item.ItemMenuHandler;
 import com.kingdomunique.kingdom.PolicyManager;
 import com.kingdomunique.selection.SelectionEventHandler;
@@ -26,6 +27,7 @@ public final class ModCommands {
             LiteralArgumentBuilder<ServerCommandSource> ku = CommandManager.literal("ku");
             ItemMenuHandler.registerCommands(ku, registryAccess);
             SelectionEventHandler.registerCommands(ku);
+            KingdomRelicEffects.registerCommands(ku);
             PolicyManager.registerCommands(ku);
             StatusManager.registerCommands(ku);
             com.kingdomunique.war.DiplomacyCommand.registerCommands(ku);
