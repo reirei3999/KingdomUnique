@@ -662,6 +662,12 @@ public final class VillagePlacementGameTest {
         for (int x = -32; x <= 32; x++) {
             for (int z = -40; z <= 32; z++) {
                 BlockPos ground = center.add(x, 0, z);
+                int top = world.getTopY(Heightmap.Type.WORLD_SURFACE, ground.getX(), ground.getZ());
+                for (int y = ground.getY() + 1; y < top; y++) {
+                    world.setBlockState(new BlockPos(ground.getX(), y, ground.getZ()),
+                            Blocks.AIR.getDefaultState(),
+                            Block.NOTIFY_LISTENERS | Block.FORCE_STATE | Block.SKIP_DROPS);
+                }
                 world.setBlockState(ground, Blocks.GRASS_BLOCK.getDefaultState(), Block.NOTIFY_LISTENERS);
                 world.setBlockState(ground.up(), Blocks.SHORT_GRASS.getDefaultState(), Block.NOTIFY_LISTENERS);
             }
