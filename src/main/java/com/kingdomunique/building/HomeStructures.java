@@ -72,6 +72,8 @@ final class HomeStructures {
         b.set(4, -1, 6, Blocks.DIRT_PATH.getDefaultState());
         b.set(4, -1, 7, Blocks.DIRT_PATH.getDefaultState());
         b.set(4, -1, 8, Blocks.GRAVEL.getDefaultState());
+        b.set(1, -1, 6, Blocks.DIRT.getDefaultState());
+        b.set(7, -1, 6, cobbleMix(7, -1, 6));
         b.set(1, 0, 6, Blocks.FLOWERING_AZALEA.getDefaultState());
         b.set(7, 0, 6, Blocks.POTTED_RED_TULIP.getDefaultState());
         return b.placements();
