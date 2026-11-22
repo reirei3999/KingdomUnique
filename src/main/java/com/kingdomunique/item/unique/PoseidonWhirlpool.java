@@ -1,5 +1,6 @@
 package com.kingdomunique.item.unique;
 
+import com.kingdomunique.war.Warfare;
 import net.minecraft.entity.LivingEntity;
 import net.minecraft.entity.effect.StatusEffectInstance;
 import net.minecraft.entity.effect.StatusEffects;
@@ -62,7 +63,7 @@ public final class PoseidonWhirlpool {
                 target -> target.isAlive() && !target.isSpectator()
                         && (target instanceof HostileEntity || target instanceof PlayerEntity player
                         && caster != null && player != caster && !player.isCreative() && caster.shouldDamagePlayer(player)))) {
-            if (caster != null && caster.isTeammate(target)) {
+            if (caster != null && (caster.isTeammate(target) || Warfare.isFriendly(world.getServer(), caster, target))) {
                 continue;
             }
             Vec3d offset = center.subtract(target.getBoundingBox().getCenter());

@@ -5,6 +5,7 @@ import com.kingdomunique.data.WorldUniqueData;
 import com.kingdomunique.item.unique.PoseidonWhirlpool;
 import com.kingdomunique.item.unique.UniqueWeaponTriggers;
 import com.kingdomunique.item.unique.UniqueWeapons;
+import com.kingdomunique.war.DiplomacyData;
 import com.mojang.authlib.GameProfile;
 import net.fabricmc.fabric.api.gametest.v1.FabricGameTest;
 import net.minecraft.block.Blocks;
@@ -21,6 +22,7 @@ import net.minecraft.test.TestContext;
 import net.minecraft.util.Hand;
 import net.minecraft.util.math.Box;
 import net.minecraft.util.math.Vec3d;
+import net.minecraft.world.GameMode;
 
 import java.util.UUID;
 
@@ -65,6 +67,42 @@ public final class NewUniqueWeaponsGameTest {
             tridents.forEach(TridentEntity::discard);
             context.complete();
         });
+    }
+
+    @GameTest(templateName = FabricGameTest.EMPTY_STRUCTURE, batchId = "new_unique_weapons")
+    public void poseidonWhirlpoolSparesKingdomAllies(TestContext context) {
+        var world = context.getWorld();
+        var server = world.getServer();
+        var caster = context.createMockCreativeServerPlayerInWorld();
+        var ally = context.createMockPlayer(GameMode.SURVIVAL);
+        var allyPos = context.getAbsolute(new Vec3d(2.5, 1, 3.5));
+        ally.refreshPositionAndAngles(allyPos.x, allyPos.y, allyPos.z, 0, 0);
+        var diplomacy = DiplomacyData.getOrCreate(world);
+        boolean wasPvpEnabled = server.isPvpEnabled();
+        try {
+            server.setPvpEnabled(true);
+            context.assertTrue(world.spawnEntity(ally), "The ally must be present in the world");
+            context.assertTrue(caster.shouldDamagePlayer(ally) && !caster.isTeammate(ally),
+                    "Vanilla PvP must allow targeting the kingdom ally");
+            diplomacy.ally(caster.getUuid(), ally.getUuid());
+            var enemy = context.spawnMob(EntityType.HUSK, 4, 1, 3);
+            PoseidonWhirlpool.start(world, caster.getUuid(), context.getAbsolute(new Vec3d(3.5, 2, 3.5)));
+            PoseidonWhirlpool.tick(world);
+            context.assertTrue(enemy.hasStatusEffect(StatusEffects.SLOWNESS), "A nearby enemy must be restrained");
+            context.assertTrue(!ally.hasStatusEffect(StatusEffects.SLOWNESS) && ally.getVelocity().equals(Vec3d.ZERO),
+                    "The whirlpool must not pull or slow a kingdom ally");
+            context.complete();
+        } finally {
+            server.setPvpEnabled(wasPvpEnabled);
+            ally.discard();
+            diplomacy.declareWar(caster.getUuid(), ally.getUuid());
+            var unique = WorldUniqueData.getOrCreate(world);
+            String awakening = unique.getClaimedId(caster.getUuid());
+            if (awakening != null) {
+                unique.releaseId(caster.getUuid(), awakening);
+            }
+            server.getPlayerManager().remove(caster);
+        }
     }
 
     @GameTest(templateName = FabricGameTest.EMPTY_STRUCTURE, batchId = "new_unique_weapons")
