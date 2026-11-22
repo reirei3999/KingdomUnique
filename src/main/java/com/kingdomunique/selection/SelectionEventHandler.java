@@ -4,6 +4,7 @@ import com.kingdomunique.effect.CurseEffects;
 import com.kingdomunique.data.WorldUniqueData;
 import com.kingdomunique.effect.RelicEffects;
 import com.kingdomunique.network.SelectionChoicePayload;
+import com.kingdomunique.network.SelectionResultPayload;
 import com.kingdomunique.registry.ContentRegistry;
 import com.kingdomunique.registry.CurseRegistry;
 import com.kingdomunique.registry.RelicRegistry;
@@ -87,6 +88,7 @@ public final class SelectionEventHandler {
     }
 
     public static void register() {
+        SelectionResultPayload.initialize();
         ServerTickEvents.END_SERVER_TICK.register(SelectionEventHandler::onTick);
         ServerPlayConnectionEvents.DISCONNECT.register((handler, server) -> {
             GLUTTONY_UNTIL.remove(handler.getPlayer().getUuid());

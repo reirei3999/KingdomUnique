@@ -84,7 +84,7 @@ public final class BuildingManager {
     public static boolean consumeMaterials(Inventory chest, BuildingType type, ServerPlayerEntity player) {
         double multiplier = costMultiplier(player);
         for (Map.Entry<Item, Integer> entry : type.materials().entrySet()) {
-            int needed = Math.max(1, (int) Math.ceil(entry.getValue() * multiplier));
+            int needed = BuildingType.requiredAmount(entry.getValue(), multiplier);
             int available = 0;
             for (int i = 0; i < chest.size(); i++) {
                 ItemStack stack = chest.getStack(i);

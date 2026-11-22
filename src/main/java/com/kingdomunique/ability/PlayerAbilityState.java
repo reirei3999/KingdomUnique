@@ -1,5 +1,7 @@
 package com.kingdomunique.ability;
 
+import net.minecraft.entity.LivingEntity;
+
 import java.util.HashMap;
 import java.util.Map;
 import java.util.UUID;
@@ -15,6 +17,7 @@ public final class PlayerAbilityState {
     private long gravityReadyAt = 0L;
     private boolean shadowDamageBuff = false;
     private UUID gravityTarget = null;
+    private LivingEntity gravityHeldEntity = null;
     private long gravityReleaseAt = 0L;
 
     /** クールタイム厳密化用: 能力ID -> 次回発動可能ティック（world.getTime()基準）。 */
@@ -82,6 +85,14 @@ public final class PlayerAbilityState {
 
     public UUID getGravityTarget() {
         return gravityTarget;
+    }
+
+    public LivingEntity getGravityHeldEntity() {
+        return gravityHeldEntity;
+    }
+
+    public void setGravityHeldEntity(LivingEntity entity) {
+        gravityHeldEntity = entity;
     }
 
     public void setGravityTarget(UUID value) {

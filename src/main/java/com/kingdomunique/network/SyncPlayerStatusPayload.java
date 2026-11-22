@@ -12,7 +12,7 @@ import java.util.List;
 /** S2C: 所持ID一覧・能力CT・採掘範囲を同期し、確認画面の表示も指示する。 */
 public record SyncPlayerStatusPayload(List<String> ownedIds, String abilityId,
                                       int cooldownTicks, int miningRange,
-                                      boolean openScreen) implements CustomPayload {
+                                      boolean openScreen, double buildingCostMultiplier) implements CustomPayload {
 
     public static final Id<SyncPlayerStatusPayload> ID =
             new Id<>(Identifier.of("kingdomunique", "sync_player_status"));
@@ -28,6 +28,7 @@ public record SyncPlayerStatusPayload(List<String> ownedIds, String abilityId,
                         buf.writeVarInt(payload.cooldownTicks());
                         buf.writeVarInt(payload.miningRange());
                         buf.writeBoolean(payload.openScreen());
+                        buf.writeDouble(payload.buildingCostMultiplier());
                     },
                     buf -> {
                         int size = buf.readVarInt();
@@ -37,7 +38,7 @@ public record SyncPlayerStatusPayload(List<String> ownedIds, String abilityId,
                         }
                         String ability = buf.readString();
                         return new SyncPlayerStatusPayload(ids, ability, buf.readVarInt(),
-                                buf.readVarInt(), buf.readBoolean());
+                                buf.readVarInt(), buf.readBoolean(), buf.readDouble());
                     }
             );
 

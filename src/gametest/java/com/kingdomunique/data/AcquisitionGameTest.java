@@ -119,6 +119,58 @@ public final class AcquisitionGameTest {
     }
 
     @GameTest(templateName = FabricGameTest.EMPTY_STRUCTURE)
+    public void selectionConflictsKeepAvailableOptionsAndRedraw(TestContext context) {
+        var player = player(context, UUID.randomUUID());
+        var uuid = player.getUuid();
+        var state = PendingSelectionState.get(context.getWorld());
+        var ownership = WorldUniqueData.getOrCreate(context.getWorld());
+        var ids = com.kingdomunique.registry.ContentRegistry.idsOf(Kind.CURSE);
+        var previousOwners = new java.util.HashMap<String, UUID>();
+        UUID rival = UUID.randomUUID();
+        for (String id : ids) {
+            UUID owner = ownership.getOwner(id);
+            if (owner != null) {
+                previousOwners.put(id, owner);
+                ownership.releaseId(owner, id);
+            }
+        }
+        try {
+            String taken = ids.getFirst();
+            String remaining = ids.get(1);
+            ownership.claimId(rival, taken);
+            state.setPending(uuid, Kind.CURSE, List.of(taken, remaining));
+            SelectionManager.handleChoice(player, Kind.RELIC, remaining);
+            context.assertEquals(state.getPending(uuid).optionIds(), List.of(taken, remaining),
+                    "A mismatched kind must not change pending options");
+            SelectionManager.handleChoice(player, Kind.CURSE, taken);
+            context.assertEquals(state.getPending(uuid).optionIds(), List.of(remaining),
+                    "A conflict must preserve still-available options");
+            context.assertFalse(ownership.hasId(uuid, taken), "A conflict must not grant the taken card");
+
+            state.setPending(uuid, Kind.CURSE, List.of(taken));
+            SelectionManager.handleChoice(player, Kind.CURSE, taken);
+            var redrawn = state.getPending(uuid);
+            context.assertTrue(redrawn != null && !redrawn.optionIds().contains(taken)
+                            && redrawn.optionIds().size() == Math.min(SelectionManager.CURSE_OPTIONS, ids.size() - 1),
+                    "An exhausted offer must redraw from the remaining pool");
+
+            for (String id : ids) ownership.claimId(rival, id);
+            state.setPending(uuid, Kind.CURSE, List.of(taken));
+            SelectionManager.handleChoice(player, Kind.CURSE, taken);
+            context.assertFalse(state.hasPending(uuid), "An empty pool must clear pending selection");
+            SelectionManager.handleChoice(player, Kind.CURSE, taken);
+            context.assertFalse(state.hasPending(uuid), "A stale choice must not create pending selection");
+            context.complete();
+        } finally {
+            state.clearPending(uuid);
+            for (String id : ids) {
+                ownership.releaseId(rival, id);
+                if (previousOwners.containsKey(id)) ownership.claimId(previousOwners.get(id), id);
+            }
+        }
+    }
+
+    @GameTest(templateName = FabricGameTest.EMPTY_STRUCTURE)
     public void apolloRequiresAnActualBowShot(TestContext context) {
         var world = context.getWorld();
         var player = player(context, UUID.randomUUID());
