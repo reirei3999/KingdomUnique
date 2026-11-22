@@ -55,7 +55,6 @@ public final class KingdomEventHandler {
     }
 
     private static void onTick(MinecraftServer server) {
-        KingdomManager.tickGrowth(server);
         for (ServerPlayerEntity player : server.getPlayerManager().getPlayerList()) {
             tickPossession(player);
         }
