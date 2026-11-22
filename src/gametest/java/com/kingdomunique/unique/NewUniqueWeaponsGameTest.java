@@ -138,6 +138,23 @@ public final class NewUniqueWeaponsGameTest {
     }
 
     @GameTest(templateName = FabricGameTest.EMPTY_STRUCTURE, batchId = "new_unique_weapons")
+    public void scytheAddsPercentDamageToDragonHeadHits(TestContext context) {
+        var player = player(context, 3.5, 1, 3.5);
+        var reference = EntityType.ENDER_DRAGON.create(context.getWorld());
+        var target = EntityType.ENDER_DRAGON.create(context.getWorld());
+        player.setStackInHand(Hand.MAIN_HAND, new ItemStack(Items.DIAMOND_SWORD));
+        player.attack(reference.head);
+        float referenceDamage = reference.getMaxHealth() - reference.getHealth();
+        context.assertTrue(referenceDamage > 0, "The dragon's head must accept normal melee damage");
+        player.setStackInHand(Hand.MAIN_HAND, new ItemStack(UniqueWeapons.TWILIGHT_SCYTHE));
+        player.attack(target.head);
+        float scytheDamage = target.getMaxHealth() - target.getHealth();
+        context.assertTrue(Math.abs(scytheDamage - referenceDamage - target.getMaxHealth() * 0.05F) < 0.001F,
+                "The scythe must add 5% of the dragon's max health without losing the head hit");
+        context.complete();
+    }
+
+    @GameTest(templateName = FabricGameTest.EMPTY_STRUCTURE, batchId = "new_unique_weapons")
     public void elderKillsAreDistinctAndGroupedByPlayerAndMonument(TestContext context) {
         var data = WeaponAcquisitionData.getOrCreate(context.getWorld());
         UUID player = UUID.randomUUID();
