@@ -16,6 +16,7 @@
       "com.kingdomunique.effect.BalanceGameTest",
       "com.kingdomunique.effect.SolitudeCrownGameTest",
       "com.kingdomunique.effect.ArmorEnhancementGameTest",
+      "com.kingdomunique.effect.ArmorMigrationGameTest",
       "com.kingdomunique.data.AcquisitionGameTest",
       "com.kingdomunique.data.PendingSelectionQueueGameTest",
       "com.kingdomunique.trade.CitizenMerchantGameTest",

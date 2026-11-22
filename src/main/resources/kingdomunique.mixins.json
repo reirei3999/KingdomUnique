@@ -19,6 +19,7 @@
     "LoseJobOnSiteLossTaskMixin",
     "MobEntityAccessor",
     "PlayerCurseMixin",
+    "PlayerInventoryMixin",
     "PhantomSpawnerMixin",
     "RangedDamageMixin",
     "StatusEffectMixin",
