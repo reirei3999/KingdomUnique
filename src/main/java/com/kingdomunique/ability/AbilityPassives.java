@@ -45,7 +45,7 @@ public final class AbilityPassives {
 
     /** プレイヤーの保持能力に応じて属性補正を再適用する。 */
     public static void applyAttributes(ServerPlayerEntity player) {
-        applyAttributes(player, UniqueContentRegistry.getAbilities(player));
+        applyAttributes(player, UniqueContentRegistry.getEnabledAbilities(player));
     }
 
     private static void applyAttributes(ServerPlayerEntity player, List<String> abilities) {
@@ -83,8 +83,12 @@ public final class AbilityPassives {
         tickCounter++;
 
         for (ServerPlayerEntity player : server.getPlayerManager().getPlayerList()) {
-            List<String> abilities = UniqueContentRegistry.getAbilities(player);
+            List<String> abilities = UniqueContentRegistry.getEnabledAbilities(player);
             applyAttributes(player, abilities);
+
+            if (!abilities.contains(UniqueContentRegistry.SHADOW_STEP)) {
+                AbilityState.get(player.getUuid()).setShadowDamageBuff(false);
+            }
 
             if (abilities.contains(UniqueContentRegistry.INDOMITABLE)) {
                 tickIndomitable(player);

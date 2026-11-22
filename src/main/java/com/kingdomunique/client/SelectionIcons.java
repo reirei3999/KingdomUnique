@@ -1,5 +1,6 @@
 package com.kingdomunique.client;
 
+import com.kingdomunique.registry.CurseRegistry;
 import com.kingdomunique.registry.RelicRegistry;
 import net.minecraft.item.ItemStack;
 import net.minecraft.item.Items;
@@ -44,6 +45,11 @@ public final class SelectionIcons {
             case "gravity_shackles" -> new ItemStack(Items.CHAIN);
             case "immoral_contract" -> new ItemStack(Items.WRITTEN_BOOK);
             case "void_lantern" -> new ItemStack(Items.SOUL_LANTERN);
+            case CurseRegistry.VAMPIRE_FANG -> new ItemStack(Items.GHAST_TEAR);
+            case CurseRegistry.REAPER_HOURGLASS -> new ItemStack(Items.CLOCK);
+            case CurseRegistry.ENVY_MIRROR -> new ItemStack(Items.GLASS_PANE);
+            case CurseRegistry.MAD_MOON_NECKLACE -> new ItemStack(Items.AMETHYST_SHARD);
+            case CurseRegistry.SEALING_CHAIN -> new ItemStack(Items.CHAIN);
             default -> new ItemStack(Items.NETHERITE_PICKAXE);
         };
         return stack;
@@ -84,6 +90,11 @@ public final class SelectionIcons {
             case "immoral_contract" -> new String[]{"国民コスト0", "国民死亡で呪いダメージ"};
             case "void_lantern" -> new String[]{"暗所で透明化・攻撃2倍", "明所で防御半減"};
             case "pickaxe_of_destruction" -> new String[]{"即破壊", "ドロップ消滅"};
+            case CurseRegistry.VAMPIRE_FANG -> new String[]{"与ダメージの25%吸血・夜の移動1.3倍", "日光で燃焼（ヘルメットで防御）"};
+            case CurseRegistry.REAPER_HOURGLASS -> new String[]{"低体力ほど攻撃上昇（最大2.5倍）", "最大体力-30%・回復量半減"};
+            case CurseRegistry.ENVY_MIRROR -> new String[]{"被ダメージの30%を反射", "味方・自国民からの回復や強化が無効"};
+            case CurseRegistry.MAD_MOON_NECKLACE -> new String[]{"夜は攻撃1.5倍・移動1.3倍", "昼は攻撃0.7倍・睡眠不可"};
+            case CurseRegistry.SEALING_CHAIN -> new String[]{"被ダメージ半減・ノックバック無効", "ユニーク能力が使えない"};
             default -> new String[]{"世界で唯一の力"};
         };
     }
@@ -92,7 +103,9 @@ public final class SelectionIcons {
     public static int meritLineCount(String id) {
         return switch (id) {
             case "berserker_mask", "glass_cannon", "crown_of_solitude", "gravity_shackles",
-                 "immoral_contract", "void_lantern", "pickaxe_of_destruction" -> 1;
+                 "immoral_contract", "void_lantern", "pickaxe_of_destruction",
+                 CurseRegistry.VAMPIRE_FANG, CurseRegistry.REAPER_HOURGLASS, CurseRegistry.ENVY_MIRROR,
+                 CurseRegistry.MAD_MOON_NECKLACE, CurseRegistry.SEALING_CHAIN -> 1;
             case "ring_of_gluttony" -> 1;
             default -> effectsFor(id).length;
         };

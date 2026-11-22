@@ -181,6 +181,26 @@ public final class AbilityDescriptions {
                     "・採掘速度402倍、専用ツルハシでどんなブロックも一瞬で破壊",
                     "・破壊したブロックのドロップは消滅"
             };
+            case CurseRegistry.VAMPIRE_FANG -> new String[]{
+                    "・攻撃で実際に減らした体力の25%を回復、夜は移動速度1.3倍",
+                    "・日光に当たると燃える（ヘルメットで防げるが、耐久を消費する）"
+            };
+            case CurseRegistry.REAPER_HOURGLASS -> new String[]{
+                    "・体力が減るほど攻撃力が上昇（最大2.5倍）",
+                    "・最大体力と回復量が、それぞれ30%・50%減少する"
+            };
+            case CurseRegistry.ENVY_MIRROR -> new String[]{
+                    "・実際に失った体力の30%を攻撃者に反射（反射の再反射はしない）",
+                    "・味方や自国民からの回復・有利なステータス効果を無効化"
+            };
+            case CurseRegistry.MAD_MOON_NECKLACE -> new String[]{
+                    "・夜は攻撃力1.5倍、移動速度1.3倍",
+                    "・昼は攻撃力0.7倍、ベッドで眠れない"
+            };
+            case CurseRegistry.SEALING_CHAIN -> new String[]{
+                    "・被ダメージ50%カット、ノックバック無効",
+                    "・ユニーク能力の発動と常在効果が無効になる"
+            };
             default -> new String[]{"世界で唯一の力。所持しているだけで効果が発動します。"};
         };
     }
