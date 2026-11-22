@@ -12,6 +12,7 @@ import org.spongepowered.asm.mixin.Shadow;
 import org.spongepowered.asm.mixin.Unique;
 import org.spongepowered.asm.mixin.injection.At;
 import org.spongepowered.asm.mixin.injection.Inject;
+import org.spongepowered.asm.mixin.injection.Redirect;
 import org.spongepowered.asm.mixin.injection.callback.CallbackInfo;
 
 /**
@@ -69,11 +70,10 @@ public abstract class AnvilScreenHandlerMixin implements EnhancementUtil.AnvilTr
         ci.cancel();
     }
 
-    @Inject(method = "updateResult", at = @At(value = "INVOKE",
-            target = "Lnet/minecraft/screen/Property;get()I", ordinal = 1))
-    private void kingdomUnique$discountAnvil(CallbackInfo ci) {
-        levelCost.set(UniqueArmorEffects.discountLevels(((ForgingScreenHandlerAccessor) this).ku$player(),
-                levelCost.get()));
+    @Redirect(method = "onTakeOutput", at = @At(value = "INVOKE",
+            target = "Lnet/minecraft/entity/player/PlayerEntity;addExperienceLevels(I)V"))
+    private void kingdomUnique$discountAnvil(PlayerEntity player, int levels) {
+        player.addExperienceLevels(-UniqueArmorEffects.discountLevels(player, -levels));
     }
 
     /**
