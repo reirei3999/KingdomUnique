@@ -1,6 +1,7 @@
 package com.kingdomunique.compat.jei;
 
 import com.kingdomunique.building.BuildingType;
+import com.kingdomunique.item.unique.UniqueWeapon;
 import com.kingdomunique.trade.TradeRewardFactory;
 import com.kingdomunique.trade.TradeDisplayOffers;
 import mezz.jei.api.IModPlugin;
@@ -12,6 +13,7 @@ import mezz.jei.api.registration.IRecipeCategoryRegistration;
 import mezz.jei.api.registration.IRecipeCatalystRegistration;
 import mezz.jei.api.registration.IRecipeRegistration;
 import mezz.jei.api.runtime.IJeiRuntime;
+import net.minecraft.item.Item;
 import net.minecraft.item.ItemStack;
 import net.minecraft.item.Items;
 import net.minecraft.registry.Registries;
@@ -21,6 +23,7 @@ import net.minecraft.util.Identifier;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Locale;
+import java.util.Optional;
 import java.util.Set;
 
 @JeiPlugin
@@ -96,17 +99,25 @@ public final class KingdomJeiPlugin implements IModPlugin {
         }
         registration.addRecipes(TRADES, trades);
         Registries.ITEM.getIds().stream().filter(id -> id.getNamespace().equals("kingdomunique")).forEach(id -> {
-            String path = id.getPath();
-            String info = switch (path) {
-                case "excalibur", "gae_bolg", "muramasa", "apollo_bow", "mjolnir", "chronos_dagger",
-                     "slaughter_blade", "destruction_pickaxe" -> path;
-                default -> path.startsWith("blueprint_") ? "blueprint" : "admin";
-            };
-            registration.getIngredientManager().createTypedIngredient(VanillaTypes.ITEM_STACK,
-                    new ItemStack(Registries.ITEM.get(id))).ifPresent(ingredient ->
-                    registration.addRecipes(RecipeTypes.INFORMATION, List.of(new KingdomInformationRecipe(
-                            List.of(ingredient), "jei.kingdomunique.obtain." + info))));
+            Item item = Registries.ITEM.get(id);
+            informationTranslationKey(id, item).ifPresent(key ->
+                    registration.getIngredientManager().createTypedIngredient(VanillaTypes.ITEM_STACK,
+                            new ItemStack(item)).ifPresent(ingredient ->
+                            registration.addRecipes(RecipeTypes.INFORMATION, List.of(new KingdomInformationRecipe(
+                                    List.of(ingredient), key)))));
         });
+    }
+
+    static Optional<String> informationTranslationKey(Identifier id, Item item) {
+        if (item instanceof UniqueWeapon) {
+            return Optional.empty();
+        }
+        String path = id.getPath();
+        String info = switch (path) {
+            case "slaughter_blade", "destruction_pickaxe" -> path;
+            default -> path.startsWith("blueprint_") ? "blueprint" : "admin";
+        };
+        return Optional.of("jei.kingdomunique.obtain." + info);
     }
 
     static Text requirementText(List<Set<BuildingType>> alternatives) {
