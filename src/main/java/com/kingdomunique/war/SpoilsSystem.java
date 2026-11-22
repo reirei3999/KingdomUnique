@@ -9,8 +9,10 @@ import com.kingdomunique.item.unique.UniqueWeapons;
 import com.kingdomunique.registry.ContentRegistry;
 import com.kingdomunique.registry.CurseRegistry;
 import com.kingdomunique.registry.RelicRegistry;
+import com.kingdomunique.util.RewardUtil;
 import net.fabricmc.fabric.api.entity.event.v1.ServerLivingEntityEvents;
 import net.minecraft.entity.LivingEntity;
+import net.minecraft.entity.ItemEntity;
 import net.minecraft.entity.damage.DamageSource;
 import net.minecraft.item.ItemStack;
 import net.minecraft.server.network.ServerPlayerEntity;
@@ -61,10 +63,10 @@ public final class SpoilsSystem {
             return;
         }
 
-        boolean physical = !UniqueWeaponManager.createStackForId(stolen).isEmpty();
-        if (physical) {
-            removeOneStack(victim, stolen);
-            winner.giveItemStack(UniqueWeaponManager.createStackForId(stolen));
+        ItemStack reward = UniqueWeaponManager.createStackForId(stolen);
+        if (!reward.isEmpty()) {
+            removeOriginalCopies(victim, reward.get(ModDataComponents.UNIQUE_WEAPON_ID));
+            RewardUtil.deliver(winner, reward);
         }
 
         // 所有権の移動を即時反映する。
@@ -79,29 +81,35 @@ public final class SpoilsSystem {
                         + nameOf(stolen) + "》を奪い取った！"), false);
     }
 
-    /** 敗者のインベントリから奪取対象を1個だけ取り除く。 */
-    private static void removeOneStack(ServerPlayerEntity victim, String id) {
-        String componentId = switch (id) {
-            case "blade_of_slaughter" -> "slaughter_blade";
-            case "pickaxe_of_destruction" -> "destruction_pickaxe";
-            default -> id;
-        };
+    /** 敗者の所持品と死亡時のドロップから同じ固有IDの実体を取り除く。 */
+    private static void removeOriginalCopies(ServerPlayerEntity victim, String componentId) {
+        if (componentId == null) {
+            return;
+        }
         for (int i = 0; i < victim.getInventory().size(); i++) {
             ItemStack stack = victim.getInventory().getStack(i);
             if (stack.isEmpty()) {
                 continue;
             }
             if (componentId.equals(stack.get(ModDataComponents.UNIQUE_WEAPON_ID))) {
-                stack.decrement(1);
-                return;
+                victim.getInventory().setStack(i, ItemStack.EMPTY);
             }
         }
+        List<ItemEntity> drops = new ArrayList<>();
+        for (var entity : victim.getServerWorld().iterateEntities()) {
+            if (entity instanceof ItemEntity drop
+                    && componentId.equals(drop.getStack().get(ModDataComponents.UNIQUE_WEAPON_ID))) {
+                drops.add(drop);
+            }
+        }
+        drops.forEach(ItemEntity::discard);
     }
 
     private static String nameOf(String id) {
         for (String weaponId : UniqueWeapons.ALL_IDS) {
             if (weaponId.equals(id)) {
                 return switch (id) {
+                    case "trishula" -> "トリシューラ";
                     case "excalibur" -> "聖剣 エクスカリバー";
                     case "gae_bolg" -> "魔槍 ゲイボルグ";
                     case "muramasa" -> "妖刀 ムラマサ";

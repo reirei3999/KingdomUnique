@@ -29,6 +29,8 @@ public final class FinalEventHandler {
     }
 
     public static void register() {
+        net.fabricmc.fabric.api.event.player.PlayerBlockBreakEvents.AFTER.register(
+                com.kingdomunique.item.unique.UniqueWeaponTriggers::onTrishulaBlockBreak);
         ServerTickEvents.END_SERVER_TICK.register(FinalEventHandler::onTick);
 
         ServerPlayNetworking.registerGlobalReceiver(DetonatePayload.ID,

@@ -43,6 +43,11 @@ public final class UniqueWeapons {
                     .component(DataComponentTypes.ATTRIBUTE_MODIFIERS,
                             SwordItem.createAttributeModifiers(ToolMaterials.DIAMOND, 3, -1.2F))));
 
+    public static final TrishulaItem TRISHULA = register("trishula",
+            new TrishulaItem(base("trishula", 3000)
+                    .component(DataComponentTypes.ATTRIBUTE_MODIFIERS,
+                            net.minecraft.item.TridentItem.createAttributeModifiers())));
+
     public static final KusanagiItem KUSANAGI = register("kusanagi",
             new KusanagiItem(ToolMaterials.DIAMOND, base("kusanagi", 2500)
                     .component(DataComponentTypes.ATTRIBUTE_MODIFIERS,
@@ -60,7 +65,7 @@ public final class UniqueWeapons {
 
     public static final String[] ALL_IDS = {
             "excalibur", "gae_bolg", "muramasa", "apollo_bow", "mjolnir", "chronos_dagger",
-            "kusanagi", "poseidon_trident", "twilight_scythe"
+            "kusanagi", "poseidon_trident", "twilight_scythe", "trishula"
     };
 
     private static Item.Settings base(String uniqueId, int durability) {

@@ -6,6 +6,7 @@
   "entrypoints": {
     "fabric-gametest": [
       "com.kingdomunique.ability.AbilityCleanupGameTest",
+      "com.kingdomunique.ability.NewUniqueSkillsGameTest",
       "com.kingdomunique.ability.HeroGameTest",
       "com.kingdomunique.building.BlueprintGameTest",
       "com.kingdomunique.building.StructureFootprintGameTest",
@@ -29,6 +30,7 @@
       "com.kingdomunique.unique.UniqueWeaponGrantGameTest",
       "com.kingdomunique.unique.UniqueArmorAcquisitionGameTest",
       "com.kingdomunique.unique.ApolloBowGameTest",
+      "com.kingdomunique.unique.TrishulaGameTest",
       "com.kingdomunique.unique.NewUniqueWeaponsGameTest",
       "com.kingdomunique.selection.GluttonyRingGameTest",
       "com.kingdomunique.effect.KingdomRelicsGameTest",

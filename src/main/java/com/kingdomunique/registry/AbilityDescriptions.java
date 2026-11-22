@@ -17,6 +17,9 @@ public final class AbilityDescriptions {
             case UniqueContentRegistry.SHADOW_STEP -> 200;    // 10秒
             case UniqueContentRegistry.GRAVITY_CONTROL -> 300; // 15秒
             case UniqueContentRegistry.TRICKERY -> 240;       // 12秒
+            case UniqueContentRegistry.TIME_RULER -> 800;     // 40秒
+            case UniqueContentRegistry.ALCHEMY -> 20;         // 1秒（回数は1日10回まで）
+            case UniqueContentRegistry.WEATHER_CONTROL -> 24000; // ゲーム内1日
             default -> 0;
         };
     }
@@ -26,12 +29,21 @@ public final class AbilityDescriptions {
      */
     public static String formatSeconds(int ticks) {
         double seconds = Math.max(0.0D, ticks / 20.0D);
+        if (seconds >= 100.0D) {
+            return (int) Math.ceil(seconds / 60.0D) + "m";
+        }
         double rounded = Math.round(seconds * 2.0D) / 2.0D;
         return String.format(java.util.Locale.ROOT, "%.1f", rounded);
     }
 
     /** 操作キーのヒント。 */
     public static String controlHint(String id) {
+        if (UniqueContentRegistry.ALCHEMY.equals(id)) {
+            return "Rキー：手持ちブロックを錬成（1日10回）";
+        }
+        if (UniqueContentRegistry.WEATHER_CONTROL.equals(id)) {
+            return "Rキー：天候切替（CT ゲーム内1日）";
+        }
         int ct = cooldownTicks(id);
         if (ct > 0) {
             return "Rキー：発動（CT " + (ct / 20) + "秒）";
@@ -99,6 +111,21 @@ public final class AbilityDescriptions {
             case UniqueContentRegistry.GRAVITY_CONTROL -> new String[]{
                     "・Rキー：視線先の敵を浮かせて拘束、再押下で解放",
                     "・落下ダメージ50%カット、CT 15秒"
+            };
+            case UniqueContentRegistry.TIME_RULER -> new String[]{
+                    "・Rキー：周囲8ブロックの敵（敵対Mobと自分を狙うMob）の時間を3秒止める",
+                    "・停止中の敵は動けず攻撃もしない、CT 40秒",
+                    "・対象がいない場合はクールタイムを消費しない"
+            };
+            case UniqueContentRegistry.ALCHEMY -> new String[]{
+                    "・Rキー：手に持ったブロック1個を1段上の素材に変える",
+                    "・石/丸石/石炭・銅鉱石→鉄鉱石→金鉱石→ダイヤ鉱石（深層岩も同様）",
+                    "・石炭・銅ブロック→鉄ブロック→金ブロック→ダイヤブロック",
+                    "・1日10回まで（ゲーム内の日付で回復）"
+            };
+            case UniqueContentRegistry.WEATHER_CONTROL -> new String[]{
+                    "・Rキー：天候を 晴れ→雨→雷雨→晴れ の順に切り替える（地上のみ）",
+                    "・切り替えた天候はゲーム内1日続く、CT ゲーム内1日"
             };
             // ---- 遺物（レリック） ----
             case "chalice_of_abundance" -> new String[]{
