@@ -22,8 +22,7 @@ public abstract class ArmorEnchantingMixin {
     @Shadow @Final public int[] enchantmentPower;
 
     @Inject(method = "method_17410", at = @At(value = "INVOKE",
-            target = "Lnet/minecraft/entity/player/PlayerEntity;incrementStat(Lnet/minecraft/util/Identifier;)V",
-            shift = At.Shift.AFTER))
+            target = "Lnet/minecraft/item/ItemStack;isOf(Lnet/minecraft/item/Item;)Z"))
     private void kingdomUnique$recordLevelThirtyEnchant(ItemStack stack, int option, PlayerEntity player,
             int cost, ItemStack lapis, World world, BlockPos pos, CallbackInfo ci) {
         if (enchantmentPower[option] >= 30 && player instanceof ServerPlayerEntity serverPlayer
