@@ -1,7 +1,7 @@
 package com.kingdomunique.util;
 
 import com.kingdomunique.component.ModDataComponents;
-import com.kingdomunique.data.WorldUniqueData;
+import com.kingdomunique.registry.UniqueContentRegistry;
 import net.minecraft.component.DataComponentTypes;
 import net.minecraft.component.type.AttributeModifierSlot;
 import net.minecraft.component.type.AttributeModifiersComponent;
@@ -15,14 +15,11 @@ import net.minecraft.item.MaceItem;
 import net.minecraft.item.RangedWeaponItem;
 import net.minecraft.item.ToolItem;
 import net.minecraft.item.TridentItem;
-import net.minecraft.server.MinecraftServer;
 import net.minecraft.server.network.ServerPlayerEntity;
-import net.minecraft.server.world.ServerWorld;
 import net.minecraft.text.MutableText;
 import net.minecraft.text.Text;
 import net.minecraft.util.Formatting;
 import net.minecraft.util.Identifier;
-import net.minecraft.world.World;
 
 import java.util.ArrayList;
 import java.util.List;
@@ -38,7 +35,6 @@ import java.util.concurrent.ThreadLocalRandom;
 public final class EnhancementUtil {
 
     /** ユニーク能力「神匠」のID。 */
-    public static final String DIVINE_SMITH_ID = "divine_smith";
 
     /** 強化1段階あたりの倍率。 */
     public static final double MULTIPLIER_PER_LEVEL = 1.1D;
@@ -235,18 +231,8 @@ public final class EnhancementUtil {
         return 1;
     }
 
-    /** プレイヤーが「神匠」を所持しているかを永続データから判定する。 */
     private static boolean hasDivineSmith(ServerPlayerEntity player) {
-        MinecraftServer server = player.getServer();
-        if (server == null) {
-            return false;
-        }
-        ServerWorld overworld = server.getWorld(World.OVERWORLD);
-        if (overworld == null) {
-            return false;
-        }
-        WorldUniqueData data = WorldUniqueData.getOrCreate(overworld);
-        return data.hasId(player.getUuid(), DIVINE_SMITH_ID);
+        return UniqueContentRegistry.has(player, UniqueContentRegistry.DIVINE_SMITH);
     }
 
     /** 神匠のクラフトボーナス。アイテム種別ごとに渡された値のみを反映する。 */

@@ -4,6 +4,7 @@ import com.kingdomunique.building.BuildingType;
 import com.kingdomunique.building.KingdomBuildingState;
 import com.kingdomunique.data.WorldUniqueData;
 import com.kingdomunique.entity.CitizenVillager;
+import com.kingdomunique.registry.UniqueContentRegistry;
 import net.fabricmc.fabric.api.event.lifecycle.v1.ServerTickEvents;
 import net.minecraft.block.BlockState;
 import net.minecraft.block.CropBlock;
@@ -45,7 +46,7 @@ public final class KingdomAgricultureHandler {
                 continue;
             }
             UUID kingId = king.getUuid();
-            boolean hasFertility = data.hasId(kingId, "fertility");
+            boolean hasFertility = UniqueContentRegistry.has(king, UniqueContentRegistry.FERTILITY);
             boolean hasCradle = data.hasId(kingId, "cradle_of_prosperity");
             if (!hasFertility && !hasCradle) {
                 continue;

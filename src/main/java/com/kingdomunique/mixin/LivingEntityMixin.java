@@ -49,7 +49,8 @@ public abstract class LivingEntityMixin {
             if (UniqueContentRegistry.has(player, UniqueContentRegistry.CONQUEROR)) {
                 amount *= 1.3F;
             }
-            if (AbilityState.get(player.getUuid()).isShadowDamageBuff()) {
+            if (UniqueContentRegistry.has(player, UniqueContentRegistry.SHADOW_STEP)
+                    && AbilityState.get(player.getUuid()).isShadowDamageBuff()) {
                 amount *= 1.5F;
                 AbilityState.get(player.getUuid()).setShadowDamageBuff(false);
             }

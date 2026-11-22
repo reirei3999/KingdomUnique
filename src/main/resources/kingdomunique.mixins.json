@@ -9,6 +9,7 @@
     "BowShotMixin",
     "CitizenVillagerMixin",
     "CombatCurseMixin",
+    "InstantStatusEffectMixin",
     "CraftBonusMixin",
     "CropDropMixin",
     "DestructionDropMixin",

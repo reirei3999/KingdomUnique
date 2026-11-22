@@ -5,7 +5,7 @@ import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 
-/** 呪物9種の定義。 */
+/** 呪物の定義。 */
 public final class CurseRegistry {
 
     private static final Map<String, String> NAMES;
@@ -21,6 +21,11 @@ public final class CurseRegistry {
         map.put("immoral_contract", "背徳の契約書");
         map.put("void_lantern", "虚無のランタン");
         map.put("pickaxe_of_destruction", "破壊衝動のツルハシ");
+        map.put(VAMPIRE_FANG, "吸血鬼の牙");
+        map.put(REAPER_HOURGLASS, "死神の砂時計");
+        map.put(ENVY_MIRROR, "嫉妬の鏡");
+        map.put(MAD_MOON_NECKLACE, "狂月の首飾り");
+        map.put(SEALING_CHAIN, "封印の鎖");
         NAMES = Collections.unmodifiableMap(map);
     }
 
@@ -35,6 +40,11 @@ public final class CurseRegistry {
     public static final String CONTRACT = "immoral_contract";
     public static final String VOID_LANTERN = "void_lantern";
     public static final String DESTRUCTION = "pickaxe_of_destruction";
+    public static final String VAMPIRE_FANG = "vampire_fang";
+    public static final String REAPER_HOURGLASS = "reaper_hourglass";
+    public static final String ENVY_MIRROR = "envy_mirror";
+    public static final String MAD_MOON_NECKLACE = "mad_moon_necklace";
+    public static final String SEALING_CHAIN = "sealing_chain";
 
     private CurseRegistry() {
     }
