@@ -2,6 +2,7 @@ package com.kingdomunique.world;
 
 import net.minecraft.block.Block;
 import net.minecraft.block.Blocks;
+import net.minecraft.block.BlockState;
 import net.minecraft.block.CropBlock;
 import net.minecraft.entity.EntityType;
 import net.minecraft.entity.passive.AnimalEntity;
@@ -28,6 +29,12 @@ import net.minecraft.server.network.ServerPlayerEntity;
 
 import java.util.ArrayList;
 import java.util.List;
+import java.util.HashMap;
+import java.util.HashSet;
+import java.util.Map;
+import java.util.Set;
+import java.util.PriorityQueue;
+import java.util.Comparator;
 
 /** 役場と民家を配置できる用地に、王国の設計図で村を生成する。 */
 public final class VillageBuilder {
@@ -100,6 +107,7 @@ public final class VillageBuilder {
         if (plan.farm() != null) {
             placeFarm(world, plan.farm());
         }
+        buildRoads(world, plan, centerX, centerZ);
         VillageTerrain.freeObstructedAnimals(world, animals);
         ensureVillagers(world, centerX, baseY, centerZ, owner, plan.hallOrigin());
         com.kingdomunique.KingdomUniqueMod.LOGGER.info(
@@ -122,18 +130,18 @@ public final class VillageBuilder {
         }
     }
 
-    private record VillagePlan(BlockPos hallOrigin, WellPlot well, List<StarterBuilding> buildings,
+    record VillagePlan(BlockPos hallOrigin, WellPlot well, List<StarterBuilding> buildings,
                                BlockPos farm) {
     }
 
-    private record WellPlot(BlockPos plot, StructureTemplate template) {
+    record WellPlot(BlockPos plot, StructureTemplate template) {
     }
 
     static boolean hasStarterPlots(ServerWorld world, int x, int z) {
         return planVillage(world, x, z) != null;
     }
 
-    private static VillagePlan planVillage(ServerWorld world, int centerX, int centerZ) {
+    static VillagePlan planVillage(ServerWorld world, int centerX, int centerZ) {
         BlockPos hallOrigin = TownHallBuilder.findVillageOrigin(world, centerX, centerZ);
         if (hallOrigin == null) {
             return null;
@@ -196,6 +204,155 @@ public final class VillageBuilder {
             BlockPos plot = well.plot();
             buildWell(world, plot.getX() + 1, plot.getY() - 1, plot.getZ() + 1);
         }
+    }
+
+    private record RoadNode(BlockPos pos, Direction direction, int cost, int estimate) {
+    }
+
+    private static void buildRoads(ServerWorld world, VillagePlan plan, int centerX, int centerZ) {
+        if (plan.well() == null) {
+            com.kingdomunique.KingdomUniqueMod.LOGGER.warn("[KingdomUnique] No well plot for village roads at ({}, {}).",
+                    centerX, centerZ);
+            return;
+        }
+        WellPlot well = plan.well();
+        BlockPos wellMin = well.template() == null ? well.plot() : well.plot().add(1, 0, 1);
+        int wellWidth = well.template() == null ? 3 : well.template().getSize().getX();
+        int wellDepth = well.template() == null ? 3 : well.template().getSize().getZ();
+        BlockBox wellBox = VillageTerrain.footprint(wellMin, wellWidth, wellDepth);
+        List<BlockBox> blocked = new ArrayList<>();
+        Map<BlockPos, BlockPos> surfaces = new HashMap<>();
+        List<BlockPos> entrances = new ArrayList<>();
+        for (StarterBuilding building : plan.buildings()) {
+            blocked.add(StructureRotationUtil.computeBoundingBox(building.origin(), building.type(), building.facing()));
+            int[] dims = StructureRotationUtil.getBuildingDimensions(building.type());
+            int x = building.type() == BuildingType.TOWN_HALL ? 5 : building.type() == BuildingType.HOUSE ? 4 : 3;
+            int frontZ = building.type() == BuildingType.TOWN_HALL ? 14 : 6;
+            for (int z = frontZ; z < dims[2]; z++) {
+                BlockPos surface = StructureRotationUtil.transformPos(building.origin(), x, -1, z,
+                        dims[0], dims[2], building.facing());
+                if (world.getBlockState(surface.up()).isAir() && world.getBlockState(surface.up(2)).isAir()) {
+                    surfaces.put(roadColumn(surface), surface);
+                }
+            }
+            entrances.add(StructureRotationUtil.transformPos(building.origin(), x, -1, frontZ,
+                    dims[0], dims[2], building.facing()));
+        }
+        if (plan.farm() != null) {
+            blocked.add(VillageTerrain.footprint(plan.farm(), 7, 5));
+        }
+        Set<BlockPos> plaza = new HashSet<>();
+        for (int x = wellBox.getMinX() - 1; x <= wellBox.getMaxX() + 1; x++) {
+            for (int z = wellBox.getMinZ() - 1; z <= wellBox.getMaxZ() + 1; z++) {
+                if (wellBox.intersectsXZ(x, z, x, z) || roadBlocked(blocked, x, z)) {
+                    continue;
+                }
+                BlockPos surface = new BlockPos(x, well.plot().getY() - 1, z);
+                plaza.add(surface);
+                surfaces.put(roadColumn(surface), surface);
+                placeRoadCell(world, surface);
+            }
+        }
+        for (BlockPos entrance : entrances) {
+            List<BlockPos> route = findRoad(world, entrance, plaza, surfaces, blocked, wellBox, centerX, centerZ);
+            if (route.isEmpty()) {
+                com.kingdomunique.KingdomUniqueMod.LOGGER.warn(
+                        "[KingdomUnique] No village road route from entrance {} to well at {}.", entrance.up(), well.plot());
+                continue;
+            }
+            for (BlockPos surface : route) {
+                placeRoadCell(world, surface);
+            }
+        }
+    }
+
+    private static List<BlockPos> findRoad(ServerWorld world, BlockPos start, Set<BlockPos> goals,
+                                           Map<BlockPos, BlockPos> surfaces, List<BlockBox> blocked,
+                                           BlockBox well, int centerX, int centerZ) {
+        PriorityQueue<RoadNode> queue = new PriorityQueue<>(Comparator.comparingInt(RoadNode::estimate)
+                .thenComparingInt(RoadNode::cost));
+        Map<BlockPos, Integer> costs = new HashMap<>();
+        Map<BlockPos, BlockPos> previous = new HashMap<>();
+        if (!start.equals(surfaces.get(roadColumn(start))) || goals.isEmpty()) {
+            return List.of();
+        }
+        costs.put(start, 0);
+        queue.add(new RoadNode(start, null, 0, roadDistance(start, goals)));
+        while (!queue.isEmpty()) {
+            RoadNode node = queue.remove();
+            if (node.cost() != costs.getOrDefault(node.pos(), Integer.MAX_VALUE)) {
+                continue;
+            }
+            if (goals.contains(node.pos())) {
+                List<BlockPos> route = new ArrayList<>();
+                for (BlockPos pos = node.pos(); pos != null; pos = previous.get(pos)) {
+                    route.add(pos);
+                }
+                return route;
+            }
+            for (Direction direction : Direction.Type.HORIZONTAL) {
+                BlockPos column = roadColumn(node.pos().offset(direction));
+                int x = column.getX(), z = column.getZ();
+                if (Math.abs(x - centerX) > MAX_VILLAGE_RADIUS || Math.abs(z - centerZ) > MAX_VILLAGE_RADIUS
+                        || well.intersectsXZ(x, z, x, z)) {
+                    continue;
+                }
+                BlockPos next = surfaces.get(column);
+                if (next == null) {
+                    if (roadBlocked(blocked, x, z)) {
+                        continue;
+                    }
+                    next = new BlockPos(x, surfaceY(world, x, z) - 1, z);
+                    if (next.getY() <= world.getBottomY() || next.getY() >= world.getTopY() - 2) {
+                        continue;
+                    }
+                    surfaces.put(column, next);
+                }
+                if (Math.abs(next.getY() - node.pos().getY()) > 1) {
+                    continue;
+                }
+                int cost = node.cost() + 10 + (node.direction() != null && node.direction() != direction ? 1 : 0);
+                if (cost < costs.getOrDefault(next, Integer.MAX_VALUE)) {
+                    costs.put(next, cost);
+                    previous.put(next, node.pos());
+                    queue.add(new RoadNode(next, direction, cost, cost + roadDistance(next, goals)));
+                }
+            }
+        }
+        return List.of();
+    }
+
+    private static int roadDistance(BlockPos pos, Set<BlockPos> goals) {
+        return goals.stream().mapToInt(goal -> 10 * (Math.abs(pos.getX() - goal.getX())
+                + Math.abs(pos.getZ() - goal.getZ()))).min().orElse(0);
+    }
+
+    private static BlockPos roadColumn(BlockPos pos) {
+        return new BlockPos(pos.getX(), 0, pos.getZ());
+    }
+
+    private static boolean roadBlocked(List<BlockBox> blocked, int x, int z) {
+        return blocked.stream().anyMatch(box -> box.intersectsXZ(x, z, x, z));
+    }
+
+    private static void placeRoadCell(ServerWorld world, BlockPos surface) {
+        boolean needsSupport = !world.getBlockState(surface).isSideSolidFullSquare(world, surface, Direction.UP)
+                && !world.getBlockState(surface).isOf(Blocks.DIRT_PATH);
+        if (needsSupport) {
+            for (BlockPos support = surface.down(); support.getY() >= world.getBottomY()
+                    && !world.getBlockState(support).isSideSolidFullSquare(world, support, Direction.UP);
+                    support = support.down()) {
+                world.setBlockState(support, Blocks.COBBLESTONE.getDefaultState(), Block.NOTIFY_LISTENERS);
+            }
+        }
+        BlockState overhead = world.getBlockState(surface.up(3));
+        if (overhead.isIn(net.minecraft.registry.tag.BlockTags.LEAVES) || overhead.isReplaceable()) {
+            world.setBlockState(surface.up(3), Blocks.AIR.getDefaultState(), Block.NOTIFY_LISTENERS | Block.FORCE_STATE);
+        }
+        world.setBlockState(surface.up(2), Blocks.AIR.getDefaultState(), Block.NOTIFY_LISTENERS | Block.FORCE_STATE);
+        world.setBlockState(surface.up(), Blocks.AIR.getDefaultState(), Block.NOTIFY_LISTENERS | Block.FORCE_STATE);
+        world.setBlockState(surface, (needsSupport ? Blocks.GRAVEL : Blocks.DIRT_PATH).getDefaultState(),
+                Block.NOTIFY_LISTENERS);
     }
 
     private static BlockPos reservePlot(ServerWorld world, int x, int z, int width, int depth,
@@ -283,7 +440,7 @@ public final class VillageBuilder {
         }
     }
 
-    private static void buildWell(ServerWorld world, int x, int y, int z) {
+    static void buildWell(ServerWorld world, int x, int y, int z) {
         VillageTerrain.clearPlants(world, new BlockPos(x - 1, y, z - 1), 3, 3, 3);
         for (int dx = -1; dx <= 1; dx++) {
             for (int dz = -1; dz <= 1; dz++) {
@@ -296,6 +453,11 @@ public final class VillageBuilder {
                     world.setBlockState(new BlockPos(x + dx, y + 2, z + dz),
                             Blocks.OAK_PLANKS.getDefaultState());
                 }
+            }
+        }
+        for (int dx = -1; dx <= 1; dx++) {
+            for (int dz = -1; dz <= 1; dz++) {
+                world.setBlockState(new BlockPos(x + dx, y + 2, z + dz), Blocks.OAK_PLANKS.getDefaultState());
             }
         }
         world.setBlockState(new BlockPos(x, y + 3, z), Blocks.BELL.getDefaultState());
