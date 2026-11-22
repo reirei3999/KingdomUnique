@@ -46,7 +46,7 @@ public final class Warfare {
         if (entity instanceof TameableEntity tameable && tameable.getOwnerUuid() != null) {
             return tameable.getOwnerUuid();
         }
-        return null;
+        return com.kingdomunique.ability.AlliedMobManager.getOwnerUuid(entity);
     }
 
     /** 同じ王国または同盟なら友好（攻撃対象にしない）。 */

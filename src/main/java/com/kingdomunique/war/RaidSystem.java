@@ -134,7 +134,8 @@ public final class RaidSystem {
         Box box = new Box(center.getX() - radius, 0.0D, center.getZ() - radius,
                 center.getX() + radius, 320.0D, center.getZ() + radius);
         return !world.getEntitiesByClass(MobEntity.class, box,
-                mob -> mob.isAlive() && mob.getCommandTags().contains(tag)).isEmpty();
+                mob -> mob.isAlive() && mob.getCommandTags().contains(tag)
+                        && !com.kingdomunique.ability.AlliedMobManager.isAlly(mob)).isEmpty();
     }
 
     private static void grantReward(ServerWorld world, ServerPlayerEntity king,
