@@ -102,9 +102,9 @@ public final class NewCursesGameTest {
         var world = context.getWorld();
         var player = player(context);
         var data = claim(context, player, CurseRegistry.ENVY_MIRROR);
+        UUID shadowOwner = data.getOwner(UniqueContentRegistry.SHADOW_STEP);
         try {
-            context.assertTrue(data.claimId(player.getUuid(), UniqueContentRegistry.SHADOW_STEP),
-                    "Shadow Step must be claimable");
+            claimAbility(context, data, player, UniqueContentRegistry.SHADOW_STEP, shadowOwner);
             var abilityState = AbilityState.get(player.getUuid());
             abilityState.setShadowDamageBuff(true);
             var attacker = context.spawnEntity(EntityType.PIG, 1, 2, 2);
@@ -138,7 +138,7 @@ public final class NewCursesGameTest {
             assertNear(context, player.getHealth(), health + 4.0D, "Self-applied instant healing still works");
         } finally {
             data.releaseId(player.getUuid(), CurseRegistry.ENVY_MIRROR);
-            data.releaseId(player.getUuid(), UniqueContentRegistry.SHADOW_STEP);
+            restoreAbility(data, player, UniqueContentRegistry.SHADOW_STEP, shadowOwner);
             AbilityState.remove(player.getUuid());
         }
         context.complete();
@@ -182,9 +182,11 @@ public final class NewCursesGameTest {
     public void sealingChainReducesDamageWithoutRemovingAbilityOwnership(TestContext context) {
         var player = player(context);
         var data = claim(context, player, CurseRegistry.SEALING_CHAIN);
+        UUID galeOwner = data.getOwner(UniqueContentRegistry.GALE);
+        UUID leapOwner = data.getOwner(UniqueContentRegistry.SPATIAL_LEAP);
         try {
-            context.assertTrue(data.claimId(player.getUuid(), UniqueContentRegistry.GALE), "Gale must be claimable");
-            context.assertTrue(data.claimId(player.getUuid(), UniqueContentRegistry.SPATIAL_LEAP), "Leap must be claimable");
+            claimAbility(context, data, player, UniqueContentRegistry.GALE, galeOwner);
+            claimAbility(context, data, player, UniqueContentRegistry.SPATIAL_LEAP, leapOwner);
             CurseEffects.applyAttributes(player);
             AbilityPassives.applyAttributes(player);
             assertNear(context, player.getAttributeValue(EntityAttributes.GENERIC_KNOCKBACK_RESISTANCE),
@@ -203,8 +205,8 @@ public final class NewCursesGameTest {
                     "Gale returns after losing the chain");
         } finally {
             data.releaseId(player.getUuid(), CurseRegistry.SEALING_CHAIN);
-            data.releaseId(player.getUuid(), UniqueContentRegistry.SPATIAL_LEAP);
-            data.releaseId(player.getUuid(), UniqueContentRegistry.GALE);
+            restoreAbility(data, player, UniqueContentRegistry.SPATIAL_LEAP, leapOwner);
+            restoreAbility(data, player, UniqueContentRegistry.GALE, galeOwner);
         }
         context.complete();
     }
@@ -219,6 +221,21 @@ public final class NewCursesGameTest {
 
     private static void assertNear(TestContext context, double actual, double expected, String reason) {
         context.assertTrue(Math.abs(actual - expected) < 1.0E-5D, reason + ": expected " + expected + ", got " + actual);
+    }
+
+    private static void claimAbility(TestContext context, WorldUniqueData data, ServerPlayerEntity player,
+                                     String id, UUID previousOwner) {
+        boolean claimed = previousOwner == null ? data.claimId(player.getUuid(), id)
+                : data.transferId(previousOwner, player.getUuid(), id);
+        context.assertTrue(claimed, id + " must be available to the test player");
+    }
+
+    private static void restoreAbility(WorldUniqueData data, ServerPlayerEntity player, String id, UUID previousOwner) {
+        if (previousOwner == null) {
+            data.releaseId(player.getUuid(), id);
+        } else {
+            data.transferId(player.getUuid(), previousOwner, id);
+        }
     }
 
     private static TestPlayer player(TestContext context) {
