@@ -1,6 +1,7 @@
 package com.kingdomunique.registry;
 
 import com.kingdomunique.data.WorldUniqueData;
+import com.kingdomunique.effect.CurseEffects;
 import net.minecraft.server.network.ServerPlayerEntity;
 import net.minecraft.server.world.ServerWorld;
 import net.minecraft.world.World;
@@ -122,8 +123,12 @@ public final class UniqueContentRegistry {
         return abilities;
     }
 
-    /** プレイヤーが指定IDの能力を持つか。 */
+    /** プレイヤーが指定IDの能力を現在使えるか。所持一覧は getAbilities。 */
     public static boolean has(ServerPlayerEntity player, String id) {
-        return id != null && getAbilities(player).contains(id);
+        return id != null && !CurseEffects.abilitiesSealed(player) && getAbilities(player).contains(id);
+    }
+
+    public static List<String> getEnabledAbilities(ServerPlayerEntity player) {
+        return CurseEffects.abilitiesSealed(player) ? List.of() : getAbilities(player);
     }
 }

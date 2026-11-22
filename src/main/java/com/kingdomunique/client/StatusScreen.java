@@ -26,6 +26,7 @@ public final class StatusScreen extends Screen {
     private final String activeAbilityId;
     private final int cooldownTicks;
     private final int miningRange;
+    private final boolean abilitiesSealed;
     private int selectedIndex = 0;
     private int listOffset;
     private int detailScroll;
@@ -59,6 +60,7 @@ public final class StatusScreen extends Screen {
         this.activeAbilityId = payload.abilityId();
         this.cooldownTicks = payload.cooldownTicks();
         this.miningRange = payload.miningRange();
+        this.abilitiesSealed = payload.abilitiesSealed();
 
         // Gemini 修正: ユニーク武器のID（excalibur 等）は確認画面に出さない。
         // kindOf() が null のIDは能力・遺物・呪物ではないため除外する。
@@ -161,7 +163,10 @@ public final class StatusScreen extends Screen {
         detailY = drawWrapped(context, Text.literal("§7発動・条件: §f" + info.triggerInfo()),
                 detailX, detailY, detailW, KuTheme.PRIMARY) + 2;
 
-        if (selectedId.equals(activeAbilityId) && !selectedId.isEmpty()) {
+        if (abilitiesSealed && ContentRegistry.kindOf(selectedId) == ContentRegistry.Kind.ABILITY) {
+            detailY = drawWrapped(context, Text.literal("§7状態: §5封印中"),
+                    detailX, detailY, detailW, KuTheme.PRIMARY) + 3;
+        } else if (selectedId.equals(activeAbilityId) && !selectedId.isEmpty()) {
             String ct = cooldownTicks <= 0 ? "§a使用可能 (READY)"
                     : String.format("§cクールタイム中 (残り %.1f秒)", cooldownTicks / 20.0D);
             String range = miningRange > 1 ? " §7/ §b採掘範囲: " + miningRange + "x" + miningRange : "";

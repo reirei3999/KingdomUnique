@@ -5,6 +5,7 @@ import com.kingdomunique.entity.CitizenVillager;
 import com.kingdomunique.entity.HeroClass;
 import com.kingdomunique.entity.HeroEntity;
 import com.kingdomunique.kingdom.KingdomManager;
+import com.kingdomunique.registry.UniqueContentRegistry;
 import net.minecraft.inventory.Inventory;
 import net.minecraft.item.Item;
 import net.minecraft.item.ItemStack;
@@ -17,7 +18,6 @@ import net.minecraft.sound.SoundCategory;
 import net.minecraft.sound.SoundEvents;
 import net.minecraft.text.Text;
 import net.minecraft.util.math.BlockPos;
-import net.minecraft.world.World;
 
 import java.util.Map;
 import java.util.UUID;
@@ -31,7 +31,7 @@ public final class BuildingManager {
     /** 必要資材コスト倍率（現場監督30%OFF、ヘファイストス20%OFF）。 */
     public static double costMultiplier(ServerPlayerEntity player) {
         double multiplier = 1.0D;
-        if (unique(player, "site_supervisor")) {
+        if (UniqueContentRegistry.has(player, UniqueContentRegistry.SITE_SUPERVISOR)) {
             multiplier -= 0.30D;
         }
         if (hasHephaestus(player)) {
@@ -45,7 +45,7 @@ public final class BuildingManager {
         double multiplier = RelicEffects.getBuildTimeMultiplier(player)
                 * com.kingdomunique.kingdom.PolicyManager.buildTimeMultiplier(
                         player.getServerWorld(), player.getUuid());
-        if (unique(player, "site_supervisor")) {
+        if (UniqueContentRegistry.has(player, UniqueContentRegistry.SITE_SUPERVISOR)) {
             multiplier -= 0.30D;
         }
         if (hasHephaestus(player)) {
@@ -61,13 +61,6 @@ public final class BuildingManager {
             value *= 1.5D;
         }
         return value;
-    }
-
-    private static boolean unique(ServerPlayerEntity player, String id) {
-        com.kingdomunique.data.WorldUniqueData data =
-                com.kingdomunique.data.WorldUniqueData.getOrCreate(
-                        player.getServer().getWorld(World.OVERWORLD));
-        return data.hasId(player.getUuid(), id);
     }
 
     private static boolean hasHephaestus(ServerPlayerEntity player) {

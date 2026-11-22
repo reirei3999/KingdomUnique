@@ -3,7 +3,9 @@ package com.kingdomunique;
 import com.kingdomunique.building.BuildingManager;
 import com.kingdomunique.building.ModBlocks;
 import com.kingdomunique.component.ModDataComponents;
+import com.kingdomunique.item.unique.PoseidonWhirlpool;
 import com.kingdomunique.item.unique.UniqueWeaponManager;
+import com.kingdomunique.item.unique.UniqueWeaponTriggers;
 import com.kingdomunique.item.unique.UniqueWeapons;
 import com.kingdomunique.network.DetonatePayload;
 import com.kingdomunique.util.EnhancementUtil;
@@ -12,9 +14,11 @@ import net.fabricmc.fabric.api.event.lifecycle.v1.ServerTickEvents;
 import net.fabricmc.fabric.api.networking.v1.ServerPlayNetworking;
 import net.minecraft.entity.LivingEntity;
 import net.minecraft.entity.damage.DamageSource;
+import net.minecraft.entity.passive.VillagerEntity;
 import net.minecraft.item.ItemStack;
 import net.minecraft.server.MinecraftServer;
 import net.minecraft.server.network.ServerPlayerEntity;
+import net.minecraft.server.world.ServerWorld;
 
 /** ステップ6の最終統合イベント登録。 */
 public final class FinalEventHandler {
@@ -34,19 +38,26 @@ public final class FinalEventHandler {
     }
 
     private static void onTick(MinecraftServer server) {
-        com.kingdomunique.item.unique.UniqueWeaponTriggers.onServerTick(server);
+        UniqueWeaponTriggers.onServerTick(server);
         BuildingManager.onServerTick(server);
         UniqueWeaponManager.tick(server);
         UniqueWeaponManager.tickEffects(server);
         UniqueWeaponManager.tickLightArrows(server);
+        for (ServerPlayerEntity player : server.getPlayerManager().getPlayerList()) {
+            UniqueWeapons.POSEIDON_TRIDENT.tickHolder(player);
+        }
+        server.getWorlds().forEach(PoseidonWhirlpool::tick);
     }
 
     /** 撃破時の固有武器ギミック（ムラマサ成長・ゲイボルグクール短縮）。 */
     private static void onDeath(LivingEntity entity, DamageSource source) {
+        if (entity instanceof VillagerEntity villager && villager.getWorld() instanceof ServerWorld world) {
+            UniqueWeaponTriggers.onVillagerDeath(villager, world);
+        }
         if (!(source.getAttacker() instanceof ServerPlayerEntity player)) {
             return;
         }
-        com.kingdomunique.item.unique.UniqueWeaponTriggers.onKill(player, entity);
+        UniqueWeaponTriggers.onKill(player, entity);
         ItemStack held = player.getMainHandStack();
         String id = held.get(ModDataComponents.UNIQUE_WEAPON_ID);
         if (id == null && held.isOf(com.kingdomunique.item.ModItems.SLAUGHTER_BLADE)) {

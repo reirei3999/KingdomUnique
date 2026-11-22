@@ -32,12 +32,12 @@ public final class JeiLanguageGameTest {
         context.assertEquals(Set.copyOf(ids), Set.copyOf(modItems), "JEI must keep every KingdomUnique item");
         context.assertEquals(ids.size(), modItems.size(), "JEI must list each item only once");
         var paths = ids.stream().map(Identifier::getPath).toList();
-        context.assertEquals(paths.subList(0, 8), List.of(
-                "apollo_bow", "chronos_dagger", "excalibur", "gae_bolg", "mjolnir", "muramasa", "slaughter_blade",
-                "trishula"),
+        context.assertEquals(paths.subList(0, 11), List.of(
+                "apollo_bow", "chronos_dagger", "excalibur", "gae_bolg", "kusanagi", "mjolnir", "muramasa",
+                "poseidon_trident", "slaughter_blade", "trishula", "twilight_scythe"),
                 "Weapons must be grouped first");
         var blueprints = paths.stream().filter(path -> path.startsWith("blueprint_")).sorted().toList();
-        context.assertEquals(paths.subList(8, 8 + blueprints.size()), blueprints,
+        context.assertEquals(paths.subList(11, 11 + blueprints.size()), blueprints,
                 "Blueprints must form a sorted group immediately after the weapons");
         context.complete();
     }

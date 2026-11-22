@@ -2,16 +2,20 @@ package com.kingdomunique.item.unique;
 
 import com.kingdomunique.component.ModDataComponents;
 import com.kingdomunique.data.PlayerStatsData;
+import com.kingdomunique.data.WeaponAcquisitionData;
 import com.kingdomunique.data.WorldUniqueData;
 import com.kingdomunique.item.ItemCatalog;
 import com.kingdomunique.kingdom.KingdomManager;
 import com.kingdomunique.registry.ContentRegistry;
+import net.minecraft.entity.Entity;
 import net.minecraft.entity.EntityType;
 import net.minecraft.entity.LightningEntity;
 import net.minecraft.entity.LivingEntity;
 import net.minecraft.entity.boss.WitherEntity;
 import net.minecraft.entity.boss.dragon.EnderDragonEntity;
-import net.minecraft.entity.mob.HostileEntity;
+import net.minecraft.entity.mob.ElderGuardianEntity;
+import net.minecraft.entity.mob.EndermanEntity;
+import net.minecraft.entity.passive.VillagerEntity;
 import net.minecraft.item.ItemStack;
 import net.minecraft.particle.ParticleTypes;
 import net.minecraft.server.MinecraftServer;
@@ -21,18 +25,22 @@ import net.minecraft.sound.SoundCategory;
 import net.minecraft.sound.SoundEvents;
 import net.minecraft.text.Text;
 import net.minecraft.util.Formatting;
+import net.minecraft.util.math.BlockPos;
 import net.minecraft.world.World;
+import net.minecraft.village.raid.Raid;
+import net.minecraft.world.gen.structure.OceanMonumentStructure;
 
 import java.util.HashMap;
 import java.util.Map;
 import java.util.UUID;
 
-/** 6種のユニーク武器の取得条件・排他付与・演出を管理する。 */
+/** ユニーク武器の取得条件・排他付与・演出を管理する。 */
 public final class UniqueWeaponTriggers {
 
     private static final int GA_BOLG_REQUIRED_TICKS = 60;
     private static final Map<UUID, Integer> GA_BOLG_PROGRESS = new HashMap<>();
     private static final int MURAMASA_KILLS = 100;
+    private static final String GUARDIAN_ORIGIN_PREFIX = "kingdomunique_monument_elder:";
 
     private UniqueWeaponTriggers() {
     }
@@ -97,6 +105,54 @@ public final class UniqueWeaponTriggers {
                 && (victim instanceof WitherEntity || victim instanceof EnderDragonEntity)) {
             grant(player, "mjolnir");
         }
+
+        if (victim.getWorld() instanceof ServerWorld world && world.getRegistryKey() == World.OVERWORLD) {
+            if (victim instanceof EndermanEntity && !isClaimed(player, "twilight_scythe")
+                    && isOverworldNight(world) && world.getMoonPhase() == 4
+                    && WeaponAcquisitionData.getOrCreate(world).recordNewMoonKill(player.getUuid()) >= 20) {
+                grant(player, "twilight_scythe");
+            }
+            if (victim instanceof ElderGuardianEntity && !isClaimed(player, "poseidon_trident")) {
+                var monument = world.getStructureAccessor().getStructureContaining(monumentOrigin(victim),
+                        entry -> entry.value() instanceof OceanMonumentStructure);
+                if (monument.hasChildren() && WeaponAcquisitionData.getOrCreate(world).recordMonumentKill(
+                        player.getUuid(), monument.getPos().toLong(), victim.getUuid()) >= 3) {
+                    grant(player, "poseidon_trident");
+                }
+            }
+        }
+    }
+
+    public static void markMonumentGuardian(Entity guardian) {
+        guardian.addCommandTag(GUARDIAN_ORIGIN_PREFIX + guardian.getBlockPos().asLong());
+    }
+
+    private static BlockPos monumentOrigin(Entity guardian) {
+        for (String tag : guardian.getCommandTags()) {
+            if (tag.startsWith(GUARDIAN_ORIGIN_PREFIX)) {
+                try {
+                    return BlockPos.fromLong(Long.parseLong(tag.substring(GUARDIAN_ORIGIN_PREFIX.length())));
+                } catch (NumberFormatException ignored) {
+                }
+            }
+        }
+        return guardian.getBlockPos();
+    }
+
+    static boolean isOverworldNight(World world) {
+        long time = Math.floorMod(world.getTimeOfDay(), 24000);
+        return world.getRegistryKey() == World.OVERWORLD && time >= 13000 && time < 23000;
+    }
+
+    public static void onVillagerDeath(VillagerEntity villager, ServerWorld world) {
+        Raid raid = world.getRaidAt(villager.getBlockPos());
+        if (raid instanceof StormRaid stormRaid && !raid.isFinished()) {
+            stormRaid.ku$recordVillagerDeath();
+        }
+    }
+
+    public static void onStormRaidWon(ServerPlayerEntity player) {
+        grant(player, "kusanagi");
     }
 
     /** アポロンの太陽弓: 高度300以上・昼・上空を見上げて矢を放つ。 */
