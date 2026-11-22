@@ -102,6 +102,7 @@ public final class SpoilsSystem {
         for (String weaponId : UniqueWeapons.ALL_IDS) {
             if (weaponId.equals(id)) {
                 return switch (id) {
+                    case "trishula" -> "トリシューラ";
                     case "excalibur" -> "聖剣 エクスカリバー";
                     case "gae_bolg" -> "魔槍 ゲイボルグ";
                     case "muramasa" -> "妖刀 ムラマサ";

@@ -77,6 +77,10 @@ public final class UniqueWeaponTriggers {
 
     /** キル時: ムラマサ（100体）・ミョルニル（Worthy/ドラゴン）・撃破数記録。 */
     public static void onKill(ServerPlayerEntity player, LivingEntity victim) {
+        if (victim instanceof WitherEntity) {
+            com.kingdomunique.data.TrishulaAcquisitionData.getOrCreate(player.getServerWorld())
+                    .recordWitherKill(player.getUuid());
+        }
         PlayerStatsData stats = PlayerStatsData.getOrCreate(player.getServerWorld());
         int total = stats.increment(player.getUuid());
         ItemStack held = player.getMainHandStack();
@@ -113,6 +117,29 @@ public final class UniqueWeaponTriggers {
     public static void onEnhanced(ServerPlayerEntity player, int newLevel) {
         if (newLevel >= 4 && !isClaimed(player, "chronos_dagger")) {
             grant(player, "chronos_dagger");
+        }
+    }
+
+    public static void onTrishulaBlockBreak(World world, net.minecraft.entity.player.PlayerEntity breaker,
+                                           net.minecraft.util.math.BlockPos pos,
+                                           net.minecraft.block.BlockState state,
+                                           net.minecraft.block.entity.BlockEntity blockEntity) {
+        if (!(world instanceof ServerWorld serverWorld) || world.getRegistryKey() != World.NETHER
+                || !(breaker instanceof ServerPlayerEntity player)
+                || !(blockEntity instanceof net.minecraft.block.entity.MobSpawnerBlockEntity spawner)
+                || isClaimed(player, "trishula")) {
+            return;
+        }
+        net.minecraft.nbt.NbtCompound nbt = spawner.getLogic().writeNbt(new net.minecraft.nbt.NbtCompound());
+        if (!"minecraft:blaze".equals(nbt.getCompound("SpawnData").getCompound("entity").getString("id"))
+                || !serverWorld.getStructureAccessor().getStructureContaining(pos,
+                entry -> entry.value() instanceof net.minecraft.world.gen.structure.NetherFortressStructure)
+                .hasChildren()) {
+            return;
+        }
+        if (com.kingdomunique.data.TrishulaAcquisitionData.getOrCreate(serverWorld)
+                .recordSpawner(player.getUuid(), pos.asLong()) >= 3) {
+            grant(player, "trishula");
         }
     }
 

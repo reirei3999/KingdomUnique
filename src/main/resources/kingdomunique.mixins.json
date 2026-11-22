@@ -26,6 +26,7 @@
     "StatusEffectMixin",
     "SpawnRestrictionMixin",
     "SmithingTransformRecipeMixin",
+    "TrishulaDamageMixin",
     "UniqueWeaponMixin",
     "VillagerBreedTaskMixin",
     "VillagerProfessionMixin"
