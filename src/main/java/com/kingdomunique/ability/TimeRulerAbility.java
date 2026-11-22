@@ -99,6 +99,8 @@ public final class TimeRulerAbility {
                 unfreeze(mob);
                 return true;
             }
+            // 他の停止効果（クロノスの短剣など）が先に解除しても3秒間は止め続ける。
+            mob.setAiDisabled(true);
             mob.setVelocity(0.0D, Math.min(0.0D, mob.getVelocity().y), 0.0D);
             return false;
         });
