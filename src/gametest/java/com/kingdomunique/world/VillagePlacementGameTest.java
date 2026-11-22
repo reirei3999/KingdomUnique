@@ -13,7 +13,6 @@ import net.minecraft.block.Block;
 import net.minecraft.block.Blocks;
 import net.minecraft.block.DoorBlock;
 import net.minecraft.block.LanternBlock;
-import net.minecraft.block.WallTorchBlock;
 import net.minecraft.block.enums.DoubleBlockHalf;
 import net.minecraft.entity.EntityType;
 import net.minecraft.entity.ItemEntity;
@@ -396,16 +395,32 @@ public final class VillagePlacementGameTest {
         context.complete();
     }
 
-    @GameTest(templateName = FabricGameTest.EMPTY_STRUCTURE, batchId = "legacy_house_light")
-    public void legacyHouseTorchIsAttached(TestContext context) {
+    @GameTest(templateName = FabricGameTest.EMPTY_STRUCTURE, batchId = "starter_blueprints_only")
+    public void villageWithoutBlueprintHousePlotLeavesTerrainUnchanged(TestContext context) {
         ServerWorld world = context.getWorld();
-        BlockPos floor = context.getAbsolutePos(new BlockPos(4, 4, 4));
-        VillageBuilder.buildHouse(world, floor.getX(), floor.getY(), floor.getZ(), Blocks.RED_BED);
-        BlockPos torch = floor.add(0, 3, -1);
-        var state = world.getBlockState(torch);
-        context.assertTrue(state.isOf(Blocks.WALL_TORCH) && state.get(WallTorchBlock.FACING) == Direction.SOUTH
-                        && state.canPlaceAt(world, torch) && world.getBlockState(floor.up(3)).isAir(),
-                "The legacy house must have a supported north-wall torch and no floating center torch");
+        BlockPos center = context.getAbsolutePos(new BlockPos(800, 125, 40));
+        for (int x = -35; x <= 35; x++) {
+            for (int z = -48; z <= 36; z++) {
+                boolean hallPlot = x >= -5 && x <= 5 && z >= -20 && z <= -5;
+                boolean hutPlot = x >= -2 && x <= 2 && z >= 6 && z <= 11;
+                boolean wellPlot = Math.abs(x) <= 1 && Math.abs(z) <= 1;
+                int elevation = hallPlot || hutPlot || wellPlot ? 0 : 3 * Math.floorMod(x + z, 2);
+                world.setBlockState(center.add(x, elevation, z), Blocks.STONE.getDefaultState(), Block.NOTIFY_LISTENERS);
+            }
+        }
+        BlockPos hall = TownHallBuilder.findVillageOrigin(world, center.getX(), center.getZ());
+        context.assertTrue(hall != null, "The fixture must have a town hall plot");
+        context.assertTrue(VillageTerrain.plot(world, center.getX() - 2, center.getZ() + 6, 5, 6) != null,
+                "The fixture must have room for a legacy hut");
+        context.assertTrue(VillageSiteFinder.suitableCenter(world, center.getX(), center.getZ()) == null,
+                "A site without a blueprint house plot must be rejected");
+        var result = VillageBuilder.generateVillage(world, center.getX(), center.getZ(), null);
+        context.assertTrue(result.placedBuildings() == 0 && result.buildings().isEmpty(),
+                "An unsuitable site must not use a non-blueprint fallback or place a hall alone");
+        context.assertTrue(world.getBlockState(center).isOf(Blocks.STONE)
+                        && world.getBlockState(center.south(8)).isOf(Blocks.STONE)
+                        && world.getBlockState(hall.up()).isAir(),
+                "A rejected village must leave its well, hut, and hall plots untouched");
         context.complete();
     }
 

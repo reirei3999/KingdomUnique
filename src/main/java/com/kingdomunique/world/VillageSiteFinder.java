@@ -22,7 +22,7 @@ final class VillageSiteFinder {
         var biome = world.getBiome(surface);
         if (biome.isIn(BiomeTags.IS_OCEAN) || biome.isIn(BiomeTags.IS_DEEP_OCEAN)
                 || biome.isIn(BiomeTags.IS_RIVER)
-                || TownHallBuilder.findVillageOrigin(world, x, z) == null) {
+                || !VillageBuilder.hasStarterPlots(world, x, z)) {
             return null;
         }
         return surface;
