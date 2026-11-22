@@ -25,7 +25,8 @@
       "com.kingdomunique.unique.UniqueWeaponGrantGameTest",
       "com.kingdomunique.unique.ApolloBowGameTest",
       "com.kingdomunique.selection.GluttonyRingGameTest",
-      "com.kingdomunique.effect.KingdomRelicsGameTest"
+      "com.kingdomunique.effect.KingdomRelicsGameTest",
+      "com.kingdomunique.war.AlliedPlayerDamageGameTest"
     ]
   },
   "depends": {

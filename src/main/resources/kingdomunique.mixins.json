@@ -23,6 +23,7 @@
     "PlayerInventoryMixin",
     "PhantomSpawnerMixin",
     "RangedDamageMixin",
+    "ServerPlayerDamageMixin",
     "StatusEffectMixin",
     "SpawnRestrictionMixin",
     "SmithingTransformRecipeMixin",
