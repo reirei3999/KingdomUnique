@@ -71,15 +71,15 @@ public final class StarterSpawn {
         }
     }
 
-    /** 接続直後: 王国が未登録なら次ティックのランダムスポーンを予約する。 */
+    /** 接続直後: 村が未生成なら次ティックの処理を予約する。 */
     public static void onJoin(ServerPlayerEntity player, MinecraftServer server) {
         ServerWorld world = server.getWorld(World.OVERWORLD);
         if (world == null) {
             return;
         }
         KingdomData data = KingdomData.getOrCreate(world);
-        // 初回参加判定は「このプレイヤーの王国が KingdomData にまだ無いこと」。
-        if (data.get(player.getUuid()) != null) {
+        KingdomData.KingdomInfo info = data.get(player.getUuid());
+        if (info != null && info.villageGenerated()) {
             return;
         }
         PENDING.add(player.getUuid());
@@ -119,20 +119,29 @@ public final class StarterSpawn {
             if (info != null && info.villageGenerated()) {
                 continue;
             }
-            if (info == null) {
+            if (needsRandomSpawn(info, PlayerSpawnData.getOrCreate(world).get(uuid))) {
                 spawn(player, server, world);
             } else {
+                if (info == null) {
+                    BlockPos savedSpawn = PlayerSpawnData.getOrCreate(world).get(uuid);
+                    info = kingdomData.getOrCreate(uuid, savedSpawn.getX(), savedSpawn.getZ());
+                }
                 ensureVillage(player, world, kingdomData, info);
             }
         }
     }
 
+    static boolean needsRandomSpawn(KingdomData.KingdomInfo info, BlockPos savedSpawn) {
+        return savedSpawn == null && (info == null || (!info.centerSet() && !info.villageGenerated()));
+    }
+
     /** 既存王国に村が無い場合: 王国中心に村を生成し、プレイヤーをその中へ移す。 */
     static void ensureVillage(ServerPlayerEntity player, ServerWorld world,
                                       KingdomData kingdomData, KingdomData.KingdomInfo info) {
+        BlockPos savedSpawn = PlayerSpawnData.getOrCreate(world).get(player.getUuid());
         BlockPos center = (info.centerSet())
                 ? new BlockPos(info.centerX(), player.getBlockPos().getY(), info.centerZ())
-                : player.getBlockPos();
+                : savedSpawn != null ? savedSpawn : player.getBlockPos();
         if (VillageSiteFinder.suitableCenter(world, center.getX(), center.getZ()) == null) {
             BlockPos alternate = findNearbyStarterSite(world, center);
             if (alternate == null && !info.centerSet()) {

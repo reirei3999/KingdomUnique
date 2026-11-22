@@ -42,6 +42,37 @@ import java.util.List;
 import java.util.UUID;
 
 public final class VillagePlacementGameTest {
+    @GameTest(templateName = FabricGameTest.EMPTY_STRUCTURE)
+    public void starterSpawnUsesInitializationStateNotRecordExistence(TestContext context) {
+        ServerWorld world = context.getWorld().getServer().getOverworld();
+        UUID owner = UUID.randomUUID();
+        ServerPlayerEntity player = new ServerPlayerEntity(world.getServer(), world,
+                new GameProfile(owner, "starter_state_test"), SyncedClientOptions.createDefault());
+        KingdomData data = KingdomData.getOrCreate(world);
+        try {
+            context.assertTrue(StarterSpawn.needsRandomSpawn(data.get(owner), null),
+                    "A new player needs a random starter spawn");
+            var earlyRecord = KingdomManager.getOrCreate(player);
+            context.assertTrue(StarterSpawn.needsRandomSpawn(earlyRecord, null),
+                    "An early getOrCreate must not bypass the random starter spawn");
+            var established = new KingdomData.KingdomInfo(100, 200, 6, 10, 0,
+                    false, 0, true, 100, false, "existing");
+            context.assertFalse(StarterSpawn.needsRandomSpawn(established, null),
+                    "An established center with a missing village must use recovery");
+            var generated = new KingdomData.KingdomInfo(100, 200, 6, 10, 0,
+                    false, 0, false, 100, true, "existing");
+            context.assertFalse(StarterSpawn.needsRandomSpawn(generated, null),
+                    "An existing village must never be randomized even without a center flag");
+            context.assertFalse(StarterSpawn.needsRandomSpawn(earlyRecord, new BlockPos(100, 64, 200)),
+                    "A saved starter spawn must preserve its location during recovery");
+            context.assertFalse(StarterSpawn.needsRandomSpawn(null, new BlockPos(100, 64, 200)),
+                    "A saved starter spawn must survive a missing kingdom record");
+        } finally {
+            data.remove(owner);
+        }
+        context.complete();
+    }
+
     @GameTest(templateName = FabricGameTest.EMPTY_STRUCTURE, batchId = "village_entrances")
     public void generatedEntrancesKeepBothDoorHalvesAndDecor(TestContext context) {
         ServerWorld world = context.getWorld();
