@@ -42,6 +42,7 @@ public final class ModEntities {
             return;
         }
         initialized = true;
+        FabricDefaultAttributeRegistry.register(HERO, HeroEntity.createHeroAttributes());
         FabricDefaultAttributeRegistry.register(KINGDOM_GUARDIAN, IronGolemEntity.createIronGolemAttributes());
         KingdomUniqueMod.LOGGER.info("[KingdomUnique] Registered hero entity.");
     }

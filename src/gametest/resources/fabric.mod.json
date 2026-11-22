@@ -6,6 +6,7 @@
   "entrypoints": {
     "fabric-gametest": [
       "com.kingdomunique.ability.AbilityCleanupGameTest",
+      "com.kingdomunique.ability.HeroGameTest",
       "com.kingdomunique.building.BlueprintGameTest",
       "com.kingdomunique.building.StructureFootprintGameTest",
       "com.kingdomunique.building.BuildingEffectAllyGameTest",
