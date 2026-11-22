@@ -1,7 +1,10 @@
 package com.kingdomunique.item.unique;
 
+import net.minecraft.block.BlockState;
+import net.minecraft.block.Blocks;
 import net.minecraft.entity.Entity;
 import net.minecraft.entity.damage.DamageSource;
+import net.minecraft.registry.tag.BlockTags;
 import net.minecraft.registry.tag.DamageTypeTags;
 import net.minecraft.server.network.ServerPlayerEntity;
 import net.minecraft.server.world.ServerWorld;
@@ -56,11 +59,7 @@ public final class TrishulaEffects {
         for (BlockPos offset : BlockPos.iterateOutwards(BlockPos.ORIGIN, 3, 3, 3)) {
             BlockPos feet = origin.add(offset);
             Vec3d destination = Vec3d.ofBottomCenter(feet);
-            if (world.getWorldBorder().contains(feet) && world.isInBuildLimit(feet)
-                    && world.isInBuildLimit(feet.up())
-                    && world.getBlockState(feet.down()).isSolidBlock(world, feet.down())
-                    && world.getFluidState(feet).isEmpty() && world.getFluidState(feet.up()).isEmpty()
-                    && world.isSpaceEmpty(player, player.getBoundingBox().offset(destination.subtract(player.getPos())))) {
+            if (isSafeLanding(world, player, feet)) {
                 player.teleport(destination.x, destination.y, destination.z, false);
                 player.setVelocity(Vec3d.ZERO);
                 player.fallDistance = 0;
@@ -69,5 +68,23 @@ public final class TrishulaEffects {
                 return;
             }
         }
+    }
+
+    public static boolean isSafeLanding(ServerWorld world, ServerPlayerEntity player, BlockPos feet) {
+        Vec3d destination = Vec3d.ofBottomCenter(feet);
+        return world.getWorldBorder().contains(feet) && world.isInBuildLimit(feet)
+                && world.isInBuildLimit(feet.up())
+                && world.getBlockState(feet.down()).isSolidBlock(world, feet.down())
+                && !isHazard(world.getBlockState(feet.down()))
+                && !isHazard(world.getBlockState(feet)) && !isHazard(world.getBlockState(feet.up()))
+                && world.getFluidState(feet).isEmpty() && world.getFluidState(feet.up()).isEmpty()
+                && world.isSpaceEmpty(player, player.getBoundingBox().offset(destination.subtract(player.getPos())));
+    }
+
+    private static boolean isHazard(BlockState state) {
+        return state.isIn(BlockTags.FIRE) || state.isIn(BlockTags.CAMPFIRES)
+                || state.isOf(Blocks.SWEET_BERRY_BUSH) || state.isOf(Blocks.CACTUS)
+                || state.isOf(Blocks.MAGMA_BLOCK) || state.isOf(Blocks.POWDER_SNOW)
+                || state.isOf(Blocks.WITHER_ROSE) || state.isOf(Blocks.POINTED_DRIPSTONE);
     }
 }

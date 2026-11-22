@@ -44,6 +44,38 @@ import java.util.List;
 import java.util.UUID;
 
 public final class TrishulaGameTest {
+    @GameTest(templateName = FabricGameTest.EMPTY_STRUCTURE, batchId = "trishula_hazard")
+    public void landingRejectsDamagingBlocksAtFeetHeadAndFloor(TestContext context) {
+        var player = player(context);
+        var world = context.getWorld();
+        BlockPos feet = context.getAbsolutePos(new BlockPos(2, 12, 2));
+        world.setBlockState(feet.down(), Blocks.STONE.getDefaultState());
+        world.setBlockState(feet, Blocks.AIR.getDefaultState());
+        world.setBlockState(feet.up(), Blocks.AIR.getDefaultState());
+        try {
+            context.assertTrue(TrishulaEffects.isSafeLanding(world, player, feet), "Clear stone footing must be safe");
+            for (var hazard : List.of(Blocks.SWEET_BERRY_BUSH, Blocks.CACTUS, Blocks.FIRE, Blocks.SOUL_FIRE,
+                    Blocks.CAMPFIRE, Blocks.SOUL_CAMPFIRE, Blocks.POWDER_SNOW, Blocks.WITHER_ROSE,
+                    Blocks.POINTED_DRIPSTONE)) {
+                world.setBlockState(feet, hazard.getDefaultState());
+                context.assertFalse(TrishulaEffects.isSafeLanding(world, player, feet), hazard + " at feet is unsafe");
+                world.setBlockState(feet, Blocks.AIR.getDefaultState());
+                world.setBlockState(feet.up(), hazard.getDefaultState());
+                context.assertFalse(TrishulaEffects.isSafeLanding(world, player, feet), hazard + " at head is unsafe");
+                world.setBlockState(feet.up(), Blocks.AIR.getDefaultState());
+            }
+            world.setBlockState(feet.down(), Blocks.MAGMA_BLOCK.getDefaultState());
+            context.assertFalse(TrishulaEffects.isSafeLanding(world, player, feet), "Magma footing is unsafe");
+            world.setBlockState(feet.down(), Blocks.STONE.getDefaultState());
+            context.assertTrue(TrishulaEffects.isSafeLanding(world, player, feet), "Ordinary footing remains valid");
+            context.complete();
+        } finally {
+            world.setBlockState(feet.down(), Blocks.AIR.getDefaultState());
+            world.setBlockState(feet, Blocks.AIR.getDefaultState());
+            world.setBlockState(feet.up(), Blocks.AIR.getDefaultState());
+        }
+    }
+
     @GameTest(templateName = FabricGameTest.EMPTY_STRUCTURE, batchId = "trishula_no_landing")
     public void noSafeLandingOrMissingOwnerDoesNotWarpOrProtect(TestContext context) {
         var player = player(context);
