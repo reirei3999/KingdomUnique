@@ -16,6 +16,7 @@
       "com.kingdomunique.effect.BalanceGameTest",
       "com.kingdomunique.effect.SolitudeCrownGameTest",
       "com.kingdomunique.data.AcquisitionGameTest",
+      "com.kingdomunique.data.PendingSelectionQueueGameTest",
       "com.kingdomunique.trade.CitizenMerchantGameTest",
       "com.kingdomunique.unique.VillageWeaponChestGameTest",
       "com.kingdomunique.compat.jei.JeiLanguageGameTest",
