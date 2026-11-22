@@ -135,6 +135,102 @@ public final class VillageFixtureGameTest {
         return StructureRotationUtil.transformPos(origin, x, y, z, 19, 19, facing);
     }
 
+    @GameTest(templateName = FabricGameTest.EMPTY_STRUCTURE, batchId = "village_roads_flat")
+    public void villageRoadsConnectActualEntrancesToWellPlaza(TestContext context) {
+        checkVillageRoads(context, new BlockPos(13064, 180, 13064), false);
+    }
+
+    @GameTest(templateName = FabricGameTest.EMPTY_STRUCTURE, batchId = "village_roads_stepped")
+    public void villageRoadsConnectAcrossOneBlockTerraces(TestContext context) {
+        checkVillageRoads(context, new BlockPos(13320, 180, 13064), true);
+    }
+
+    private static void checkVillageRoads(TestContext context, BlockPos center, boolean stepped) {
+        ServerWorld world = context.getWorld();
+        for (int x = -64; x <= 64; x++) {
+            for (int z = -64; z <= 64; z++) {
+                int height = stepped && x >= 4 ? 1 : 0;
+                world.setBlockState(center.add(x, height, z), Blocks.STONE.getDefaultState(), Block.NOTIFY_LISTENERS);
+            }
+        }
+        var plan = VillageBuilder.planVillage(world, center.getX(), center.getZ());
+        context.assertTrue(plan != null && plan.well() != null, "Road fixture needs a well and village plan");
+        var well = plan.well();
+        BlockPos wellMin = well.template() == null ? well.plot() : well.plot().add(1, 0, 1);
+        int width = well.template() == null ? 3 : well.template().getSize().getX();
+        int depth = well.template() == null ? 3 : well.template().getSize().getZ();
+        Set<BlockPos> plaza = new HashSet<>();
+        for (int x = -1; x <= width; x++) {
+            for (int z = -1; z <= depth; z++) {
+                if (x == -1 || x == width || z == -1 || z == depth) {
+                    plaza.add(new BlockPos(wellMin.getX() + x, well.plot().getY() - 1, wellMin.getZ() + z));
+                }
+            }
+        }
+        var buildings = VillageBuilder.generateVillage(world, center.getX(), center.getZ(), null).buildings();
+        context.assertTrue(buildings.size() == 5, "Road fixture must include the hall, three houses and blacksmith");
+        context.waitAndRun(30, () -> {
+            for (BlockPos pos : plaza) {
+                context.assertTrue(isRoad(world, pos), "Actual well must have a complete plaza ring at " + pos);
+            }
+            Set<BlockPos> connected = roadReachable(world, plaza.iterator().next());
+            context.assertTrue(connected.containsAll(plaza), "The entire well plaza must be connected");
+            Set<Integer> heights = new HashSet<>();
+            for (BlockPos pos : connected) {
+                heights.add(pos.getY());
+                context.assertTrue(world.getBlockState(pos.up()).isAir() && world.getBlockState(pos.up(2)).isAir(),
+                        "Every connected road cell needs two air cells above it: " + pos);
+            }
+            for (var building : buildings) {
+                int[] dims = StructureRotationUtil.getBuildingDimensions(building.type());
+                int x = building.type() == BuildingType.TOWN_HALL ? 5 : building.type() == BuildingType.HOUSE ? 4 : 3;
+                int z = building.type() == BuildingType.TOWN_HALL ? 14 : 6;
+                BlockPos front = StructureRotationUtil.transformPos(building.origin(), x, -1, z,
+                        dims[0], dims[2], building.facing());
+                context.assertTrue(connected.contains(front), building.type() + " " + building.facing()
+                        + " actual door/porch front must connect through roads to the well plaza: " + front);
+                if (building.type() != BuildingType.TOWN_HALL) {
+                    BlockPos door = StructureRotationUtil.transformPos(building.origin(), x, 0, 5,
+                            dims[0], dims[2], building.facing());
+                    context.assertTrue(world.getBlockState(door).isOf(Blocks.SPRUCE_DOOR)
+                                    && world.getBlockState(door.up()).isOf(Blocks.SPRUCE_DOOR),
+                            "Roads must not cut into the door");
+                }
+            }
+            if (stepped) {
+                context.assertTrue(heights.size() >= 2, "Stepped fixture must actually exercise road elevation changes");
+            }
+            if (plan.farm() != null) {
+                context.assertTrue(world.getBlockState(plan.farm().add(3, -1, 2)).isOf(Blocks.WATER),
+                        "Roads must not overwrite farm irrigation");
+            }
+            context.complete();
+        });
+    }
+
+    private static Set<BlockPos> roadReachable(ServerWorld world, BlockPos start) {
+        Set<BlockPos> visited = new HashSet<>();
+        ArrayDeque<BlockPos> queue = new ArrayDeque<>();
+        visited.add(start);
+        queue.add(start);
+        while (!queue.isEmpty()) {
+            BlockPos pos = queue.remove();
+            for (Direction direction : Direction.Type.HORIZONTAL) {
+                for (int dy = -1; dy <= 1; dy++) {
+                    BlockPos next = pos.offset(direction).up(dy);
+                    if (isRoad(world, next) && visited.add(next)) {
+                        queue.add(next);
+                    }
+                }
+            }
+        }
+        return visited;
+    }
+
+    private static boolean isRoad(ServerWorld world, BlockPos pos) {
+        return world.getBlockState(pos).isOf(Blocks.DIRT_PATH) || world.getBlockState(pos).isOf(Blocks.GRAVEL);
+    }
+
     private static Set<BlockPos> reachable(ServerWorld world, BlockBox box, BlockPos start) {
         Set<BlockPos> visited = new HashSet<>();
         ArrayDeque<BlockPos> queue = new ArrayDeque<>();
