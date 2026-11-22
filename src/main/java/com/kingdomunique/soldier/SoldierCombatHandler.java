@@ -48,10 +48,6 @@ public final class SoldierCombatHandler {
     }
 
     private static void onWorldTick(ServerWorld world) {
-        // Gemini 修正: 0.5秒ごとに高頻度判定し、逃走AIを解除して確実に戦闘させる。
-        if (world.getTime() % 10L != 0L) {
-            return;
-        }
         for (Entity entity : world.iterateEntities()) {
             if (!(entity instanceof VillagerEntity soldier)
                     || !(soldier instanceof CitizenVillager citizen)
@@ -68,7 +64,9 @@ public final class SoldierCombatHandler {
             if (target == null) {
                 soldier.setTarget(null);
                 // 敵が視界にいない場合は移動命令・王追従・防衛を実行。
-                SoldierOrderManager.tickMovementOrder(world, soldier);
+                if (world.getTime() % 10L == 0L) {
+                    SoldierOrderManager.tickMovementOrder(world, soldier);
+                }
                 continue;
             }
             // バニラ村人の逃走状態を解除して戦闘ターゲットへロック。
