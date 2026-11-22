@@ -90,7 +90,7 @@ public final class VillageBuilder {
 
     public static VillageResult generateVillage(ServerWorld world, int centerX, int centerZ,
                                                  java.util.UUID owner) {
-        VillagePlan plan = planVillage(world, centerX, centerZ);
+        VillagePlan plan = planVillage(world, centerX, centerZ, owner != null);
         if (plan == null) {
             return new VillageResult(List.of(), 0);
         }
@@ -106,6 +106,9 @@ public final class VillageBuilder {
         }
         if (plan.farm() != null) {
             placeFarm(world, plan.farm());
+        }
+        if (plan.warehouse() != null) {
+            WarehouseBuilder.build(world, plan.warehouse(), owner);
         }
         buildRoads(world, plan, centerX, centerZ);
         VillageTerrain.freeObstructedAnimals(world, animals);
@@ -131,7 +134,7 @@ public final class VillageBuilder {
     }
 
     record VillagePlan(BlockPos hallOrigin, WellPlot well, List<StarterBuilding> buildings,
-                               BlockPos farm) {
+                               BlockPos farm, BlockPos warehouse) {
     }
 
     record WellPlot(BlockPos plot, StructureTemplate template) {
@@ -142,6 +145,10 @@ public final class VillageBuilder {
     }
 
     static VillagePlan planVillage(ServerWorld world, int centerX, int centerZ) {
+        return planVillage(world, centerX, centerZ, false);
+    }
+
+    private static VillagePlan planVillage(ServerWorld world, int centerX, int centerZ, boolean owned) {
         BlockPos hallOrigin = TownHallBuilder.findVillageOrigin(world, centerX, centerZ);
         if (hallOrigin == null) {
             return null;
@@ -174,7 +181,24 @@ public final class VillageBuilder {
         }
 
         BlockPos farm = reservePlot(world, centerX - 3, centerZ + 12, 7, 5, reserved);
-        return new VillagePlan(hallOrigin, well, List.copyOf(buildings), farm);
+        BlockPos warehouse = owned ? reserveStarterWarehouse(world, centerX, centerZ, reserved) : null;
+        return new VillagePlan(hallOrigin, well, List.copyOf(buildings), farm, warehouse);
+    }
+
+    private static BlockPos reserveStarterWarehouse(ServerWorld world, int centerX, int centerZ,
+                                                    List<BlockBox> reserved) {
+        int size = WarehouseBuilder.SIZE;
+        int[][] candidates = {{centerX + 8, centerZ - 3}, {centerX - 8 - size, centerZ - 3},
+                {centerX - 3, centerZ + 8}};
+        for (int[] candidate : candidates) {
+            BlockPos plot = reservePlot(world, candidate[0], candidate[1], size, size, reserved);
+            if (plot != null) {
+                return plot;
+            }
+        }
+        com.kingdomunique.KingdomUniqueMod.LOGGER.warn(
+                "[KingdomUnique] No room for the starter warehouse at ({}, {}).", centerX, centerZ);
+        return null;
     }
 
     private static WellPlot reserveWell(ServerWorld world, int x, int z, List<BlockBox> reserved) {
@@ -242,6 +266,10 @@ public final class VillageBuilder {
             blocked.add(VillageTerrain.footprint(plan.farm(), 7, 5));
         }
         Set<BlockPos> plaza = new HashSet<>();
+        if (plan.warehouse() != null) {
+            blocked.add(VillageTerrain.footprint(plan.warehouse(), WarehouseBuilder.SIZE, WarehouseBuilder.SIZE));
+            entrances.add(plan.warehouse().add(3, -1, WarehouseBuilder.SIZE - 1));
+        }
         for (int x = wellBox.getMinX() - 1; x <= wellBox.getMaxX() + 1; x++) {
             for (int z = wellBox.getMinZ() - 1; z <= wellBox.getMaxZ() + 1; z++) {
                 if (wellBox.intersectsXZ(x, z, x, z) || roadBlocked(blocked, x, z)) {

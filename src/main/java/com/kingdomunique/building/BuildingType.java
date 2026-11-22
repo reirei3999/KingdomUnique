@@ -147,6 +147,13 @@ public enum BuildingType {
             map.put(Items.DIAMOND_BLOCK, 1);
             return map;
         }
+    },
+    /** 初期村にだけ建つ王国倉庫（設計図では建てられない）。チェスト・樽は国庫として扱われる。 */
+    WAREHOUSE("王国倉庫", 0, 0) {
+        @Override
+        public Map<Item, Integer> materials() {
+            return new LinkedHashMap<>();
+        }
     };
 
     private final String displayName;
@@ -192,6 +199,7 @@ public enum BuildingType {
             case ARSENAL -> 6;
             case TRAINING_GROUND -> 7;
             case ROYAL_PALACE -> 9;
+            case WAREHOUSE -> 4;
         };
     }
 }

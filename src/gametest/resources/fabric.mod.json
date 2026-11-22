@@ -13,6 +13,7 @@
       "com.kingdomunique.building.BuildingEffectAllyGameTest",
       "com.kingdomunique.soldier.SoldierOrderGameTest",
       "com.kingdomunique.world.VillagePlacementGameTest",
+      "com.kingdomunique.world.WarehouseGameTest",
       "com.kingdomunique.world.VillageFixtureGameTest",
       "com.kingdomunique.world.CitizenMovementGameTest",
       "com.kingdomunique.effect.GoldenScaleGameTest",

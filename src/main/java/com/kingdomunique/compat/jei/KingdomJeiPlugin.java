@@ -83,6 +83,9 @@ public final class KingdomJeiPlugin implements IModPlugin {
     @Override
     public void registerRecipeCatalysts(IRecipeCatalystRegistration registration) {
         for (BuildingType type : BuildingType.values()) {
+            if (type == BuildingType.WAREHOUSE) {
+                continue;
+            }
             registration.addRecipeCatalyst(TradeRewardFactory.createBlueprintStack(type), CONSTRUCTION);
         }
     }
@@ -91,6 +94,9 @@ public final class KingdomJeiPlugin implements IModPlugin {
     public void registerRecipes(IRecipeRegistration registration) {
         List<DisplayRecipe> construction = new ArrayList<>();
         for (BuildingType type : BuildingType.values()) {
+            if (type == BuildingType.WAREHOUSE) {
+                continue;
+            }
             List<ItemStack> inputs = new ArrayList<>();
             type.materials().forEach((item, count) -> {
                 int remaining = count;

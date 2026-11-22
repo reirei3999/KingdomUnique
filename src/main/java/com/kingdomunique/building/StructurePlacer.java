@@ -88,6 +88,8 @@ public final class StructurePlacer {
             case ARSENAL -> list.addAll(CivicStructures.arsenal());
             case TRAINING_GROUND -> list.addAll(CivicStructures.trainingGround());
             case ROYAL_PALACE -> list.addAll(GrandStructures.royalPalace());
+            case WAREHOUSE -> com.kingdomunique.world.WarehouseBuilder.generate(
+                    (pos, state) -> list.add(new Placement(pos, state)));
         }
         Map<BlockPos, Placement> finalPlacements = new LinkedHashMap<>();
         list.forEach(p -> finalPlacements.put(p.local(), p));
