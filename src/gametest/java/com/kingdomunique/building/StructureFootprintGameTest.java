@@ -51,6 +51,16 @@ public final class StructureFootprintGameTest {
                         context.assertTrue(world.getBlockState(local(origin, type, facing, 1, y, 1)).isAir(),
                                 "Ladder must exit onto an unobstructed walkway");
                     }
+                    if (type == BuildingType.GATE) {
+                        for (int x = 1; x <= 7; x++) {
+                            int floorY = x < StructurePlacer.GATE_LEAF_MIN_X
+                                    || x > StructurePlacer.GATE_LEAF_MAX_X ? 5 : 4;
+                            for (int y = floorY + 1; y <= floorY + 2; y++) {
+                                context.assertTrue(world.getBlockState(local(origin, type, facing, x, y, 2)).isAir(),
+                                        "Both tower parapets and the central walkway must have a clear path with headroom");
+                            }
+                        }
+                    }
                 }
             }
         }

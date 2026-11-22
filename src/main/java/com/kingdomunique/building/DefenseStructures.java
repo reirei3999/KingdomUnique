@@ -144,6 +144,8 @@ final class DefenseStructures {
         b.fill(1, 0, 0, 1, 5, 0,
                 Blocks.LADDER.getDefaultState().with(LadderBlock.FACING, Direction.NORTH));
         b.set(1, 6, 1, Blocks.AIR.getDefaultState());
+        b.set(lo - 1, 6, 2, Blocks.AIR.getDefaultState());
+        b.set(hi + 1, 6, 2, Blocks.AIR.getDefaultState());
         // アーチと歩廊
         for (int z = 1; z <= 3; z++) {
             b.set(lo, 3, z, stairsTop(Blocks.STONE_BRICK_STAIRS, Direction.WEST));
