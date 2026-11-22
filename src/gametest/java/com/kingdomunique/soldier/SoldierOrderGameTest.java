@@ -56,6 +56,25 @@ public final class SoldierOrderGameTest {
         });
     }
 
+    @GameTest(templateName = FabricGameTest.EMPTY_STRUCTURE, batchId = "soldier_pursuit_speed")
+    public void soldierPursuesHostileMobAtReducedSpeed(TestContext context) {
+        int y = 32;
+        floor(context, y);
+        var soldier = soldier(context, king(context, y), 1.5f, y, 1.5f);
+        var enemy = context.spawnEntity(EntityType.HUSK, 9.5f, y, 1.5f);
+        enemy.setAiDisabled(true);
+
+        context.runAtTick(12, () -> {
+            context.assertEquals(soldier.getTarget(), enemy, "The soldier must target the hostile mob");
+            context.assertTrue(soldier.getNavigation().isFollowingPath(), "The soldier must pursue the hostile mob");
+            context.assertEquals(soldier.getMoveControl().getSpeed(), 0.65D,
+                    "The soldier must pursue the hostile mob at the reduced speed");
+            enemy.discard();
+            soldier.discard();
+            context.complete();
+        });
+    }
+
     @GameTest(templateName = FabricGameTest.EMPTY_STRUCTURE, tickLimit = 240)
     public void soldierWaitsAfterMovingAndReturnsAfterCombat(TestContext context) {
         for (int x = 0; x <= 10; x++) {
