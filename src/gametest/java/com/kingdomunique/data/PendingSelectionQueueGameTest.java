@@ -22,7 +22,7 @@ import java.util.HashMap;
 import java.util.UUID;
 
 public final class PendingSelectionQueueGameTest {
-    @GameTest(templateName = FabricGameTest.EMPTY_STRUCTURE)
+    @GameTest(templateName = FabricGameTest.EMPTY_STRUCTURE, batchId = "ancient_city_relic")
     public void ancientCityAndPopulationOfferIndependentRelics(TestContext context) {
         var messages = new ArrayList<String>();
         var player = player(context, UUID.randomUUID(), messages);
@@ -56,7 +56,7 @@ public final class PendingSelectionQueueGameTest {
         }
     }
 
-    @GameTest(templateName = FabricGameTest.EMPTY_STRUCTURE)
+    @GameTest(templateName = FabricGameTest.EMPTY_STRUCTURE, batchId = "ancient_city_relic")
     public void ancientCityEmptyPoolIsConsumedOnce(TestContext context) {
         var messages = new ArrayList<String>();
         var player = player(context, UUID.randomUUID(), messages);
@@ -88,7 +88,7 @@ public final class PendingSelectionQueueGameTest {
         }
     }
 
-    @GameTest(templateName = FabricGameTest.EMPTY_STRUCTURE)
+    @GameTest(templateName = FabricGameTest.EMPTY_STRUCTURE, batchId = "ancient_city_relic")
     public void cityLootChestOriginSurvivesGenerationAndReload(TestContext context) {
         verifyChestOrigin(context, net.minecraft.loot.LootTables.ANCIENT_CITY_CHEST);
         verifyChestOrigin(context, net.minecraft.loot.LootTables.ANCIENT_CITY_ICE_BOX_CHEST);
