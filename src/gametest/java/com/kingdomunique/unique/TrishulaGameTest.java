@@ -192,7 +192,7 @@ public final class TrishulaGameTest {
                     "Duplicates, other mobs, other dimensions, and non-fortress spawners must not count");
             var reload = new TrishulaAcquisitionData(data.writeNbt(new NbtCompound(), nether.getRegistryManager()));
             context.assertEquals(reload.recordSpawner(player.getUuid(), base.asLong()), 2, "Positions must survive reload");
-            breakSpawner(nether, player, base.add(2, 0, 0), EntityType.BLAZE);
+            areaMineSpawner(context, nether, player, base.add(2, 0, 0));
             context.assertTrue(player.getUuid().equals(unique.getOwner("trishula")), "Third qualifying break must grant");
             context.assertTrue(player.getInventory().contains(new ItemStack(UniqueWeapons.TRISHULA)),
                     "Acquisition must grant the physical weapon");
@@ -207,6 +207,47 @@ public final class TrishulaGameTest {
             }
             chunk.setStructureStarts(savedStarts);
             chunk.setStructureReferences(savedReferences);
+        }
+    }
+
+    private static void areaMineSpawner(TestContext context, net.minecraft.server.world.ServerWorld world,
+                                        ServerPlayerEntity player, BlockPos spawnerPos) {
+        var ownership = WorldUniqueData.getOrCreate(context.getWorld());
+        String smith = com.kingdomunique.registry.UniqueContentRegistry.DIVINE_SMITH;
+        UUID oldOwner = ownership.getOwner(smith);
+        if (oldOwner != null) {
+            ownership.releaseId(oldOwner, smith);
+        }
+        ownership.claimId(player.getUuid(), smith);
+        var ability = com.kingdomunique.ability.AbilityState.get(player.getUuid());
+        int originalRange = ability.getMiningRange();
+        while (ability.getMiningRange() != 3) {
+            ability.cycleMiningRange();
+        }
+        BlockPos center = spawnerPos.south();
+        var originalStates = new java.util.HashMap<BlockPos, net.minecraft.block.BlockState>();
+        for (BlockPos pos : BlockPos.iterate(center.add(-1, 0, -1), center.add(1, 0, 1))) {
+            originalStates.put(pos.toImmutable(), world.getBlockState(pos));
+        }
+        try {
+            originalStates.keySet().forEach(pos -> world.setBlockState(pos, Blocks.AIR.getDefaultState()));
+            world.setBlockState(center, Blocks.STONE.getDefaultState());
+            world.setBlockState(spawnerPos, Blocks.SPAWNER.getDefaultState());
+            ((MobSpawnerBlockEntity) world.getBlockEntity(spawnerPos)).setEntityType(EntityType.BLAZE, world.random);
+            player.setStackInHand(Hand.MAIN_HAND, new ItemStack(Items.NETHERITE_PICKAXE));
+            player.interactionManager.setWorld(world);
+            context.assertTrue(player.interactionManager.tryBreakBlock(center), "Area mining center must break");
+            context.assertTrue(world.isAir(spawnerPos), "Area mining must break the adjacent blaze spawner");
+        } finally {
+            player.interactionManager.setWorld(player.getServerWorld());
+            originalStates.forEach(world::setBlockState);
+            while (ability.getMiningRange() != originalRange) {
+                ability.cycleMiningRange();
+            }
+            ownership.releaseId(player.getUuid(), smith);
+            if (oldOwner != null) {
+                ownership.claimId(oldOwner, smith);
+            }
         }
     }
 
