@@ -7,12 +7,18 @@ import net.fabricmc.fabric.api.gametest.v1.FabricGameTest;
 import net.minecraft.block.Block;
 import net.minecraft.block.Blocks;
 import net.minecraft.block.LanternBlock;
+import net.minecraft.block.LadderBlock;
+import net.minecraft.block.CarpetBlock;
 import net.minecraft.server.world.ServerWorld;
 import net.minecraft.test.GameTest;
 import net.minecraft.test.TestContext;
 import net.minecraft.util.math.BlockBox;
 import net.minecraft.util.math.BlockPos;
 import net.minecraft.util.math.Direction;
+
+import java.util.ArrayDeque;
+import java.util.HashSet;
+import java.util.Set;
 
 public final class VillageFixtureGameTest {
     @GameTest(templateName = FabricGameTest.EMPTY_STRUCTURE, batchId = "village_fixture_well")
@@ -83,6 +89,96 @@ public final class VillageFixtureGameTest {
             }
             context.complete();
         });
+    }
+
+    @GameTest(templateName = FabricGameTest.EMPTY_STRUCTURE, batchId = "palace_access")
+    public void palaceTerracesAndTowerLandingsAreReachableInEveryFacing(TestContext context) {
+        ServerWorld world = context.getWorld();
+        Direction[] facings = {Direction.SOUTH, Direction.WEST, Direction.NORTH, Direction.EAST};
+        for (int i = 0; i < facings.length; i++) {
+            StructurePlacer.place(world, new BlockPos(12512, 180, 12000 + i * 64),
+                    BuildingType.ROYAL_PALACE, facings[i]);
+        }
+        context.waitAndRun(30, () -> {
+            for (int i = 0; i < facings.length; i++) {
+                BlockPos origin = new BlockPos(12512, 180, 12000 + i * 64);
+                Direction facing = facings[i];
+                BlockBox box = StructureRotationUtil.computeBoundingBox(origin, BuildingType.ROYAL_PALACE, facing);
+                int ladders = 0;
+                for (BlockPos pos : BlockPos.iterate(box.getMinX(), box.getMinY(), box.getMinZ(),
+                        box.getMaxX(), box.getMaxY(), box.getMaxZ())) {
+                    var state = world.getBlockState(pos);
+                    if (state.isOf(Blocks.LADDER)) {
+                        ladders++;
+                        context.assertTrue(state.canPlaceAt(world, pos), "Palace ladder needs backing at " + pos);
+                    }
+                }
+                context.assertTrue(ladders == 48, "Palace must retain all six backed ladder runs in " + facing);
+                Set<BlockPos> reached = reachable(world, box, palacePos(origin, facing, 9, 1, 9));
+                for (int x : new int[]{2, 16}) {
+                    BlockPos terrace = palacePos(origin, facing, x, 6, 7);
+                    context.assertTrue(reached.contains(terrace), facing + " wing terrace unreachable: " + terrace);
+                }
+                for (int tx : new int[]{1, 15}) {
+                    for (int tz : new int[]{1, 13}) {
+                        BlockPos landing = palacePos(origin, facing, tx + 1, 9, tz == 1 ? 4 : 12);
+                        context.assertTrue(reached.contains(landing), facing + " tower landing unreachable: " + landing);
+                        context.assertTrue(canStand(world, landing), "Tower exit needs a supported clear landing");
+                    }
+                }
+            }
+            context.complete();
+        });
+    }
+
+    private static BlockPos palacePos(BlockPos origin, Direction facing, int x, int y, int z) {
+        return StructureRotationUtil.transformPos(origin, x, y, z, 19, 19, facing);
+    }
+
+    private static Set<BlockPos> reachable(ServerWorld world, BlockBox box, BlockPos start) {
+        Set<BlockPos> visited = new HashSet<>();
+        ArrayDeque<BlockPos> queue = new ArrayDeque<>();
+        if (canStand(world, start)) {
+            visited.add(start);
+            queue.add(start);
+        }
+        while (!queue.isEmpty()) {
+            BlockPos pos = queue.remove();
+            for (Direction direction : Direction.Type.HORIZONTAL) {
+                for (int dy = -1; dy <= 1; dy++) {
+                    BlockPos next = pos.offset(direction).up(dy);
+                    if (dy > 0 && !passable(world, pos.up(2))) {
+                        continue;
+                    }
+                    if (dy < 0 && !passable(world, next.up(2))) {
+                        continue;
+                    }
+                    if (box.contains(next) && canStand(world, next) && visited.add(next)) {
+                        queue.add(next);
+                    }
+                }
+            }
+            for (int dy : new int[]{-1, 1}) {
+                BlockPos next = pos.up(dy);
+                if ((world.getBlockState(pos).isOf(Blocks.LADDER) || world.getBlockState(next).isOf(Blocks.LADDER))
+                        && box.contains(next) && canStand(world, next) && visited.add(next)) {
+                    queue.add(next);
+                }
+            }
+        }
+        return visited;
+    }
+
+    private static boolean canStand(ServerWorld world, BlockPos feet) {
+        return passable(world, feet) && passable(world, feet.up())
+                && (world.getBlockState(feet).isOf(Blocks.LADDER)
+                || world.getBlockState(feet.down()).isSideSolidFullSquare(world, feet.down(), Direction.UP));
+    }
+
+    private static boolean passable(ServerWorld world, BlockPos pos) {
+        var state = world.getBlockState(pos);
+        return state.getBlock() instanceof LadderBlock || state.getBlock() instanceof CarpetBlock
+                || (state.getCollisionShape(world, pos).isEmpty() && world.getFluidState(pos).isEmpty());
     }
 
     private static void assertClearance(TestContext context, ServerWorld world, BlockPos origin,
