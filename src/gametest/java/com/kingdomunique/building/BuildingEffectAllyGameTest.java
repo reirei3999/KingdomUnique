@@ -21,7 +21,7 @@ import net.minecraft.world.World;
 import java.util.UUID;
 
 public final class BuildingEffectAllyGameTest {
-    @GameTest(templateName = FabricGameTest.EMPTY_STRUCTURE)
+    @GameTest(templateName = FabricGameTest.EMPTY_STRUCTURE, batchId = "market_payout")
     public void marketPaysAtWorldTimeBoundariesRegardlessOfRestartPhase(TestContext context) {
         var server = context.getWorld().getServer();
         var world = server.getWorld(World.OVERWORLD);
