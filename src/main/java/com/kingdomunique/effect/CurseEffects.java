@@ -39,6 +39,9 @@ public final class CurseEffects {
     private static final Identifier VOID_DARK_DAMAGE = id("void_dark_damage");
     private static final Identifier VOID_LIGHT_ARMOR = id("void_light_armor");
     private static final Identifier DESTRUCTION_MINING = id("destruction_mining");
+    private static final Identifier GLASS_HEALTH = id("glass_health");
+    private static final double GLASS_CANNON_MAX_HEALTH = 10.0D;
+    private static final double DEFAULT_MAX_HEALTH = 20.0D;
     private static final Identifier GLUTTONY_DAMAGE = id("gluttony_damage");
     private static final Identifier VAMPIRE_SPEED = id("vampire_speed");
     private static final Identifier REAPER_HEALTH = id("reaper_health");
@@ -89,10 +92,17 @@ public final class CurseEffects {
         multiply(player, EntityAttributes.PLAYER_BLOCK_BREAK_SPEED, DESTRUCTION_MINING, destruction, 401.0D);
 
         EntityAttributeInstance health = player.getAttributeInstance(EntityAttributes.GENERIC_MAX_HEALTH);
-        if (health != null && glass) {
-            if (health.getBaseValue() != 10.0D) {
-                health.setBaseValue(10.0D);
-                player.setHealth(Math.min(player.getHealth(), 10.0F));
+        if (health != null) {
+            if (!glass && health.getBaseValue() == GLASS_CANNON_MAX_HEALTH) {
+                health.setBaseValue(DEFAULT_MAX_HEALTH);
+            }
+            health.removeModifier(GLASS_HEALTH);
+            if (glass) {
+                health.addTemporaryModifier(new EntityAttributeModifier(GLASS_HEALTH,
+                        GLASS_CANNON_MAX_HEALTH - health.getBaseValue(), EntityAttributeModifier.Operation.ADD_VALUE));
+            }
+            if (player.getHealth() > player.getMaxHealth()) {
+                player.setHealth(player.getMaxHealth());
             }
         }
 
