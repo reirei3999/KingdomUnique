@@ -19,11 +19,15 @@ import net.minecraft.entity.ItemEntity;
 import net.minecraft.entity.passive.CowEntity;
 import net.minecraft.item.ItemStack;
 import net.minecraft.item.Items;
+import net.minecraft.network.ClientConnection;
+import net.minecraft.network.NetworkSide;
 import net.minecraft.network.packet.c2s.common.SyncedClientOptions;
 import net.minecraft.nbt.NbtCompound;
 import net.minecraft.nbt.NbtElement;
 import net.minecraft.registry.tag.BiomeTags;
 import net.minecraft.server.network.ServerPlayerEntity;
+import net.minecraft.server.network.ConnectedClientData;
+import net.minecraft.server.network.ServerPlayNetworkHandler;
 import net.minecraft.server.world.ServerWorld;
 import net.minecraft.state.property.Properties;
 import net.minecraft.text.Text;
@@ -41,6 +45,85 @@ import java.util.List;
 import java.util.UUID;
 
 public final class VillagePlacementGameTest {
+    @GameTest(templateName = FabricGameTest.EMPTY_STRUCTURE, batchId = "starter_population")
+    public void starterPopulationSurvivesReloadAndMatchesRecruitment(TestContext context) {
+        ServerWorld world = context.getWorld();
+        BlockPos center = new BlockPos(2400, 100, 2400);
+        for (int x = -48; x <= 48; x++) {
+            for (int z = -48; z <= 48; z++) {
+                world.setBlockState(center.add(x, 0, z), Blocks.STONE.getDefaultState(), Block.NOTIFY_LISTENERS);
+            }
+        }
+        UUID owner = UUID.randomUUID();
+        ServerPlayerEntity player = new ServerPlayerEntity(world.getServer(), world,
+                new GameProfile(owner, "population_test"), SyncedClientOptions.createDefault()) {
+            @Override
+            public void sendMessage(Text message, boolean overlay) {
+            }
+        };
+        new ServerPlayNetworkHandler(world.getServer(), new ClientConnection(NetworkSide.SERVERBOUND), player,
+                ConnectedClientData.createDefault(player.getGameProfile(), false));
+        player.refreshPositionAndAngles(center.getX(), center.getY() + 1, center.getZ(), 0, 0);
+        KingdomData data = KingdomData.getOrCreate(world.getServer().getOverworld());
+        var forcedBefore = new LongOpenHashSet(world.getForcedChunks());
+        data.put(owner, new KingdomData.KingdomInfo(center.getX(), center.getZ(), 4, 10, 0,
+                false, 0, true, 100, false, ""));
+        try {
+            StarterSpawn.ensureVillage(player, world, data, data.get(owner));
+            int actual = com.kingdomunique.kingdom.PopulationManager.countLivingCitizens(world, owner, center);
+            context.assertTrue(actual == 6, "Starter village must have six citizens, got " + actual);
+            context.assertTrue(data.get(owner).population() == actual,
+                    "Village registration must not overwrite the citizen population with stale data");
+            KingdomManager.addHouse(player);
+            KingdomManager.addCapBonus(player, 2);
+            KingdomData loaded = new KingdomData(data.writeNbt(new NbtCompound(), world.getRegistryManager()));
+            data.put(owner, loaded.get(owner));
+            var hud = com.kingdomunique.status.StatusManager.populationPayload(player, world);
+            context.assertTrue(hud.currentPopulation() == actual && hud.maxPopulation() == 17,
+                    "Reloaded HUD must use saved population and all cap bonuses");
+            context.assertTrue(com.kingdomunique.kingdom.PopulationManager.calculateMaxPopulation(world, owner)
+                    == hud.maxPopulation(), "Growth and HUD caps must agree");
+            var recruit = EntityType.VILLAGER.create(world);
+            context.assertTrue(recruit != null, "Recruit must be created");
+            recruit.refreshPositionAndAngles(player.getX(), player.getY(), player.getZ(), 0, 0);
+            world.spawnEntity(recruit);
+            player.getInventory().insertStack(new ItemStack(Items.EMERALD, 2));
+            KingdomManager.enlistVillager(player, recruit, null);
+            context.assertTrue(owner.toString().equals(
+                    ((com.kingdomunique.entity.CitizenVillager) recruit).ku$getOwnerUuid()),
+                    "Recruitment below the HUD cap must succeed after reload");
+            context.assertTrue(data.get(owner).population() == actual + 1, "Recruit must increment saved count");
+            recruit.refreshPositionAndAngles(center.getX() + 200, center.getY() + 1, center.getZ(), 0, 0);
+            recruit.damage(world.getDamageSources().genericKill(), 1000.0F);
+            context.assertTrue(data.get(owner).population() == actual,
+                    "Citizen death must decrement saved population even while the owner is offline");
+            KingdomManager.setPopulation(player, 17);
+            var rejected = EntityType.VILLAGER.create(world);
+            world.spawnEntity(rejected);
+            KingdomManager.enlistVillager(player, rejected, null);
+            context.assertTrue(((com.kingdomunique.entity.CitizenVillager) rejected).ku$getOwnerUuid().isEmpty(),
+                    "Recruitment at the saved/HUD cap must be refused");
+            rejected.discard();
+            KingdomManager.setPopulation(player, 0);
+            data.put(owner, new KingdomData(data.writeNbt(new NbtCompound(), world.getRegistryManager())).get(owner));
+            context.assertTrue(com.kingdomunique.status.StatusManager.populationPayload(player, world)
+                    .currentPopulation() == 0, "Empty population must survive reload");
+        } finally {
+            for (var villager : world.getEntitiesByClass(net.minecraft.entity.passive.VillagerEntity.class,
+                    new Box(center).expand(128), v -> owner.toString().equals(
+                            ((com.kingdomunique.entity.CitizenVillager) v).ku$getOwnerUuid()))) {
+                villager.discard();
+            }
+            data.remove(owner);
+            var added = new LongOpenHashSet(world.getForcedChunks());
+            added.removeAll(forcedBefore);
+            for (long pos : added) {
+                world.setChunkForced(ChunkPos.getPackedX(pos), ChunkPos.getPackedZ(pos), false);
+            }
+        }
+        context.complete();
+    }
+
     @GameTest(templateName = FabricGameTest.EMPTY_STRUCTURE)
     public void starterSpawnUsesInitializationStateNotRecordExistence(TestContext context) {
         ServerWorld world = context.getWorld().getServer().getOverworld();
