@@ -1,6 +1,7 @@
 package com.kingdomunique.soldier;
 
 import com.kingdomunique.entity.CitizenVillager;
+import com.kingdomunique.util.EnhancementUtil;
 import net.fabricmc.fabric.api.entity.event.v1.ServerLivingEntityEvents;
 import net.fabricmc.fabric.api.event.lifecycle.v1.ServerTickEvents;
 import net.minecraft.component.DataComponentTypes;
@@ -111,7 +112,9 @@ public final class SoldierCombatHandler {
                 }
             }
         }
-        return (float) Math.max(2.0D, damage);
+        double factor = weapon.getItem() instanceof RangedWeaponItem
+                ? EnhancementUtil.multiplier(EnhancementUtil.getLevel(weapon)) : 1.0D;
+        return (float) Math.max(2.0D, damage * factor);
     }
 
     /** 弓・クロスボウ・トライデントの射撃（強化倍率を威力へ反映）。 */

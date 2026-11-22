@@ -39,6 +39,10 @@ public final class SoldierOrderGameTest {
                 7.0F, "An unenhanced sword must keep its damage");
         context.assertEquals(SoldierCombatHandler.calculateWeaponDamage(ItemStack.EMPTY),
                 2.0F, "An empty hand must keep its minimum damage");
+        ItemStack bow = EnhancementUtil.applyLevel(new ItemStack(Items.BOW), 0, 10);
+        context.assertTrue(Math.abs(SoldierCombatHandler.calculateWeaponDamage(bow)
+                        - EnhancementUtil.multiplier(10)) < 0.0001D,
+                "A bow without an attack modifier must retain its enhancement scaling");
         var target = context.spawnEntity(EntityType.CREEPER, 3.0f, y, 1.5f);
         target.setAiDisabled(true);
         context.runAtTick(21, () -> {
