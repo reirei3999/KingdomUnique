@@ -74,12 +74,18 @@ public final class SelectionManager {
 
     /** 専用コマンド等から未選択分を再表示する。 */
     public static boolean reopen(ServerPlayerEntity player) {
-        PendingSelectionState.Pending pending = pendingState(player).getPending(player.getUuid());
-        if (pending == null) {
-            return false;
+        PendingSelectionState state = pendingState(player);
+        PendingSelectionState.Pending pending = state.getPending(player.getUuid());
+        boolean hadPending = pending != null;
+        while (pending != null) {
+            List<String> options = refreshOptions(player, pending);
+            if (!options.isEmpty()) {
+                sendScreen(player, pending.kind(), options);
+                break;
+            }
+            pending = state.getPending(player.getUuid());
         }
-        sendScreen(player, pending.kind(), refreshOptions(player, pending));
-        return true;
+        return hadPending;
     }
 
     /**
@@ -130,14 +136,14 @@ public final class SelectionManager {
                     + (options.isEmpty() ? "残りのカードはありません。" : "残りのカードから選び直してください。");
             player.sendMessage(Text.literal("§c[KingdomUnique] " + message), false);
             sendResult(player, kind, false, message, options);
+            if (options.isEmpty()) {
+                reopen(player);
+            }
             return;
         }
         state.clearPending(player.getUuid());
 
-        PendingSelectionState.Pending next = state.getPending(player.getUuid());
-        if (next != null) {
-            sendScreen(player, next.kind(), next.optionIds());
-        }
+        reopen(player);
 
         // 実体アイテムがある場合のみ安全に付与する（空気は渡さない）。
         com.kingdomunique.util.RewardUtil.grantPhysical(player, chosenId);
@@ -170,6 +176,9 @@ public final class SelectionManager {
             options = ContentRegistry.randomDistinct(data.getAvailableIds(ContentRegistry.idsOf(pending.kind())), count);
         }
         pendingState(player).setPending(player.getUuid(), pending.kind(), options);
+        if (options.isEmpty()) {
+            player.sendMessage(Text.literal("§c[KingdomUnique] このカテゴリの未取得アイテムは残っていません。"), false);
+        }
         return options;
     }
 
