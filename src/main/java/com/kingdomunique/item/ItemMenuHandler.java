@@ -6,6 +6,7 @@ import com.kingdomunique.data.WorldUniqueData;
 import com.kingdomunique.network.OpenItemMenuPayload;
 import com.kingdomunique.network.RequestItemPayload;
 import com.kingdomunique.network.ItemGrantResultPayload;
+import com.kingdomunique.world.VillageBuilder;
 import net.fabricmc.fabric.api.networking.v1.ServerPlayNetworking;
 import net.minecraft.item.ItemStack;
 import net.minecraft.server.MinecraftServer;
@@ -14,6 +15,7 @@ import net.minecraft.server.network.ServerPlayerEntity;
 import net.minecraft.server.world.ServerWorld;
 import net.minecraft.text.Text;
 import net.minecraft.util.Formatting;
+import net.minecraft.util.math.BlockPos;
 import net.minecraft.world.World;
 
 import java.util.UUID;
@@ -125,9 +127,13 @@ public final class ItemMenuHandler {
                                 net.minecraft.util.math.Vec3d look = player.getRotationVec(1.0F);
                                 int x = (int) (player.getX() + look.x * 8.0D);
                                 int z = (int) (player.getZ() + look.z * 8.0D);
-                                com.kingdomunique.world.VillageBuilder.generateStarterVillage(
-                                        player.getServerWorld(), x, z);
-                                player.sendMessage(Text.literal("§6[KingdomUnique] 目の前に村を生成しました。"), false);
+                                BlockPos center = VillageBuilder.generateDebugVillage(player.getServerWorld(), x, z);
+                                if (center == null) {
+                                    context.getSource().sendError(Text.literal("村を生成できる地形が見つかりませんでした。"));
+                                    return 0;
+                                }
+                                player.sendMessage(Text.literal("§6[KingdomUnique] 村を生成しました: "
+                                        + center.getX() + ", " + center.getY() + ", " + center.getZ()), false);
                                 return 1;
                             }))
                     .then(CommandManager.literal("enhance")

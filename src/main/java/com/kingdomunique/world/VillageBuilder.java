@@ -6,9 +6,11 @@ import net.minecraft.block.BlockState;
 import net.minecraft.block.Blocks;
 import net.minecraft.block.CropBlock;
 import net.minecraft.block.DoorBlock;
+import net.minecraft.block.WallTorchBlock;
 import net.minecraft.block.enums.BedPart;
 import net.minecraft.block.enums.DoubleBlockHalf;
 import net.minecraft.entity.EntityType;
+import net.minecraft.entity.passive.AnimalEntity;
 import net.minecraft.entity.passive.VillagerEntity;
 import net.minecraft.server.world.ServerWorld;
 import net.minecraft.registry.Registry;
@@ -25,6 +27,7 @@ import net.minecraft.structure.StructureLiquidSettings;
 import net.minecraft.structure.PoolStructurePiece;
 import net.minecraft.structure.StructurePiece;
 import net.minecraft.util.math.BlockBox;
+import net.minecraft.util.math.Box;
 import net.minecraft.util.math.ChunkPos;
 import net.minecraft.world.biome.Biome;
 import net.minecraft.world.biome.BiomeKeys;
@@ -188,6 +191,17 @@ public final class VillageBuilder {
             {BuildingType.HOUSE, -13, 13},
     };
 
+    public static BlockPos generateDebugVillage(ServerWorld world, int x, int z) {
+        BlockPos center = new BlockPos(x, surfaceY(world, x, z), z);
+        if (center.getY() < world.getSeaLevel()) {
+            center = VillageSiteFinder.findNearby(world, x, z, 72, 24, candidate -> true);
+        }
+        if (center == null || generateVillage(world, center.getX(), center.getZ(), null).placedBuildings() == 0) {
+            return null;
+        }
+        return center;
+    }
+
     /** 初期村／中立村を生成する（王国の設計図と同じ建物で構成）。 */
     public static List<StarterBuilding> generateStarterVillage(ServerWorld world, int centerX, int centerZ) {
         return generateStarterVillage(world, centerX, centerZ, null);
@@ -202,6 +216,10 @@ public final class VillageBuilder {
     public static VillageResult generateVillage(ServerWorld world, int centerX, int centerZ,
                                                  java.util.UUID owner) {
         forceLoadChunks(world, centerX, centerZ);
+        List<AnimalEntity> animals = world.getEntitiesByClass(AnimalEntity.class,
+                new Box(centerX - MAX_VILLAGE_RADIUS, world.getBottomY(), centerZ - MAX_VILLAGE_RADIUS,
+                        centerX + MAX_VILLAGE_RADIUS + 1, world.getTopY(), centerZ + MAX_VILLAGE_RADIUS + 1),
+                animal -> animal.isAlive() && !VillageTerrain.obstructed(world, animal));
         int baseY = surfaceY(world, centerX, centerZ);
         BlockPos hallOrigin = TownHallBuilder.findVillageOrigin(world, centerX, centerZ);
         List<BlockBox> reserved = new ArrayList<>();
@@ -221,10 +239,12 @@ public final class VillageBuilder {
             }
         }
         if (hallOrigin != null) {
-            TownHallBuilder.buildVillageTownHall(world, hallOrigin);
-            buildings.add(0, new StarterBuilding(BuildingType.TOWN_HALL, hallOrigin.north(), Direction.SOUTH));
+            BlockPos origin = hallOrigin.north();
+            StructurePlacer.place(world, origin, BuildingType.TOWN_HALL);
+            buildings.add(0, new StarterBuilding(BuildingType.TOWN_HALL, origin, Direction.SOUTH));
             placedBuildings++;
         }
+        VillageTerrain.freeObstructedAnimals(world, animals);
         if (placedBuildings > 0) {
             ensureVillagers(world, centerX, baseY, centerZ, owner, hallOrigin);
         }
@@ -284,7 +304,7 @@ public final class VillageBuilder {
 
         BlockPos farm = reservePlot(world, centerX - 3, centerZ + 12, 7, 5, reserved);
         if (farm != null) {
-            buildFarm(world, farm.getX() + 3, farm.getY() - 1, farm.getZ());
+            placeFarm(world, farm);
         }
         com.kingdomunique.KingdomUniqueMod.LOGGER.info(
                 "[KingdomUnique] Generated kingdom village with {} buildings at ({}, {}).",
@@ -321,7 +341,7 @@ public final class VillageBuilder {
         }
         BlockPos farm = reservePlot(world, centerX - 12, centerZ + 9, 7, 5, reserved);
         if (farm != null) {
-            buildFarm(world, farm.getX() + 3, farm.getY() - 1, farm.getZ());
+            placeFarm(world, farm);
         }
         return placed;
     }
@@ -335,7 +355,12 @@ public final class VillageBuilder {
         var size = template.getSize();
         BlockPos plot = reservePlot(world, x - size.getX() / 2 - 1, z - size.getZ() / 2 - 1,
                 size.getX() + 2, size.getZ() + 2, reserved);
-        return plot != null && placeTemplate(world, template, plot.add(1, -1, 1));
+        if (plot == null) {
+            return false;
+        }
+        BlockPos origin = plot.add(1, -1, 1);
+        VillageTerrain.clearPlants(world, origin, size.getX(), Math.max(size.getY(), 3), size.getZ());
+        return placeTemplate(world, template, origin);
     }
 
     private static BlockPos reservePlot(ServerWorld world, int x, int z, int width, int depth,
@@ -428,6 +453,7 @@ public final class VillageBuilder {
         int size = HOUSE_RADIUS * 2 + 1;
         BlockPos plot = reservePlot(world, x - HOUSE_RADIUS, z - HOUSE_RADIUS, size, size + 1, reserved);
         if (plot != null) {
+            VillageTerrain.clearPlants(world, plot.down(), size, 3, size);
             buildHouse(world, plot.getX() + HOUSE_RADIUS, plot.getY() - 1, plot.getZ() + HOUSE_RADIUS, bed);
             return true;
         }
@@ -435,6 +461,7 @@ public final class VillageBuilder {
     }
 
     private static void buildWell(ServerWorld world, int x, int y, int z) {
+        VillageTerrain.clearPlants(world, new BlockPos(x - 1, y, z - 1), 3, 3, 3);
         for (int dx = -1; dx <= 1; dx++) {
             for (int dz = -1; dz <= 1; dz++) {
                 world.setBlockState(new BlockPos(x + dx, y, z + dz),
@@ -451,7 +478,7 @@ public final class VillageBuilder {
         world.setBlockState(new BlockPos(x, y + 3, z), Blocks.BELL.getDefaultState());
     }
 
-    private static void buildHouse(ServerWorld world, int x, int y, int z, net.minecraft.block.Block bedBlock) {
+    static void buildHouse(ServerWorld world, int x, int y, int z, net.minecraft.block.Block bedBlock) {
         for (int dx = -HOUSE_RADIUS; dx <= HOUSE_RADIUS; dx++) {
             for (int dz = -HOUSE_RADIUS; dz <= HOUSE_RADIUS; dz++) {
                 world.setBlockState(new BlockPos(x + dx, y, z + dz),
@@ -480,7 +507,8 @@ public final class VillageBuilder {
                 }
             }
         }
-        world.setBlockState(new BlockPos(x, y + 3, z), Blocks.TORCH.getDefaultState());
+        world.setBlockState(new BlockPos(x, y + 3, z - HOUSE_RADIUS + 1),
+                Blocks.WALL_TORCH.getDefaultState().with(WallTorchBlock.FACING, Direction.SOUTH));
         placeBed(world, x - 1, y + 1, z - 1, Direction.SOUTH, bedBlock);
     }
 
@@ -515,6 +543,11 @@ public final class VillageBuilder {
         // 水源は耕地で囲み、段差や地面の空洞へ流れ出さないようにする。
         world.setBlockState(irrigation.down(), Blocks.COBBLESTONE.getDefaultState());
         world.setBlockState(irrigation, Blocks.WATER.getDefaultState());
+    }
+
+    private static void placeFarm(ServerWorld world, BlockPos plot) {
+        VillageTerrain.clearPlants(world, plot.down(), 7, 3, 5);
+        buildFarm(world, plot.getX() + 3, plot.getY() - 1, plot.getZ());
     }
 
     private static void placeJobBlocks(ServerWorld world, int x, int y, int z) {
