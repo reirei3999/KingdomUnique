@@ -11,6 +11,10 @@ import it.unimi.dsi.fastutil.longs.LongOpenHashSet;
 import net.fabricmc.fabric.api.gametest.v1.FabricGameTest;
 import net.minecraft.block.Block;
 import net.minecraft.block.Blocks;
+import net.minecraft.block.DoorBlock;
+import net.minecraft.block.enums.DoubleBlockHalf;
+import net.minecraft.entity.ItemEntity;
+import net.minecraft.item.Items;
 import net.minecraft.network.packet.c2s.common.SyncedClientOptions;
 import net.minecraft.nbt.NbtCompound;
 import net.minecraft.nbt.NbtElement;
@@ -22,6 +26,7 @@ import net.minecraft.util.math.BlockBox;
 import net.minecraft.test.GameTest;
 import net.minecraft.test.TestContext;
 import net.minecraft.util.math.BlockPos;
+import net.minecraft.util.math.Box;
 import net.minecraft.util.math.ChunkPos;
 import net.minecraft.world.biome.BiomeKeys;
 
@@ -29,6 +34,90 @@ import java.util.List;
 import java.util.UUID;
 
 public final class VillagePlacementGameTest {
+    @GameTest(templateName = FabricGameTest.EMPTY_STRUCTURE, batchId = "village_entrances")
+    public void generatedEntrancesKeepBothDoorHalvesAndDecor(TestContext context) {
+        ServerWorld world = context.getWorld();
+        BlockPos center = context.getAbsolutePos(new BlockPos(40, 95, 40));
+        for (int x = -32; x <= 32; x++) {
+            for (int z = -40; z <= 32; z++) {
+                world.setBlockState(center.add(x, 0, z), Blocks.STONE.getDefaultState(), Block.NOTIFY_LISTENERS);
+            }
+        }
+        var buildings = VillageBuilder.generateVillage(world, center.getX(), center.getZ(), null).buildings();
+        context.assertTrue(buildings.stream().filter(b -> b.type() == BuildingType.HOUSE).count() == 3,
+                "The stone terrace must have room for all three houses");
+        context.assertTrue(buildings.stream().anyMatch(b -> b.type() == BuildingType.BLACKSMITH),
+                "The stone terrace must have room for the blacksmith");
+
+        context.waitAndRun(30, () -> {
+            for (var building : buildings) {
+                if (building.type() != BuildingType.HOUSE && building.type() != BuildingType.BLACKSMITH) {
+                    continue;
+                }
+                int doorX = building.type() == BuildingType.HOUSE ? 4 : 3;
+                BlockPos door = localPos(building, doorX, 0, 5);
+                var lower = world.getBlockState(door);
+                var upper = world.getBlockState(door.up());
+                context.assertTrue(lower.isOf(Blocks.SPRUCE_DOOR) && upper.isOf(Blocks.SPRUCE_DOOR)
+                                && lower.get(DoorBlock.HALF) == DoubleBlockHalf.LOWER
+                                && upper.get(DoorBlock.HALF) == DoubleBlockHalf.UPPER
+                                && lower.get(DoorBlock.FACING) == building.facing().getOpposite()
+                                && lower.with(DoorBlock.HALF, DoubleBlockHalf.UPPER) == upper,
+                        building.type() + " must keep both matching door halves at " + door);
+                if (building.type() == BuildingType.HOUSE) {
+                    BlockPos azalea = localPos(building, 1, 0, 6);
+                    BlockPos pot = localPos(building, 7, 0, 6);
+                    var shrub = world.getBlockState(azalea);
+                    var planter = world.getBlockState(pot);
+                    context.assertTrue(shrub.isOf(Blocks.FLOWERING_AZALEA) && shrub.canPlaceAt(world, azalea),
+                            "The flowering azalea must have valid soil even on a stone plot");
+                    context.assertTrue(planter.isOf(Blocks.POTTED_RED_TULIP) && planter.canPlaceAt(world, pot),
+                            "The potted tulip must have solid support");
+                }
+            }
+            context.assertTrue(world.getEntitiesByClass(ItemEntity.class, new Box(center).expand(32, 12, 32),
+                            item -> item.getStack().isOf(Items.SPRUCE_DOOR)
+                                    || item.getStack().isOf(Items.FLOWERING_AZALEA)
+                                    || item.getStack().isOf(Items.FLOWER_POT)
+                                    || item.getStack().isOf(Items.RED_TULIP)).isEmpty(),
+                    "Village generation must not drop doors, shrubs, pots, or tulips");
+            context.complete();
+        });
+    }
+
+    private static BlockPos localPos(VillageBuilder.StarterBuilding building, int x, int y, int z) {
+        int[] dims = StructureRotationUtil.getBuildingDimensions(building.type());
+        return StructureRotationUtil.transformPos(building.origin(), x, y, z, dims[0], dims[2], building.facing());
+    }
+
+    @GameTest(templateName = FabricGameTest.EMPTY_STRUCTURE, batchId = "village_irrigation")
+    public void villageFarmDoesNotFloodLowerTerrain(TestContext context) {
+        ServerWorld world = context.getWorld();
+        BlockPos farm = context.getAbsolutePos(new BlockPos(4, 4, 4));
+        for (int x = -4; x <= 4; x++) {
+            for (int z = -1; z <= 5; z++) {
+                world.setBlockState(farm.add(x, -1, z), Blocks.STONE.getDefaultState(),
+                        Block.NOTIFY_LISTENERS);
+            }
+        }
+        VillageBuilder.buildFarm(world, farm.getX(), farm.getY(), farm.getZ());
+
+        context.waitAndRun(30, () -> {
+            for (int x = -3; x <= 3; x++) {
+                context.assertTrue(world.getFluidState(farm.add(x, 0, -1)).isEmpty(),
+                        "Farm irrigation must not spill onto the lower ground");
+                context.assertTrue(world.getBlockState(farm.add(x, 0, 0)).isOf(Blocks.FARMLAND),
+                        "The farm edge facing lower ground must not contain water sources");
+            }
+            BlockPos irrigation = farm.south(2);
+            context.assertTrue(world.getBlockState(irrigation).isOf(Blocks.WATER)
+                            && world.getFluidState(irrigation).isStill()
+                            && world.getBlockState(irrigation.down()).isOf(Blocks.COBBLESTONE),
+                    "The farm must retain a supported interior irrigation source");
+            context.complete();
+        });
+    }
+
     @GameTest(templateName = FabricGameTest.EMPTY_STRUCTURE, batchId = "water_village_relocation")
     public void worldVillageRelocatesFromBrokenIceToLand(TestContext context) {
         ServerWorld world = context.getWorld();

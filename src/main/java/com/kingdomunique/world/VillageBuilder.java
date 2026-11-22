@@ -500,17 +500,21 @@ public final class VillageBuilder {
         world.setBlockState(footPos.offset(facing), foot.with(BedBlock.PART, BedPart.HEAD));
     }
 
-    private static void buildFarm(ServerWorld world, int x, int y, int z) {
-        for (int dx = -3; dx <= 3; dx++) {
-            world.setBlockState(new BlockPos(x + dx, y, z), Blocks.WATER.getDefaultState());
-        }
-        for (int dz = 1; dz <= 4; dz++) {
+    static void buildFarm(ServerWorld world, int x, int y, int z) {
+        BlockPos irrigation = new BlockPos(x, y, z + 2);
+        for (int dz = 0; dz <= 4; dz++) {
             for (int dx = -3; dx <= 3; dx++) {
                 BlockPos p = new BlockPos(x + dx, y, z + dz);
+                if (p.equals(irrigation)) {
+                    continue;
+                }
                 world.setBlockState(p, Blocks.FARMLAND.getDefaultState());
                 world.setBlockState(p.up(), Blocks.WHEAT.getDefaultState().with(CropBlock.AGE, 7));
             }
         }
+        // 水源は耕地で囲み、段差や地面の空洞へ流れ出さないようにする。
+        world.setBlockState(irrigation.down(), Blocks.COBBLESTONE.getDefaultState());
+        world.setBlockState(irrigation, Blocks.WATER.getDefaultState());
     }
 
     private static void placeJobBlocks(ServerWorld world, int x, int y, int z) {
