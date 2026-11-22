@@ -6,6 +6,7 @@ import net.minecraft.block.BlockState;
 import net.minecraft.block.Blocks;
 import net.minecraft.block.CropBlock;
 import net.minecraft.block.DoorBlock;
+import net.minecraft.block.WallTorchBlock;
 import net.minecraft.block.enums.BedPart;
 import net.minecraft.block.enums.DoubleBlockHalf;
 import net.minecraft.entity.EntityType;
@@ -189,6 +190,17 @@ public final class VillageBuilder {
             {BuildingType.BLACKSMITH, 13, 13},
             {BuildingType.HOUSE, -13, 13},
     };
+
+    public static BlockPos generateDebugVillage(ServerWorld world, int x, int z) {
+        BlockPos center = new BlockPos(x, surfaceY(world, x, z), z);
+        if (center.getY() < world.getSeaLevel()) {
+            center = VillageSiteFinder.findNearby(world, x, z, 72, 24, candidate -> true);
+        }
+        if (center == null || generateVillage(world, center.getX(), center.getZ(), null).placedBuildings() == 0) {
+            return null;
+        }
+        return center;
+    }
 
     /** 初期村／中立村を生成する（王国の設計図と同じ建物で構成）。 */
     public static List<StarterBuilding> generateStarterVillage(ServerWorld world, int centerX, int centerZ) {
@@ -466,7 +478,7 @@ public final class VillageBuilder {
         world.setBlockState(new BlockPos(x, y + 3, z), Blocks.BELL.getDefaultState());
     }
 
-    private static void buildHouse(ServerWorld world, int x, int y, int z, net.minecraft.block.Block bedBlock) {
+    static void buildHouse(ServerWorld world, int x, int y, int z, net.minecraft.block.Block bedBlock) {
         for (int dx = -HOUSE_RADIUS; dx <= HOUSE_RADIUS; dx++) {
             for (int dz = -HOUSE_RADIUS; dz <= HOUSE_RADIUS; dz++) {
                 world.setBlockState(new BlockPos(x + dx, y, z + dz),
@@ -495,7 +507,8 @@ public final class VillageBuilder {
                 }
             }
         }
-        world.setBlockState(new BlockPos(x, y + 3, z), Blocks.TORCH.getDefaultState());
+        world.setBlockState(new BlockPos(x, y + 3, z - HOUSE_RADIUS + 1),
+                Blocks.WALL_TORCH.getDefaultState().with(WallTorchBlock.FACING, Direction.SOUTH));
         placeBed(world, x - 1, y + 1, z - 1, Direction.SOUTH, bedBlock);
     }
 

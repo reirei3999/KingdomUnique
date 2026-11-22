@@ -121,6 +121,8 @@ public final class TownHallBuilder {
         world.set(origin.add(6, 2, depth - 1), Blocks.OAK_STAIRS.getDefaultState()
                 .with(StairsBlock.FACING, Direction.WEST).with(StairsBlock.HALF, BlockHalf.TOP),
                 Block.NOTIFY_LISTENERS);
+        world.set(origin.add(5, 3, depth), Blocks.OAK_LOG.getDefaultState()
+                .with(PillarBlock.AXIS, Direction.Axis.Z), Block.NOTIFY_LISTENERS);
         world.set(origin.add(5, 2, depth), Blocks.LANTERN.getDefaultState()
                 .with(LanternBlock.HANGING, true), Block.NOTIFY_LISTENERS);
 
@@ -200,9 +202,13 @@ public final class TownHallBuilder {
                 .with(ChestBlock.FACING, Direction.SOUTH), Block.NOTIFY_LISTENERS);
 
         // 室内照明（天井から吊るすランタン）
-        world.set(origin.add(5, 6, 4), Blocks.LANTERN.getDefaultState()
-                .with(LanternBlock.HANGING, true), Block.NOTIFY_LISTENERS);
-        world.set(origin.add(5, 6, 8), Blocks.LANTERN.getDefaultState()
-                .with(LanternBlock.HANGING, true), Block.NOTIFY_LISTENERS);
+        for (int z : new int[]{4, 8}) {
+            for (int x = 3; x <= 7; x++) {
+                world.set(origin.add(x, 7, z), Blocks.OAK_LOG.getDefaultState()
+                        .with(PillarBlock.AXIS, Direction.Axis.X), Block.NOTIFY_LISTENERS);
+            }
+            world.set(origin.add(5, 6, z), Blocks.LANTERN.getDefaultState()
+                    .with(LanternBlock.HANGING, true), Block.NOTIFY_LISTENERS);
+        }
     }
 }

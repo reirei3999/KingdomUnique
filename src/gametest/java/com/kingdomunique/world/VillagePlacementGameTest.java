@@ -12,6 +12,8 @@ import net.fabricmc.fabric.api.gametest.v1.FabricGameTest;
 import net.minecraft.block.Block;
 import net.minecraft.block.Blocks;
 import net.minecraft.block.DoorBlock;
+import net.minecraft.block.LanternBlock;
+import net.minecraft.block.WallTorchBlock;
 import net.minecraft.block.enums.DoubleBlockHalf;
 import net.minecraft.entity.EntityType;
 import net.minecraft.entity.ItemEntity;
@@ -32,6 +34,8 @@ import net.minecraft.test.TestContext;
 import net.minecraft.util.math.BlockPos;
 import net.minecraft.util.math.Box;
 import net.minecraft.util.math.ChunkPos;
+import net.minecraft.util.math.Direction;
+import net.minecraft.world.Heightmap;
 import net.minecraft.world.biome.BiomeKeys;
 
 import java.util.List;
@@ -352,6 +356,56 @@ public final class VillagePlacementGameTest {
                         + " (cleared=" + cleared + ", leveled=" + leveled + ")");
         context.assertTrue(world.getBlockState(outside).isOf(Blocks.OAK_LEAVES),
                 "Site preparation must keep canopy outside the hall footprint");
+        for (BlockPos lantern : List.of(origin.add(5, 6, 4), origin.add(5, 6, 8), origin.add(5, 2, 13))) {
+            var state = world.getBlockState(lantern);
+            context.assertTrue(state.isOf(Blocks.LANTERN) && state.get(LanternBlock.HANGING)
+                            && state.canPlaceAt(world, lantern),
+                    "The starter hall lantern must hang from a support at " + lantern);
+        }
+        context.complete();
+    }
+
+    @GameTest(templateName = FabricGameTest.EMPTY_STRUCTURE, batchId = "legacy_house_light")
+    public void legacyHouseTorchIsAttached(TestContext context) {
+        ServerWorld world = context.getWorld();
+        BlockPos floor = context.getAbsolutePos(new BlockPos(4, 4, 4));
+        VillageBuilder.buildHouse(world, floor.getX(), floor.getY(), floor.getZ(), Blocks.RED_BED);
+        BlockPos torch = floor.add(0, 3, -1);
+        var state = world.getBlockState(torch);
+        context.assertTrue(state.isOf(Blocks.WALL_TORCH) && state.get(WallTorchBlock.FACING) == Direction.SOUTH
+                        && state.canPlaceAt(world, torch) && world.getBlockState(floor.up(3)).isAir(),
+                "The legacy house must have a supported north-wall torch and no floating center torch");
+        context.complete();
+    }
+
+    @GameTest(templateName = FabricGameTest.EMPTY_STRUCTURE, batchId = "debug_village_ravine")
+    public void debugVillageAvoidsBelowSeaLevelTerrain(TestContext context) {
+        ServerWorld world = context.getWorld();
+        BlockPos start = context.getAbsolutePos(new BlockPos(40, 0, 40));
+        BlockPos surface = new BlockPos(start.getX(), world.getSeaLevel() + 6, start.getZ());
+        for (int x = -48; x <= 48; x++) {
+            for (int z = -52; z <= 48; z++) {
+                if (Math.abs(x) > 8 || Math.abs(z) > 8) {
+                    world.setBlockState(surface.add(x, 0, z), Blocks.STONE.getDefaultState(), Block.NOTIFY_LISTENERS);
+                }
+            }
+        }
+        int bottom = world.getBottomY();
+        for (int x = -8; x <= 8; x++) {
+            for (int z = -8; z <= 8; z++) {
+                for (int y = bottom; y < surface.getY(); y++) {
+                    world.setBlockState(new BlockPos(start.getX() + x, y, start.getZ() + z),
+                            Blocks.AIR.getDefaultState(), Block.FORCE_STATE);
+                }
+            }
+        }
+        BlockPos center = VillageBuilder.generateDebugVillage(world, start.getX(), start.getZ());
+        context.assertTrue(center != null && center.getY() >= world.getSeaLevel()
+                        && (center.getX() != start.getX() || center.getZ() != start.getZ()),
+                "Debug generation must relocate the requested ravine site to solid ground above it");
+        context.assertTrue(world.getTopY(Heightmap.Type.MOTION_BLOCKING_NO_LEAVES, start.getX(), start.getZ())
+                        == bottom,
+                "Debug generation must not build at the original ravine floor");
         context.complete();
     }
 
