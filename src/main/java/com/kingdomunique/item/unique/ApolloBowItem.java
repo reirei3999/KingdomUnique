@@ -42,10 +42,10 @@ public final class ApolloBowItem extends Item implements UniqueWeapon {
             return ActionResult.SUCCESS;
         });
 
-        // バニラはクールタイム中に Item#use を呼ばないため、起爆だけ先に処理する。
+        // クライアントはクールタイム中もパケットを送る。サーバーだけ起爆を先に処理し、オフハンド操作を妨げない。
         UseItemCallback.EVENT.register((player, world, hand) -> {
             ItemStack stack = player.getStackInHand(hand);
-            if (player.isSpectator() || !stack.isOf(UniqueWeapons.APOLLO_BOW)
+            if (world.isClient() || player.isSpectator() || !stack.isOf(UniqueWeapons.APOLLO_BOW)
                     || !player.getItemCooldownManager().isCoolingDown(UniqueWeapons.APOLLO_BOW)) {
                 return TypedActionResult.pass(stack);
             }
@@ -56,8 +56,9 @@ public final class ApolloBowItem extends Item implements UniqueWeapon {
     @Override
     public TypedActionResult<ItemStack> use(World world, PlayerEntity user, Hand hand) {
         ItemStack stack = user.getStackInHand(hand);
-        if (!world.isClient() && user instanceof ServerPlayerEntity player) {
-            UniqueWeaponManager.detonateLightArrow(player);
+        if (!world.isClient() && user instanceof ServerPlayerEntity player
+                && !UniqueWeaponManager.detonateLightArrow(player)) {
+            return TypedActionResult.pass(stack);
         }
         return TypedActionResult.success(stack);
     }

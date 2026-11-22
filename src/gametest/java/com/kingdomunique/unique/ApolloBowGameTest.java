@@ -15,6 +15,7 @@ import net.minecraft.server.network.ServerPlayerEntity;
 import net.minecraft.test.GameTest;
 import net.minecraft.test.TestContext;
 import net.minecraft.text.Text;
+import net.minecraft.util.ActionResult;
 import net.minecraft.util.Hand;
 import net.minecraft.util.math.Box;
 import net.minecraft.util.math.Vec3d;
@@ -35,7 +36,7 @@ public final class ApolloBowGameTest {
                     "The light arrow must still be flying");
             context.assertTrue(player.getItemCooldownManager().isCoolingDown(UniqueWeapons.APOLLO_BOW),
                     "The firing cooldown must still be active");
-            rightClick(player);
+            context.assertTrue(rightClick(player).isAccepted(), "The airborne detonation must accept the interaction");
             context.assertTrue(arrow.isRemoved(), "Right-click must detonate a flying light arrow during cooldown");
             context.assertFalse(target.isAlive(), "The detonation must damage nearby targets");
             context.assertTrue(player.getItemCooldownManager().isCoolingDown(UniqueWeapons.APOLLO_BOW),
@@ -53,6 +54,8 @@ public final class ApolloBowGameTest {
         context.runAtTick(8, () -> {
             context.assertTrue(arrow.isAlive() && arrow.writeNbt(new NbtCompound()).getBoolean("inGround"),
                     "The light arrow must be stuck in the wall");
+            context.assertEquals(rightClick(player), ActionResult.PASS,
+                    "A grounded light arrow must not consume the right-click during cooldown");
             player.getItemCooldownManager().remove(UniqueWeapons.APOLLO_BOW);
             rightClick(player);
             context.assertTrue(arrow.isAlive(), "A grounded light arrow must not detonate");
@@ -89,7 +92,7 @@ public final class ApolloBowGameTest {
         return arrows.getFirst();
     }
 
-    private static void rightClick(ServerPlayerEntity player) {
-        player.interactionManager.interactItem(player, player.getWorld(), player.getMainHandStack(), Hand.MAIN_HAND);
+    private static ActionResult rightClick(ServerPlayerEntity player) {
+        return player.interactionManager.interactItem(player, player.getWorld(), player.getMainHandStack(), Hand.MAIN_HAND);
     }
 }

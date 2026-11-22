@@ -319,13 +319,13 @@ public final class UniqueWeaponManager {
     }
 
     /** 右クリック: 飛翔中の自分の光の矢をその座標で起爆する。 */
-    public static void detonateLightArrow(ServerPlayerEntity player) {
+    public static boolean detonateLightArrow(ServerPlayerEntity player) {
         ServerWorld world = player.getServerWorld();
         UUID arrowUuid = LIGHT_ARROW_BY_OWNER.remove(player.getUuid());
         Entity arrow = arrowUuid == null ? null : world.getEntity(arrowUuid);
         if (!(arrow instanceof ArrowEntity lightArrow) || !isInFlight(lightArrow)) {
             player.sendMessage(Text.literal("§c[太陽弓] 飛翔中の光の矢がありません。"), true);
-            return;
+            return false;
         }
 
         Vec3d pos = arrow.getPos();
@@ -345,5 +345,6 @@ public final class UniqueWeaponManager {
                 SoundCategory.PLAYERS, 1.0F, 1.2F);
         arrow.discard();
         player.sendMessage(Text.literal("§6[太陽の爆発] 光の矢が起爆した！"), true);
+        return true;
     }
 }
