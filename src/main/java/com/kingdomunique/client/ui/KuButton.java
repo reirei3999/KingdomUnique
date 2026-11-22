@@ -21,6 +21,7 @@ public final class KuButton extends ButtonWidget {
     private final BooleanSupplier selected;
     private final Tooltip fullLabel;
     private final boolean primary;
+    private final boolean labelTooltip;
 
     private KuButton(Builder builder) {
         super(builder.x, builder.y, builder.width, builder.height, builder.message,
@@ -31,6 +32,7 @@ public final class KuButton extends ButtonWidget {
         category = builder.category;
         selected = builder.selected;
         primary = builder.primary;
+        labelTooltip = builder.labelTooltip;
         fullLabel = Tooltip.of(builder.message);
     }
 
@@ -57,7 +59,7 @@ public final class KuButton extends ButtonWidget {
         Text fitted = fitLabel(renderer, label, labelWidth);
         setTooltip(!active && primary ? Tooltip.of(Text.literal(getMessage().getString().equals("確定中…")
                 ? "サーバーからの応答を待っています。" : "カードを1枚選ぶと確定できます。"))
-                : renderer.getWidth(label) > labelWidth ? fullLabel : null);
+                : labelTooltip && renderer.getWidth(label) > labelWidth ? fullLabel : null);
         if (category == null) {
             context.drawCenteredTextWithShadow(renderer, fitted, getX() + width / 2,
                     getY() + (height - 8) / 2, color);
@@ -94,6 +96,7 @@ public final class KuButton extends ButtonWidget {
         private Text category;
         private BooleanSupplier selected = () -> false;
         private boolean primary;
+        private boolean labelTooltip = true;
 
         private Builder(Text message, PressAction action) {
             this.message = message;
@@ -121,6 +124,12 @@ public final class KuButton extends ButtonWidget {
         /** One filled primary action; focus still has its own inset outline. */
         public Builder primary() {
             primary = true;
+            return this;
+        }
+
+        /** Use when the full label is already visible in an adjacent detail panel. */
+        public Builder labelTooltip(boolean enabled) {
+            labelTooltip = enabled;
             return this;
         }
 

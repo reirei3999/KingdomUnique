@@ -75,7 +75,7 @@ public final class SelectionScreen extends Screen {
             int rowCount = Math.min(columns, optionIds.size() - i / columns * columns);
             int left = (width - (rowCount * (cardWidth + 8) - 8)) / 2;
             KuButton card = KuButton.themed(Text.literal(info.name()), button -> select(index))
-                    .accent(accent()).card(info.icon(), Text.empty(), () -> selectedIndex == index)
+                    .accent(accent()).labelTooltip(false).card(info.icon(), Text.empty(), () -> selectedIndex == index)
                     .dimensions(left + i % columns * (cardWidth + 8), cardsTop() + i / columns * 42,
                             cardWidth, 36).build();
             cards.add(addDrawableChild(card));
@@ -94,8 +94,13 @@ public final class SelectionScreen extends Screen {
     }
 
     private void updateButtons() {
+        String confirm = "このカードで確定";
+        if (selectedIndex >= 0) {
+            String named = "「" + ContentRegistry.nameOf(optionIds.get(selectedIndex)) + "」で確定";
+            if (textRenderer.getWidth(named) <= decideButton.getWidth() - 12) confirm = named;
+        }
         decideButton.setMessage(Text.literal(processing ? "確定中…" : !hasOptions() ? "閉じる"
-                : selectedIndex < 0 ? "カードを選んでください" : "このカードで確定"));
+                : selectedIndex < 0 ? "カードを選んでください" : confirm));
         decideButton.active = !processing && (!hasOptions() || selectedIndex >= 0);
         for (int i = 0; i < cards.size(); i++) {
             cards.get(i).active = !processing;

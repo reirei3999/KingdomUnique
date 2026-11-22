@@ -78,7 +78,8 @@ public final class StatusScreen extends Screen {
             int index = listOffset + i;
             Entry entry = entries.get(index);
             entryButtons.add(addDrawableChild(KuButton.themed(Text.literal(entry.name()), button -> select(index))
-                    .accent(section.accent()).card(entry.icon(), Text.literal(entry.category()), () -> selectedIndex == index)
+                    .accent(section.accent()).labelTooltip(false)
+                    .card(entry.icon(), Text.literal(entry.category()), () -> selectedIndex == index)
                     .dimensions(left() + 10, top() + 66 + i * 36, listWidth(), 32).build()));
         }
         previous = addDrawableChild(KuButton.themed(Text.literal("前へ"), button -> page(-1))
