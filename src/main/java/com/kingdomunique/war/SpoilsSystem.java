@@ -107,6 +107,9 @@ public final class SpoilsSystem {
                     case "muramasa" -> "妖刀 ムラマサ";
                     case "apollo_bow" -> "神弓 アポロンの太陽弓";
                     case "mjolnir" -> "雷神銃 ミョルニル";
+                    case "kusanagi" -> "草薙の剣";
+                    case "poseidon_trident" -> "トライデント・オブ・ポセイドン";
+                    case "twilight_scythe" -> "黄昏の鎌（ハルパー）";
                     default -> "空間の短剣 クロノス・ダガー";
                 };
             }

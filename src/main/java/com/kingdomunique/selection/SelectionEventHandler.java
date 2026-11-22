@@ -10,6 +10,7 @@ import com.kingdomunique.registry.CurseRegistry;
 import com.kingdomunique.registry.RelicRegistry;
 import com.mojang.brigadier.builder.LiteralArgumentBuilder;
 import net.fabricmc.fabric.api.entity.event.v1.ServerLivingEntityEvents;
+import net.fabricmc.fabric.api.entity.event.v1.EntitySleepEvents;
 import net.fabricmc.fabric.api.event.lifecycle.v1.ServerTickEvents;
 import net.fabricmc.fabric.api.networking.v1.ServerPlayConnectionEvents;
 import net.fabricmc.fabric.api.networking.v1.ServerPlayNetworking;
@@ -88,8 +89,10 @@ public final class SelectionEventHandler {
     }
 
     public static void register() {
+        AncientCityRelicTrigger.register();
         SelectionResultPayload.initialize();
         ServerTickEvents.END_SERVER_TICK.register(SelectionEventHandler::onTick);
+        EntitySleepEvents.ALLOW_SLEEPING.register(CurseEffects::checkSleep);
         ServerPlayConnectionEvents.DISCONNECT.register((handler, server) -> {
             GLUTTONY_UNTIL.remove(handler.getPlayer().getUuid());
         });
