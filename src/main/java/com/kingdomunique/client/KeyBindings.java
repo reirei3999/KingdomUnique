@@ -30,6 +30,7 @@ public final class KeyBindings {
     private static KeyBinding possessionKey;
     private static KeyBinding itemMenuKey;
     private static KeyBinding statusKey;
+    private static KeyBinding materialDetailsKey;
     // 兵士指揮キー（H: 一斉/個別切替, J: 移動命令 / スニーク+J: スタンス切替）
     private static KeyBinding toggleOrderScopeKey;
     private static KeyBinding issueSoldierOrderKey;
@@ -79,6 +80,13 @@ public final class KeyBindings {
                 "key.kingdomunique.status",
                 InputUtil.Type.KEYSYM,
                 GLFW.GLFW_KEY_K,
+                "category.kingdomunique"
+        ));
+
+        materialDetailsKey = KeyBindingHelper.registerKeyBinding(new KeyBinding(
+                "key.kingdomunique.material_details",
+                InputUtil.Type.KEYSYM,
+                GLFW.GLFW_KEY_B,
                 "category.kingdomunique"
         ));
 
@@ -174,5 +182,9 @@ public final class KeyBindings {
 
     public static KeyBinding getModeKey() {
         return modeKey;
+    }
+
+    public static KeyBinding getMaterialDetailsKey() {
+        return materialDetailsKey;
     }
 }

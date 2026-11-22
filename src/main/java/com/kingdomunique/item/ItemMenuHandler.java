@@ -56,9 +56,12 @@ public final class ItemMenuHandler {
                     double multiplier = com.kingdomunique.building.BuildingManager.costMultiplier(player);
                     java.util.List<String> lines = new java.util.ArrayList<>();
                     if (be.isReady()) {
-                        // 建築開始後は資材が消費されて空になるため、
-                        // 「0/N（資材待ち）」ではなく「建設中」として表示する。
-                        lines.add("状態: 建設中");
+                        boolean working = com.kingdomunique.building.BuildingManager
+                                .isWorking(world, payload.pos());
+                        lines.add(working ? "状態: 建設中" : "状態: 建築士待ち");
+                        if (!working) {
+                            lines.add("自国の建築士を現場の近くへ");
+                        }
                         com.kingdomunique.building.BuildData buildData =
                                 com.kingdomunique.building.BuildData.getOrCreate(world);
                         for (com.kingdomunique.building.BuildData.BuildSite site
@@ -71,7 +74,9 @@ public final class ItemMenuHandler {
                             int remaining = Math.max(0, required - site.progress());
                             int percent = required > 0
                                     ? Math.min(100, (int) (site.progress() * 100L / required)) : 0;
-                            lines.add("残り時間: " + String.format("%.1f", remaining / 20.0F) + "秒");
+                            if (working) {
+                                lines.add("残り時間: " + String.format("%.1f", remaining / 20.0F) + "秒");
+                            }
                             lines.add("進捗: " + percent + "%");
                             break;
                         }
@@ -82,7 +87,11 @@ public final class ItemMenuHandler {
                             int have = be.countOf(entry.getKey());
                             lines.add(entry.getKey().getName().getString() + " " + have + "/" + needed);
                         }
-                        lines.add(be.hasAllMaterials(type, multiplier) ? "状態: 資材投入済み（未着工）" : "状態: 資材待ち");
+                        boolean supplied = be.hasAllMaterials(type, multiplier);
+                        lines.add(supplied ? "状態: 建築士待ち" : "状態: 資材待ち");
+                        if (supplied) {
+                            lines.add("自国の建築士を現場の近くへ");
+                        }
                         int estimate = (int) Math.max(20L,
                                 type.getBaseBuildTicks() * multiplier);
                         lines.add("予想建築時間: " + String.format("%.1f", estimate / 20.0F) + "秒");

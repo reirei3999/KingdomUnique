@@ -107,6 +107,11 @@ public final class BuildingManager {
     /** 建築現場に割り当てた建築士（dimension|pos -> villager UUID）。 */
     private static final java.util.Map<String, java.util.UUID> ASSIGNED_BUILDERS =
             new java.util.HashMap<>();
+    private static final java.util.Set<String> WORKING_SITES = new java.util.HashSet<>();
+
+    public static boolean isWorking(ServerWorld world, BlockPos pos) {
+        return WORKING_SITES.contains(siteKey(world, pos));
+    }
 
     private static String siteKey(ServerWorld world, BlockPos pos) {
         return world.getRegistryKey().getValue().toString() + "|" + pos.asLong();
@@ -114,6 +119,7 @@ public final class BuildingManager {
 
     /** 毎Tickの建築進行。 */
     public static void onServerTick(MinecraftServer server) {
+        WORKING_SITES.clear();
         BuildingEffectHandler.tick(server);
         for (ServerWorld world : server.getWorlds()) {
             BuildData data = BuildData.getOrCreate(world);
@@ -161,6 +167,7 @@ public final class BuildingManager {
                 } else {
                     data.sites().remove(site);
                     data.add(site.withProgress(progress));
+                    WORKING_SITES.add(siteKey(world, site.pos()));
                 }
             }
         }
@@ -222,6 +229,7 @@ public final class BuildingManager {
     }
 
     private static void releaseBuilder(ServerWorld world, BuildData.BuildSite site) {
+        WORKING_SITES.remove(siteKey(world, site.pos()));
         java.util.UUID uuid = ASSIGNED_BUILDERS.remove(siteKey(world, site.pos()));
         if (uuid != null && world.getEntity(uuid)
                 instanceof net.minecraft.entity.passive.VillagerEntity villager) {

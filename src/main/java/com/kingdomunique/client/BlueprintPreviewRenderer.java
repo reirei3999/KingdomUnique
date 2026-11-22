@@ -91,8 +91,10 @@ public final class BlueprintPreviewRenderer {
                 : snapshot == null ? "§7[判定待ち]"
                 : restricted ? "§c[王国の建築条件を満たしていません]"
                 : overlapping ? "§c[既存建築と重複]" : "§a[建築可能]";
-        player.sendMessage(Text.literal(statusText + " §f" + type.getDisplayName()
-                + " §7(" + width + "x" + depth + " / 入口: " + formatDirectionJa(entranceFacing) + ")"), true);
+        if (!player.hasVehicle()) {
+            player.sendMessage(Text.literal(statusText + " §f" + type.getDisplayName()
+                    + " §7(" + width + "x" + depth + " / 入口: " + formatDirectionJa(entranceFacing) + ")"), true);
+        }
     }
 
     /** 手に持っているアイテムから BuildingType を判定する。 */
