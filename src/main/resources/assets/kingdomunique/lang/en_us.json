@@ -81,6 +81,7 @@
   "message.kingdomunique.relic.crystal.intrusion": "[Clairvoyant Crystal] %s entered your territory.",
   "message.kingdomunique.relic.crystal.intrusions": "[Clairvoyant Crystal] %s and %s more entered your territory.",
   "message.kingdomunique.relic.compass.required": "You do not own the Traveler's Compass.",
+  "message.kingdomunique.relic.compass.possessing": "[Traveler's Compass] End possession before returning to your kingdom.",
   "message.kingdomunique.relic.compass.used": "[Traveler's Compass] You have already returned today.",
   "message.kingdomunique.relic.compass.no_destination": "[Traveler's Compass] No safe landing spot was found at your base.",
   "message.kingdomunique.relic.compass.recalled": "[Traveler's Compass] You have returned to your kingdom."

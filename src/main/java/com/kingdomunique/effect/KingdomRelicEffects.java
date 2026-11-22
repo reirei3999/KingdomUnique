@@ -127,6 +127,10 @@ public final class KingdomRelicEffects {
             player.sendMessage(message("compass.required"), false);
             return false;
         }
+        if (KingdomManager.possessedHero(player) != null) {
+            player.sendMessage(message("compass.possessing"), false);
+            return false;
+        }
         ServerWorld world = player.getServer().getOverworld();
         UUID owner = player.getUuid();
         KingdomRelicState state = KingdomRelicState.get(world);

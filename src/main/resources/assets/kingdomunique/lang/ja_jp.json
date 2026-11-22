@@ -81,6 +81,7 @@
   "message.kingdomunique.relic.crystal.intrusion": "[千里眼の水晶] %s が自国領内に侵入しました。",
   "message.kingdomunique.relic.crystal.intrusions": "[千里眼の水晶] %s ほか %s 体が自国領内に侵入しました。",
   "message.kingdomunique.relic.compass.required": "旅人の羅針盤を所持していません。",
+  "message.kingdomunique.relic.compass.possessing": "[旅人の羅針盤] 帰還するには先に憑依を解除してください。",
   "message.kingdomunique.relic.compass.used": "[旅人の羅針盤] 本日はすでに帰還しました。",
   "message.kingdomunique.relic.compass.no_destination": "[旅人の羅針盤] 自国の拠点に安全な帰還場所が見つかりません。",
   "message.kingdomunique.relic.compass.recalled": "[旅人の羅針盤] 自国の拠点に帰還しました。"

@@ -1,14 +1,18 @@
 package com.kingdomunique.effect;
 
 import com.kingdomunique.data.WorldUniqueData;
+import com.kingdomunique.entity.HeroClass;
 import com.kingdomunique.entity.KingdomGuardianEntity;
+import com.kingdomunique.entity.ModEntities;
 import com.kingdomunique.kingdom.KingdomData;
+import com.kingdomunique.kingdom.KingdomManager;
 import com.kingdomunique.registry.ContentRegistry;
 import com.kingdomunique.registry.RelicRegistry;
 import com.kingdomunique.war.KingdomDiplomacyState;
 import com.mojang.authlib.GameProfile;
 import net.fabricmc.fabric.api.gametest.v1.FabricGameTest;
 import net.minecraft.block.Blocks;
+import net.minecraft.entity.Entity;
 import net.minecraft.entity.EntityType;
 import net.minecraft.entity.effect.StatusEffects;
 import net.minecraft.network.packet.c2s.common.SyncedClientOptions;
@@ -67,12 +71,20 @@ public final class KingdomRelicsGameTest {
         var player = player(world);
         var ownership = WorldUniqueData.getOrCreate(world);
         BlockPos center = prepareLanding(context);
+        var assassin = context.spawnMob(ModEntities.HERO, new BlockPos(2, 2, 2));
+        assassin.setOwnerUuid(player.getUuid());
+        assassin.setHeroClass(HeroClass.ASSASSIN);
+        player.refreshPositionAndAngles(center.add(2, 0, 0), 0, 0);
         long time = world.getTimeOfDay();
         try {
             context.assertFalse(KingdomRelicEffects.recall(player), "Players without the relic cannot return");
             context.assertTrue(ownership.claimId(player.getUuid(), RelicRegistry.COMPASS), "Claim compass");
             context.assertFalse(KingdomRelicEffects.recall(player), "Recall fails without a base");
             setCenter(world, player.getUuid(), center);
+            KingdomManager.togglePossession(player);
+            context.assertEquals(KingdomManager.possessedHero(player), assassin, "Assassin possession is active");
+            context.assertFalse(KingdomRelicEffects.recall(player), "Recall is denied while possessing an assassin");
+            KingdomManager.togglePossession(player);
             context.assertTrue(KingdomRelicEffects.recall(player), "First recall succeeds after setting a base");
             context.assertEquals(player.getBlockPos().withY(0), center.withY(0), "Recall lands at the kingdom center");
             context.assertFalse(KingdomRelicEffects.recall(player), "Second recall on the same day fails");
@@ -80,6 +92,7 @@ public final class KingdomRelicsGameTest {
             context.assertTrue(KingdomRelicEffects.recall(player), "Recall works again the next day");
             context.complete();
         } finally {
+            KingdomManager.clearPossession(player);
             world.setTimeOfDay(time);
             ownership.releaseId(player.getUuid(), RelicRegistry.COMPASS);
             KingdomData.getOrCreate(world).remove(player.getUuid());
@@ -133,6 +146,10 @@ public final class KingdomRelicsGameTest {
                 SyncedClientOptions.createDefault()) {
             @Override
             public void sendMessage(Text text, boolean overlay) {
+            }
+
+            @Override
+            public void setCameraEntity(Entity entity) {
             }
 
             @Override
