@@ -162,7 +162,6 @@ public final class StarterSpawn {
             return;
         }
         var starterBuildings = result.buildings();
-        com.kingdomunique.kingdom.KingdomManager.setPopulation(player, 6);
 
         BlockPos spawn = findVillageSpawn(world, center);
         if (spawn == null) {
@@ -179,6 +178,8 @@ public final class StarterSpawn {
                 info.heroSummoned(), info.heroSummonCount(), true, info.territoryRadius(),
                 true, info.kingdomName()));
         VillageBuilder.registerStarterBuildings(world, player, starterBuildings, spawn);
+        com.kingdomunique.kingdom.KingdomManager.setPopulation(player,
+                com.kingdomunique.kingdom.PopulationManager.countLivingCitizens(world, player.getUuid(), spawn));
         RETRY_AFTER.remove(player.getUuid());
         player.sendMessage(Text.literal("§6[KingdomUnique] 王国の村が完成した。村の中心に到着した。"), false);
         if (info.kingdomName() == null || info.kingdomName().isEmpty()) {
@@ -219,7 +220,6 @@ public final class StarterSpawn {
             return;
         }
         var starterBuildings = result.buildings();
-        com.kingdomunique.kingdom.KingdomManager.setPopulation(player, 6);
         BlockPos spawn = findVillageSpawn(world, villageCenter);
         if (spawn == null) {
             KingdomUniqueMod.LOGGER.warn("[KingdomUnique] No free spot in village, using center for {}.",
@@ -238,6 +238,8 @@ public final class StarterSpawn {
                 new KingdomData.KingdomInfo(spawn.getX(), spawn.getZ(), 0, 10, 0, false, 0,
                         true, 100, true, ""));
         VillageBuilder.registerStarterBuildings(world, player, starterBuildings, spawn);
+        com.kingdomunique.kingdom.KingdomManager.setPopulation(player,
+                com.kingdomunique.kingdom.PopulationManager.countLivingCitizens(world, player.getUuid(), spawn));
         RETRY_AFTER.remove(player.getUuid());
 
         player.sendMessage(Text.literal("§6[KingdomUnique] この地があなたの王国となった。"
