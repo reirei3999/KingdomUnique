@@ -3,6 +3,7 @@ package com.kingdomunique.effect;
 import com.kingdomunique.data.WorldUniqueData;
 import com.kingdomunique.entity.CitizenVillager;
 import com.kingdomunique.entity.HeroClass;
+import com.kingdomunique.entity.HeroEntity;
 import com.kingdomunique.entity.KingdomGuardianEntity;
 import com.kingdomunique.entity.ModEntities;
 import com.kingdomunique.kingdom.KingdomData;
@@ -12,10 +13,12 @@ import com.kingdomunique.registry.RelicRegistry;
 import com.kingdomunique.war.KingdomDiplomacyState;
 import com.mojang.authlib.GameProfile;
 import net.fabricmc.fabric.api.gametest.v1.FabricGameTest;
+import net.fabricmc.fabric.api.object.builder.v1.entity.FabricDefaultAttributeRegistry;
 import net.minecraft.block.Blocks;
 import net.minecraft.entity.Entity;
 import net.minecraft.entity.EntityType;
 import net.minecraft.entity.ai.TargetPredicate;
+import net.minecraft.entity.attribute.DefaultAttributeRegistry;
 import net.minecraft.entity.effect.StatusEffects;
 import net.minecraft.network.packet.c2s.common.SyncedClientOptions;
 import net.minecraft.network.packet.s2c.play.PositionFlag;
@@ -74,6 +77,9 @@ public final class KingdomRelicsGameTest {
         var player = player(world);
         var ownership = WorldUniqueData.getOrCreate(world);
         BlockPos center = prepareSnowyLanding(context);
+        if (!DefaultAttributeRegistry.hasDefinitionFor(ModEntities.HERO)) {
+            FabricDefaultAttributeRegistry.register(ModEntities.HERO, HeroEntity.createHeroAttributes());
+        }
         var assassin = context.spawnMob(ModEntities.HERO, new BlockPos(2, 2, 2));
         assassin.setOwnerUuid(player.getUuid());
         assassin.setHeroClass(HeroClass.ASSASSIN);
