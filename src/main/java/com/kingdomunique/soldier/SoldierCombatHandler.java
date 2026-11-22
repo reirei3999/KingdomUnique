@@ -56,7 +56,7 @@ public final class SoldierCombatHandler {
                     || !(soldier instanceof CitizenVillager citizen)
                     || !CitizenVillager.ROLE_SOLDIER.equals(citizen.ku$getRole())
                     || !soldier.isAlive()
-                    || soldier.isAiDisabled()) {
+                    || com.kingdomunique.ability.TimeRulerAbility.isFrozen(soldier)) {
                 continue;
             }
             // 武器が消えないよう自動拾得を禁止する。
