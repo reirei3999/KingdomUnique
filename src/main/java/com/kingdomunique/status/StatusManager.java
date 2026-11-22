@@ -7,9 +7,8 @@ import com.kingdomunique.building.BuildingManager;
 import com.kingdomunique.building.BuildingValidator;
 import com.kingdomunique.building.KingdomBuildingState;
 import com.kingdomunique.building.StructureRotationUtil;
-import com.kingdomunique.data.AbilityUsageData;
 import com.kingdomunique.data.WorldUniqueData;
-import com.kingdomunique.kingdom.PopulationManager;
+import com.kingdomunique.kingdom.KingdomManager;
 import com.kingdomunique.network.BuildingBoxesSyncPayload;
 import com.kingdomunique.network.KingdomPopulationSyncPayload;
 import com.kingdomunique.network.RequestStatusPayload;
@@ -89,22 +88,17 @@ public final class StatusManager {
         if (!ServerPlayNetworking.canSend(player, KingdomPopulationSyncPayload.ID)) {
             return;
         }
+        ServerPlayNetworking.send(player, populationPayload(player, world));
+    }
+
+    public static KingdomPopulationSyncPayload populationPayload(ServerPlayerEntity player, ServerWorld world) {
         java.util.UUID kingId = player.getUuid();
-        net.minecraft.util.math.BlockPos center = player.getBlockPos();
-        for (KingdomBuildingState.CompletedBuilding b : KingdomBuildingState.get(world).entries()) {
-            if (b.ownerUuid.equals(kingId) && b.type == com.kingdomunique.building.BuildingType.TOWN_HALL) {
-                center = b.origin;
-                break;
-            }
-        }
-        int current = PopulationManager.countLivingCitizens(world, kingId, center);
-        int max = PopulationManager.calculateMaxPopulation(world, kingId);
+        var info = KingdomManager.getOrCreate(player);
         int emeralds = com.kingdomunique.world.KingdomTreasuryUtil.countTreasuryItem(
                 world, kingId, net.minecraft.item.Items.EMERALD);
         int bread = com.kingdomunique.world.KingdomTreasuryUtil.countTreasuryItem(
                 world, kingId, net.minecraft.item.Items.BREAD);
-        ServerPlayNetworking.send(player,
-                new KingdomPopulationSyncPayload(current, max, emeralds, bread));
+        return new KingdomPopulationSyncPayload(info.population(), info.populationCap(), emeralds, bread);
     }
 
     /** 建築開始・完了時に即座に占有範囲を同期する（10tick待ちを不要にする）。 */
@@ -137,8 +131,8 @@ public final class StatusManager {
         if (!ServerPlayNetworking.canSend(player, SyncPlayerStatusPayload.ID)) {
             return;
         }
-        ServerWorld overworld = player.getServer().getOverworld();
-        WorldUniqueData data = WorldUniqueData.getOrCreate(overworld);
+        WorldUniqueData data = WorldUniqueData.getOrCreate(
+                player.getServer().getWorld(World.OVERWORLD));
         List<String> owned = new ArrayList<>(data.getClaimedIds(player.getUuid()));
 
         String abilityId = UniqueContentRegistry.getActiveAbility(player);
@@ -149,7 +143,7 @@ public final class StatusManager {
         long now = player.getServerWorld().getTime();
         int cooldown = 0;
         if (abilityId != null) {
-            long ready = AbilityUsageData.getOrCreate(overworld).getReadyTick(player.getUuid(), abilityId);
+            long ready = state.getReadyTick(abilityId);
             if (ready > now) {
                 cooldown = (int) (ready - now);
             }

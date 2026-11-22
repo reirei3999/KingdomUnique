@@ -2,6 +2,8 @@ package com.kingdomunique.ability;
 
 import net.minecraft.entity.LivingEntity;
 
+import java.util.HashMap;
+import java.util.Map;
 import java.util.UUID;
 
 /** プレイヤーごとの能力ランタイム状態（サーバー側のみ）。 */
@@ -17,6 +19,9 @@ public final class PlayerAbilityState {
     private UUID gravityTarget = null;
     private LivingEntity gravityHeldEntity = null;
     private long gravityReleaseAt = 0L;
+
+    /** クールタイム厳密化用: 能力ID -> 次回発動可能ティック（world.getTime()基準）。 */
+    private final Map<String, Long> readyTicks = new HashMap<>();
 
     PlayerAbilityState() {
     }
@@ -100,5 +105,15 @@ public final class PlayerAbilityState {
 
     public void setGravityReleaseAt(long value) {
         gravityReleaseAt = value;
+    }
+
+    /** 指定能力の次回発動可能ティックを設定する。 */
+    public void setReadyTick(String abilityId, long tick) {
+        readyTicks.put(abilityId, tick);
+    }
+
+    /** 指定能力の次回発動可能ティック（未設定なら0）。 */
+    public long getReadyTick(String abilityId) {
+        return readyTicks.getOrDefault(abilityId, 0L);
     }
 }

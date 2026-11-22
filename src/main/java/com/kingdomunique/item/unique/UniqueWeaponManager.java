@@ -177,6 +177,7 @@ public final class UniqueWeaponManager {
 
     private static ItemStack uniqueStack(String id) {
         return switch (id) {
+            case "trishula" -> new ItemStack(UniqueWeapons.TRISHULA);
             case "excalibur" -> new ItemStack(UniqueWeapons.EXCALIBUR);
             case "gae_bolg" -> new ItemStack(UniqueWeapons.GAE_BOLG);
             case "muramasa" -> new ItemStack(UniqueWeapons.MURAMASA);

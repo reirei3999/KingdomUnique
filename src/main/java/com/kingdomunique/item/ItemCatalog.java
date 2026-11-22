@@ -38,6 +38,7 @@ public final class ItemCatalog {
         ENTRIES.add(new Entry("slaughter_blade", "殺戮の宝剣（遺物）", () -> new ItemStack(ModItems.SLAUGHTER_BLADE)));
         ENTRIES.add(new Entry("destruction_pickaxe", "破壊衝動のツルハシ（呪物）",
                 () -> new ItemStack(ModItems.DESTRUCTION_PICKAXE)));
+        ENTRIES.add(new Entry("trishula", "トリシューラ", () -> new ItemStack(UniqueWeapons.TRISHULA)));
         ENTRIES.add(new Entry("excalibur", "エクスカリバー", () -> new ItemStack(UniqueWeapons.EXCALIBUR)));
         ENTRIES.add(new Entry("gae_bolg", "ゲイボルグ", () -> new ItemStack(UniqueWeapons.GAE_BOLG)));
         ENTRIES.add(new Entry("muramasa", "ムラマサ", () -> new ItemStack(UniqueWeapons.MURAMASA)));

@@ -6,12 +6,14 @@
   "entrypoints": {
     "fabric-gametest": [
       "com.kingdomunique.ability.AbilityCleanupGameTest",
+      "com.kingdomunique.ability.NewUniqueSkillsGameTest",
       "com.kingdomunique.ability.HeroGameTest",
       "com.kingdomunique.building.BlueprintGameTest",
       "com.kingdomunique.building.StructureFootprintGameTest",
       "com.kingdomunique.building.BuildingEffectAllyGameTest",
       "com.kingdomunique.soldier.SoldierOrderGameTest",
       "com.kingdomunique.world.VillagePlacementGameTest",
+      "com.kingdomunique.world.VillageFixtureGameTest",
       "com.kingdomunique.world.CitizenMovementGameTest",
       "com.kingdomunique.effect.GoldenScaleGameTest",
       "com.kingdomunique.effect.ChaliceGameTest",
@@ -27,6 +29,7 @@
       "com.kingdomunique.compat.jei.JeiLanguageGameTest",
       "com.kingdomunique.unique.UniqueWeaponGrantGameTest",
       "com.kingdomunique.unique.ApolloBowGameTest",
+      "com.kingdomunique.unique.TrishulaGameTest",
       "com.kingdomunique.unique.NewUniqueWeaponsGameTest",
       "com.kingdomunique.selection.GluttonyRingGameTest",
       "com.kingdomunique.effect.KingdomRelicsGameTest",

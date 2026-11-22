@@ -19,12 +19,13 @@ import net.minecraft.util.math.Box;
 import net.minecraft.world.World;
 
 import java.util.List;
+import java.util.Map;
 import java.util.UUID;
+import java.util.WeakHashMap;
 
 /** 完成建築の内政・防衛・英雄効果（Gemini 提示を既存システム向けに調整）。 */
 public final class BuildingEffectHandler {
-
-    private static long tick = 0L;
+    private static final Map<ServerWorld, Long> LAST_EVALUATED_TIMES = new WeakHashMap<>();
 
     private BuildingEffectHandler() {
     }
@@ -52,13 +53,12 @@ public final class BuildingEffectHandler {
 
     /** 完了済み建築の定期効果（5秒ごと）。 */
     public static void tick(MinecraftServer server) {
-        if (++tick % 100L != 0L) {
-            return;
-        }
         for (ServerWorld world : server.getWorlds()) {
-            if (world.getRegistryKey() != World.OVERWORLD) {
+            if (world.getRegistryKey() != World.OVERWORLD || world.getTime() % 100L != 0L
+                    || world.getTime() == LAST_EVALUATED_TIMES.getOrDefault(world, Long.MIN_VALUE)) {
                 continue;
             }
+            LAST_EVALUATED_TIMES.put(world, world.getTime());
             CompletedBuildingsData data = CompletedBuildingsData.getOrCreate(world);
             for (CompletedBuildingsData.Entry entry : data.entries()) {
                 Box area = new Box(entry.pos()).expand(32.0D, 16.0D, 32.0D);

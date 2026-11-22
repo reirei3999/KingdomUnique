@@ -25,6 +25,9 @@ public final class SelectionIcons {
             case "shadow_step" -> new ItemStack(Items.WITHER_SKELETON_SKULL);
             case "absolute_dominion" -> new ItemStack(Items.TOTEM_OF_UNDYING);
             case "gravity_control" -> new ItemStack(Items.ANVIL);
+            case "time_ruler" -> new ItemStack(Items.CLOCK);
+            case "alchemy" -> new ItemStack(Items.BREWING_STAND);
+            case "weather_control" -> new ItemStack(Items.LIGHTNING_ROD);
             case "chalice_of_abundance" -> new ItemStack(Items.GOLDEN_APPLE);
             case "banner_of_victory" -> new ItemStack(Items.RED_BANNER);
             case "sages_blueprint" -> new ItemStack(Items.MAP);
@@ -69,6 +72,9 @@ public final class SelectionIcons {
             case "shadow_step" -> new String[]{"敵の背後にワープ", "次攻撃1.5倍"};
             case "absolute_dominion" -> new String[]{"敵Mobを味方化", "_automatic追従AI"};
             case "gravity_control" -> new String[]{"敵を浮かせて拘束", "投擲で吹き飛ばす"};
+            case "time_ruler" -> new String[]{"周囲8マスの敵を3秒停止", "クールタイム40秒"};
+            case "alchemy" -> new String[]{"手持ちブロックを1段上の素材へ", "1日10回まで"};
+            case "weather_control" -> new String[]{"晴れ・雨・雷雨を切替", "CT ゲーム内1日"};
             case "chalice_of_abundance" -> new String[]{"NPC回復2倍", "空腹ステータス効果解除"};
             case "banner_of_victory" -> new String[]{"兵士攻撃1.2倍", "英雄枠+1"};
             case "sages_blueprint" -> new String[]{"建築時間半減", "建築士効率2倍"};

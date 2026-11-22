@@ -36,6 +36,7 @@ public final class SoldierOrderManager {
         }
     }
 
+    private static final double ORDER_MOVEMENT_SPEED = 0.75D;
     private static final Map<UUID, BlockPos> MOVE_ORDERS = new HashMap<>();
     private static final Map<UUID, OrderStance> STANCES = new HashMap<>();
 
@@ -76,7 +77,8 @@ public final class SoldierOrderManager {
             for (VillagerEntity soldier : targets) {
                 MOVE_ORDERS.put(soldier.getUuid(), dest);
                 STANCES.put(soldier.getUuid(), OrderStance.HOLD);
-                soldier.getNavigation().startMovingTo(dest.getX() + 0.5D, dest.getY(), dest.getZ() + 0.5D, 1.1D);
+                soldier.getNavigation().startMovingTo(
+                        dest.getX() + 0.5D, dest.getY(), dest.getZ() + 0.5D, ORDER_MOVEMENT_SPEED);
             }
             world.spawnParticles(ParticleTypes.END_ROD, dest.getX() + 0.5D, dest.getY() + 1.2D,
                     dest.getZ() + 0.5D, 20, 0.3D, 0.8D, 0.3D, 0.02D);
@@ -140,7 +142,7 @@ public final class SoldierOrderManager {
             BlockPos hold = MOVE_ORDERS.get(id);
             if (hold != null && !isAtHoldPosition(soldier, hold)) {
                 soldier.getNavigation().startMovingTo(hold.getX() + 0.5D, hold.getY(),
-                        hold.getZ() + 0.5D, 1.05D);
+                        hold.getZ() + 0.5D, ORDER_MOVEMENT_SPEED);
             }
         } else if (stance == OrderStance.FOLLOW) {
             UUID owner = KingdomWarTargetHelper.getOwnerUuid(soldier);
@@ -149,7 +151,7 @@ public final class SoldierOrderManager {
                 if (king != null && king.getServerWorld() == world) {
                     double distSq = soldier.squaredDistanceTo(king);
                     if (distSq > 16.0D && distSq < 2500.0D) {
-                        soldier.getNavigation().startMovingTo(king, 1.1D);
+                        soldier.getNavigation().startMovingTo(king, ORDER_MOVEMENT_SPEED);
                     }
                 }
             }
