@@ -32,6 +32,7 @@
     "StatusEffectMixin",
     "SpawnRestrictionMixin",
     "SmithingTransformRecipeMixin",
+    "SoldierBrainMixin",
     "TrishulaDamageMixin",
     "StormRaidMixin",
     "UniqueWeaponMixin",

@@ -9,6 +9,7 @@ import net.fabricmc.fabric.api.gametest.v1.FabricGameTest;
 import net.minecraft.block.Blocks;
 import net.minecraft.entity.EntityType;
 import net.minecraft.entity.EquipmentSlot;
+import net.minecraft.entity.ai.brain.Activity;
 import net.minecraft.entity.ai.brain.MemoryModuleType;
 import net.minecraft.entity.ai.brain.WalkTarget;
 import net.minecraft.entity.passive.VillagerEntity;
@@ -45,7 +46,10 @@ public final class SoldierOrderGameTest {
                 "A bow without an attack modifier must retain its enhancement scaling");
         var target = context.spawnEntity(EntityType.CREEPER, 3.0f, y, 1.5f);
         target.setAiDisabled(true);
-        context.runAtTick(21, () -> {
+        context.runAtEveryTick(() -> {
+            if (target.getHealth() == target.getMaxHealth()) {
+                return;
+            }
             context.assertTrue(Math.abs((target.getMaxHealth() - target.getHealth()) - expected) < 0.0001F,
                     "The soldier's actual melee hit must apply enhancement only once");
             System.out.println("Soldier enhanced diamond sword +3: expected=" + expected
@@ -63,14 +67,35 @@ public final class SoldierOrderGameTest {
         var soldier = soldier(context, king(context, y), 1.5f, y, 1.5f);
         var enemy = context.spawnEntity(EntityType.HUSK, 9.5f, y, 1.5f);
         enemy.setAiDisabled(true);
+        var civilian = soldier(context, king(context, y), 3.5f, y, 3.5f);
+        ((CitizenVillager) civilian).ku$setRole(CitizenVillager.ROLE_BUILDER);
+        var soldierPos = soldier.getPos();
+        var civilianPos = civilian.getPos();
+        context.runAtEveryTick(() -> {
+            soldier.setPosition(soldierPos);
+            civilian.setPosition(civilianPos);
+        });
 
-        context.runAtTick(12, () -> {
-            context.assertEquals(soldier.getTarget(), enemy, "The soldier must target the hostile mob");
-            context.assertTrue(soldier.getNavigation().isFollowingPath(), "The soldier must pursue the hostile mob");
-            context.assertEquals(soldier.getMoveControl().getSpeed(), 0.65D,
-                    "The soldier must pursue the hostile mob at the reduced speed");
+        for (int tick = 12; tick <= 50; tick++) {
+            context.runAtTick(tick, () -> {
+                context.assertEquals(soldier.getTarget(), enemy, "The soldier must target the hostile mob");
+                context.assertTrue(soldier.getNavigation().isFollowingPath(), "The soldier must pursue the hostile mob");
+                context.assertEquals(soldier.getMoveControl().getSpeed(), 0.65D,
+                        "The soldier must pursue the hostile mob at the reduced speed");
+                context.assertFalse(soldier.getBrain().hasActivity(Activity.PANIC),
+                        "A soldier must not enter civilian panic during combat");
+                context.assertFalse(soldier.getBrain().hasMemoryModule(MemoryModuleType.WALK_TARGET),
+                        "Civilian walk targets must not override combat navigation");
+            });
+        }
+        context.runAtTick(51, () -> {
+            context.assertEquals(soldier.getBrain().getOptionalMemory(MemoryModuleType.NEAREST_HOSTILE).orElse(null),
+                    enemy, "The soldier's hostile sensor must have detected the husk");
+            context.assertTrue(civilian.getBrain().hasActivity(Activity.PANIC),
+                    "Non-soldier citizens must still panic near hostiles");
             enemy.discard();
             soldier.discard();
+            civilian.discard();
             context.complete();
         });
     }
