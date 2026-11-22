@@ -3,6 +3,7 @@ package com.kingdomunique.soldier;
 import com.kingdomunique.entity.CitizenVillager;
 import com.kingdomunique.item.ModItems;
 import com.kingdomunique.network.SoldierOrderPayload;
+import com.kingdomunique.util.EnhancementUtil;
 import com.mojang.authlib.GameProfile;
 import net.fabricmc.fabric.api.gametest.v1.FabricGameTest;
 import net.minecraft.block.Blocks;
@@ -12,6 +13,7 @@ import net.minecraft.entity.ai.brain.MemoryModuleType;
 import net.minecraft.entity.ai.brain.WalkTarget;
 import net.minecraft.entity.passive.VillagerEntity;
 import net.minecraft.item.ItemStack;
+import net.minecraft.item.Items;
 import net.minecraft.network.packet.c2s.common.SyncedClientOptions;
 import net.minecraft.server.network.ServerPlayerEntity;
 import net.minecraft.test.GameTest;
@@ -22,6 +24,34 @@ import net.minecraft.util.math.BlockPos;
 import java.util.UUID;
 
 public final class SoldierOrderGameTest {
+    @GameTest(templateName = FabricGameTest.EMPTY_STRUCTURE, tickLimit = 40)
+    public void enhancedSwordDamageCountsEnhancementOnce(TestContext context) {
+        int y = 80;
+        floor(context, y);
+        var soldier = soldier(context, king(context, y), 1.5f, y, 1.5f);
+        soldier.setAiDisabled(true);
+        ItemStack sword = EnhancementUtil.applyLevel(new ItemStack(Items.DIAMOND_SWORD), 0, 3);
+        soldier.equipStack(EquipmentSlot.MAINHAND, sword);
+        float expected = (float) (1.0D + 6.0D * EnhancementUtil.multiplier(3));
+        context.assertTrue(Math.abs(SoldierCombatHandler.calculateWeaponDamage(sword) - expected) < 0.0001F,
+                "Sword damage must use the already-enhanced modifier exactly once");
+        context.assertEquals(SoldierCombatHandler.calculateWeaponDamage(new ItemStack(Items.DIAMOND_SWORD)),
+                7.0F, "An unenhanced sword must keep its damage");
+        context.assertEquals(SoldierCombatHandler.calculateWeaponDamage(ItemStack.EMPTY),
+                2.0F, "An empty hand must keep its minimum damage");
+        var target = context.spawnEntity(EntityType.CREEPER, 3.0f, y, 1.5f);
+        target.setAiDisabled(true);
+        context.runAtTick(21, () -> {
+            context.assertTrue(Math.abs((target.getMaxHealth() - target.getHealth()) - expected) < 0.0001F,
+                    "The soldier's actual melee hit must apply enhancement only once");
+            System.out.println("Soldier enhanced diamond sword +3: expected=" + expected
+                    + ", dealt=" + (target.getMaxHealth() - target.getHealth()));
+            target.discard();
+            soldier.discard();
+            context.complete();
+        });
+    }
+
     @GameTest(templateName = FabricGameTest.EMPTY_STRUCTURE, tickLimit = 240)
     public void soldierWaitsAfterMovingAndReturnsAfterCombat(TestContext context) {
         for (int x = 0; x <= 10; x++) {
