@@ -1,6 +1,8 @@
 package com.kingdomunique.compat.jei;
 
+import com.kingdomunique.building.BlueprintBlock;
 import com.kingdomunique.building.BuildingType;
+import com.kingdomunique.item.ModItems;
 import com.kingdomunique.item.unique.UniqueWeapon;
 import com.kingdomunique.trade.TradeRewardFactory;
 import com.kingdomunique.trade.TradeDisplayOffers;
@@ -13,6 +15,7 @@ import mezz.jei.api.registration.IRecipeCategoryRegistration;
 import mezz.jei.api.registration.IRecipeCatalystRegistration;
 import mezz.jei.api.registration.IRecipeRegistration;
 import mezz.jei.api.runtime.IJeiRuntime;
+import net.minecraft.item.BlockItem;
 import net.minecraft.item.Item;
 import net.minecraft.item.ItemStack;
 import net.minecraft.item.Items;
@@ -21,6 +24,7 @@ import net.minecraft.text.Text;
 import net.minecraft.util.Identifier;
 
 import java.util.ArrayList;
+import java.util.Comparator;
 import java.util.List;
 import java.util.Locale;
 import java.util.Optional;
@@ -43,12 +47,29 @@ public final class KingdomJeiPlugin implements IModPlugin {
 
     @Override
     public void onRuntimeAvailable(IJeiRuntime runtime) {
-        List<ItemStack> items = Registries.ITEM.getIds().stream()
-                .filter(id -> id.getNamespace().equals("kingdomunique"))
-                .map(id -> new ItemStack(Registries.ITEM.get(id))).toList();
+        List<ItemStack> items = orderedIngredients();
         if (!items.isEmpty()) {
             runtime.getIngredientManager().addIngredientsAtRuntime(VanillaTypes.ITEM_STACK, items);
         }
+    }
+
+    static List<ItemStack> orderedIngredients() {
+        return Registries.ITEM.getIds().stream()
+                .filter(id -> id.getNamespace().equals("kingdomunique"))
+                .sorted(Comparator.comparingInt((Identifier id) -> ingredientGroup(Registries.ITEM.get(id)))
+                        .thenComparing(Identifier::getPath))
+                .map(id -> new ItemStack(Registries.ITEM.get(id)))
+                .toList();
+    }
+
+    private static int ingredientGroup(Item item) {
+        if (item instanceof UniqueWeapon || item == ModItems.SLAUGHTER_BLADE) {
+            return 0;
+        }
+        if (item instanceof BlockItem blockItem && blockItem.getBlock() instanceof BlueprintBlock) {
+            return 1;
+        }
+        return 2;
     }
 
     @Override
