@@ -19,11 +19,15 @@ import net.minecraft.entity.ItemEntity;
 import net.minecraft.entity.passive.CowEntity;
 import net.minecraft.item.ItemStack;
 import net.minecraft.item.Items;
+import net.minecraft.network.ClientConnection;
+import net.minecraft.network.NetworkSide;
 import net.minecraft.network.packet.c2s.common.SyncedClientOptions;
 import net.minecraft.nbt.NbtCompound;
 import net.minecraft.nbt.NbtElement;
 import net.minecraft.registry.tag.BiomeTags;
 import net.minecraft.server.network.ServerPlayerEntity;
+import net.minecraft.server.network.ConnectedClientData;
+import net.minecraft.server.network.ServerPlayNetworkHandler;
 import net.minecraft.server.world.ServerWorld;
 import net.minecraft.state.property.Properties;
 import net.minecraft.text.Text;
@@ -41,6 +45,195 @@ import java.util.List;
 import java.util.UUID;
 
 public final class VillagePlacementGameTest {
+    @GameTest(templateName = FabricGameTest.EMPTY_STRUCTURE, batchId = "citizen_death_reload")
+    public void dyingCitizenReloadDoesNotLosePopulationTwice(TestContext context) {
+        ServerWorld world = context.getWorld();
+        BlockPos pos = context.getAbsolutePos(new BlockPos(1, 3, 1));
+        UUID owner = UUID.randomUUID();
+        KingdomData data = KingdomData.getOrCreate(world.getServer().getOverworld());
+        data.put(owner, new KingdomData.KingdomInfo(pos.getX(), pos.getZ(), 2, 10, 0,
+                false, 0, true, 100, true, ""));
+        var victim = populationCitizen(world, pos, owner);
+        try {
+            context.assertTrue(!((com.kingdomunique.entity.CitizenVillager) victim)
+                    .ku$isPopulationLossCounted(), "New citizens must not have a counted loss");
+            victim.setHealth(0);
+            victim.onDeath(world.getDamageSources().generic());
+            victim.tick();
+            context.assertTrue(data.get(owner).population() == 1, "Death must free one slot");
+            NbtCompound saved = new NbtCompound();
+            context.assertTrue(victim.saveNbt(saved), "Dying citizens can be saved before removal");
+            context.assertTrue(saved.getFloat("Health") == 0 && saved.getShort("DeathTime") > 0,
+                    "Save must preserve the death animation");
+            victim.remove(net.minecraft.entity.Entity.RemovalReason.UNLOADED_TO_CHUNK);
+            data.put(owner, new KingdomData(data.writeNbt(new NbtCompound(), world.getRegistryManager())).get(owner));
+            var reloaded = EntityType.VILLAGER.create(world);
+            reloaded.readNbt(saved);
+            world.spawnEntity(reloaded);
+            try {
+                context.assertTrue(reloaded != victim && reloaded.isDead(), "Reload must create a dying instance");
+                for (int tick = 0; tick < 25 && !reloaded.isRemoved(); tick++) {
+                    reloaded.tick();
+                }
+                context.assertTrue(reloaded.isRemoved(), "Reloaded corpse must finish its death animation");
+                context.assertTrue(data.get(owner).population() == 1,
+                        "Removal of a reloaded corpse must not decrement population again");
+            } finally {
+                reloaded.discard();
+            }
+        } finally {
+            data.remove(owner);
+            victim.discard();
+        }
+        context.complete();
+    }
+
+    @GameTest(templateName = FabricGameTest.EMPTY_STRUCTURE, batchId = "citizen_conversion")
+    public void citizenConversionAndRemovalCountEachLossOnce(TestContext context) {
+        ServerWorld world = context.getWorld();
+        BlockPos pos = context.getAbsolutePos(new BlockPos(1, 3, 1));
+        UUID owner = UUID.randomUUID();
+        ServerPlayerEntity player = new ServerPlayerEntity(world.getServer(), world,
+                new GameProfile(owner, "conversion_test"), SyncedClientOptions.createDefault());
+        KingdomData data = KingdomData.getOrCreate(world.getServer().getOverworld());
+        data.put(owner, new KingdomData.KingdomInfo(pos.getX(), pos.getZ(), 3, 3, 0,
+                false, 0, true, 100, true, ""));
+        var difficulty = world.getDifficulty();
+        try {
+            world.getServer().setDifficulty(net.minecraft.world.Difficulty.HARD, true);
+            context.assertTrue(world.getServer().getPlayerManager().getPlayer(owner) == null,
+                    "The citizen owner must be offline");
+            var lightningVictim = populationCitizen(world, pos, owner);
+            var lightning = EntityType.LIGHTNING_BOLT.create(world);
+            lightningVictim.onStruckByLightning(world, lightning);
+            context.assertTrue(lightningVictim.isRemoved(), "Lightning must remove the original villager");
+            context.assertTrue(world.getEntitiesByClass(net.minecraft.entity.mob.WitchEntity.class,
+                    new Box(pos).expand(8), witch -> true).size() == 1, "Lightning must create a witch");
+            context.assertTrue(data.get(owner).population() == 2,
+                    "Witch conversion must free one population slot for an offline owner");
+            var hud = com.kingdomunique.status.StatusManager.populationPayload(player, world);
+            context.assertTrue(hud.currentPopulation() == 2 && hud.maxPopulation() == 3,
+                    "HUD must show the freed slot");
+
+            var zombieVictim = populationCitizen(world, pos, owner);
+            var zombie = EntityType.ZOMBIE.create(world);
+            zombieVictim.setHealth(0);
+            zombieVictim.onDeath(world.getDamageSources().mobAttack(zombie));
+            context.assertTrue(zombieVictim.isRemoved(), "Zombie kill must convert the villager");
+            context.assertTrue(world.getEntitiesByClass(net.minecraft.entity.mob.ZombieVillagerEntity.class,
+                    new Box(pos).expand(8), converted -> true).size() == 1,
+                    "Hard-difficulty zombie kill must create a zombie villager");
+            context.assertTrue(data.get(owner).population() == 1,
+                    "Zombie conversion followed by AFTER_DEATH must count only once");
+
+            var unloaded = populationCitizen(world, pos, owner);
+            unloaded.remove(net.minecraft.entity.Entity.RemovalReason.UNLOADED_TO_CHUNK);
+            context.assertTrue(data.get(owner).population() == 1, "Chunk unloading must not lose a citizen");
+            var discarded = populationCitizen(world, pos, owner);
+            discarded.discard();
+            context.assertTrue(data.get(owner).population() == 0, "Permanent discard must lose one citizen");
+            populationCitizen(world, pos, UUID.randomUUID()).discard();
+            context.assertTrue(data.get(owner).population() == 0, "Unknown owners must not affect this kingdom");
+        } finally {
+            data.remove(owner);
+            world.getServer().setDifficulty(difficulty, true);
+            for (var entity : world.getEntitiesByClass(net.minecraft.entity.LivingEntity.class,
+                    new Box(pos).expand(8), entity -> true)) {
+                entity.discard();
+            }
+        }
+        context.complete();
+    }
+
+    private static net.minecraft.entity.passive.VillagerEntity populationCitizen(
+            ServerWorld world, BlockPos pos, UUID owner) {
+        var citizen = EntityType.VILLAGER.create(world);
+        citizen.refreshPositionAndAngles(pos.getX() + 0.5, pos.getY(), pos.getZ() + 0.5, 0, 0);
+        citizen.setAiDisabled(true);
+        ((com.kingdomunique.entity.CitizenVillager) citizen).ku$setOwnerUuid(owner.toString());
+        world.spawnEntity(citizen);
+        return citizen;
+    }
+
+    @GameTest(templateName = FabricGameTest.EMPTY_STRUCTURE, batchId = "starter_population")
+    public void starterPopulationSurvivesReloadAndMatchesRecruitment(TestContext context) {
+        ServerWorld world = context.getWorld();
+        BlockPos center = new BlockPos(2400, 100, 2400);
+        for (int x = -48; x <= 48; x++) {
+            for (int z = -48; z <= 48; z++) {
+                world.setBlockState(center.add(x, 0, z), Blocks.STONE.getDefaultState(), Block.NOTIFY_LISTENERS);
+            }
+        }
+        UUID owner = UUID.randomUUID();
+        ServerPlayerEntity player = new ServerPlayerEntity(world.getServer(), world,
+                new GameProfile(owner, "population_test"), SyncedClientOptions.createDefault()) {
+            @Override
+            public void sendMessage(Text message, boolean overlay) {
+            }
+        };
+        new ServerPlayNetworkHandler(world.getServer(), new ClientConnection(NetworkSide.SERVERBOUND), player,
+                ConnectedClientData.createDefault(player.getGameProfile(), false));
+        player.refreshPositionAndAngles(center.getX(), center.getY() + 1, center.getZ(), 0, 0);
+        KingdomData data = KingdomData.getOrCreate(world.getServer().getOverworld());
+        var forcedBefore = new LongOpenHashSet(world.getForcedChunks());
+        data.put(owner, new KingdomData.KingdomInfo(center.getX(), center.getZ(), 4, 10, 0,
+                false, 0, true, 100, false, ""));
+        try {
+            StarterSpawn.ensureVillage(player, world, data, data.get(owner));
+            int actual = com.kingdomunique.kingdom.PopulationManager.countLivingCitizens(world, owner, center);
+            context.assertTrue(actual == 6, "Starter village must have six citizens, got " + actual);
+            context.assertTrue(data.get(owner).population() == actual,
+                    "Village registration must not overwrite the citizen population with stale data");
+            KingdomManager.addHouse(player);
+            KingdomManager.addCapBonus(player, 2);
+            KingdomData loaded = new KingdomData(data.writeNbt(new NbtCompound(), world.getRegistryManager()));
+            data.put(owner, loaded.get(owner));
+            var hud = com.kingdomunique.status.StatusManager.populationPayload(player, world);
+            context.assertTrue(hud.currentPopulation() == actual && hud.maxPopulation() == 17,
+                    "Reloaded HUD must use saved population and all cap bonuses");
+            context.assertTrue(com.kingdomunique.kingdom.PopulationManager.calculateMaxPopulation(world, owner)
+                    == hud.maxPopulation(), "Growth and HUD caps must agree");
+            var recruit = EntityType.VILLAGER.create(world);
+            context.assertTrue(recruit != null, "Recruit must be created");
+            recruit.refreshPositionAndAngles(player.getX(), player.getY(), player.getZ(), 0, 0);
+            world.spawnEntity(recruit);
+            player.getInventory().insertStack(new ItemStack(Items.EMERALD, 2));
+            KingdomManager.enlistVillager(player, recruit, null);
+            context.assertTrue(owner.toString().equals(
+                    ((com.kingdomunique.entity.CitizenVillager) recruit).ku$getOwnerUuid()),
+                    "Recruitment below the HUD cap must succeed after reload");
+            context.assertTrue(data.get(owner).population() == actual + 1, "Recruit must increment saved count");
+            recruit.refreshPositionAndAngles(center.getX() + 200, center.getY() + 1, center.getZ(), 0, 0);
+            recruit.damage(world.getDamageSources().genericKill(), 1000.0F);
+            context.assertTrue(data.get(owner).population() == actual,
+                    "Citizen death must decrement saved population even while the owner is offline");
+            KingdomManager.setPopulation(player, 17);
+            var rejected = EntityType.VILLAGER.create(world);
+            world.spawnEntity(rejected);
+            KingdomManager.enlistVillager(player, rejected, null);
+            context.assertTrue(((com.kingdomunique.entity.CitizenVillager) rejected).ku$getOwnerUuid().isEmpty(),
+                    "Recruitment at the saved/HUD cap must be refused");
+            rejected.discard();
+            KingdomManager.setPopulation(player, 0);
+            data.put(owner, new KingdomData(data.writeNbt(new NbtCompound(), world.getRegistryManager())).get(owner));
+            context.assertTrue(com.kingdomunique.status.StatusManager.populationPayload(player, world)
+                    .currentPopulation() == 0, "Empty population must survive reload");
+        } finally {
+            for (var villager : world.getEntitiesByClass(net.minecraft.entity.passive.VillagerEntity.class,
+                    new Box(center).expand(128), v -> owner.toString().equals(
+                            ((com.kingdomunique.entity.CitizenVillager) v).ku$getOwnerUuid()))) {
+                villager.discard();
+            }
+            data.remove(owner);
+            var added = new LongOpenHashSet(world.getForcedChunks());
+            added.removeAll(forcedBefore);
+            for (long pos : added) {
+                world.setChunkForced(ChunkPos.getPackedX(pos), ChunkPos.getPackedZ(pos), false);
+            }
+        }
+        context.complete();
+    }
+
     @GameTest(templateName = FabricGameTest.EMPTY_STRUCTURE)
     public void starterSpawnUsesInitializationStateNotRecordExistence(TestContext context) {
         ServerWorld world = context.getWorld().getServer().getOverworld();
@@ -318,12 +511,18 @@ public final class VillagePlacementGameTest {
         context.complete();
     }
 
-    @GameTest(templateName = FabricGameTest.EMPTY_STRUCTURE)
+    @GameTest(templateName = FabricGameTest.EMPTY_STRUCTURE, batchId = "starter_hall_terrace")
     public void starterHallUsesTerraceInsteadOfBuriedCenterHeight(TestContext context) {
         ServerWorld world = context.getWorld();
         BlockPos center = context.getAbsolutePos(new BlockPos(40, 70, 40));
         for (int x = -18; x <= 18; x++) {
             for (int z = -35; z <= 18; z++) {
+                // 共有テストワールドに残る他テストの建造物が地形を覆うと高さマップが変わるため、先に取り除く。
+                int top = world.getTopY(Heightmap.Type.WORLD_SURFACE, center.getX() + x, center.getZ() + z);
+                for (int y = center.getY(); y < top; y++) {
+                    world.setBlockState(center.add(x, y - center.getY(), z), Blocks.AIR.getDefaultState(),
+                            Block.NOTIFY_LISTENERS | Block.FORCE_STATE | Block.SKIP_DROPS);
+                }
                 int elevation = z <= -8 ? 12 : z <= -1 ? -z : 0;
                 BlockPos ground = center.add(x, elevation, z);
                 world.setBlockState(ground, Blocks.STONE.getDefaultState(), Block.NOTIFY_LISTENERS);
@@ -386,7 +585,7 @@ public final class VillagePlacementGameTest {
                         + " (cleared=" + cleared + ", leveled=" + leveled + ")");
         context.assertTrue(world.getBlockState(outside).isOf(Blocks.OAK_LEAVES),
                 "Site preparation must keep canopy outside the hall footprint");
-        for (BlockPos lantern : List.of(origin.add(5, 6, 4), origin.add(5, 6, 8), origin.add(5, 2, 13))) {
+        for (BlockPos lantern : List.of(origin.add(5, 6, 4), origin.add(5, 6, 8), origin.add(5, 3, 13))) {
             var state = world.getBlockState(lantern);
             context.assertTrue(state.isOf(Blocks.LANTERN) && state.get(LanternBlock.HANGING)
                             && state.canPlaceAt(world, lantern),

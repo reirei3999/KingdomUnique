@@ -39,7 +39,6 @@ public final class KingdomManager {
     private static final Map<UUID, Boolean> PRE_POSSESSION_NO_GRAVITY = new HashMap<>();
     private static final int INITIAL_CAP = 10;
     private static final int MAX_CAP = 40;
-    private static final long GROWTH_INTERVAL = 400L;
 
     private KingdomManager() {
     }
@@ -194,24 +193,6 @@ public final class KingdomManager {
             case CitizenVillager.ROLE_SOLDIER -> "兵士";
             default -> "農民";
         };
-    }
-
-    /** 国民の自然増加（ベッド・食料充足度と繁栄の揺りかごを反映）。 */
-    public static void tickGrowth(MinecraftServer server) {
-        for (ServerPlayerEntity player : server.getPlayerManager().getPlayerList()) {
-            KingdomData.KingdomInfo info = getOrCreate(player);
-            if (info.population() >= info.populationCap()) {
-                continue;
-            }
-            if (player.getServerWorld().getTime() % GROWTH_INTERVAL != 0L) {
-                continue;
-            }
-            double rate = RelicEffects.getPopulationGrowthMultiplier(player);
-            if (ThreadLocalRandom.current().nextDouble() > 0.25D * rate) {
-                continue;
-            }
-            setPopulation(player, info.population() + 1);
-        }
     }
 
     /** 国民死亡時の背徳の契約書ペナルティ。 */
