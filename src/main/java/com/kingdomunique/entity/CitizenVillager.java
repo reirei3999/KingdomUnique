@@ -19,6 +19,10 @@ public interface CitizenVillager {
 
     void ku$setOwnerUuid(String uuid);
 
+    boolean ku$isPopulationLossCounted();
+
+    void ku$setPopulationLossCounted(boolean counted);
+
     /** 兵士の武器をバニラAIから守るためのロック保存（Gemini 提示）。 */
     void ku$setLockedWeapon(ItemStack stack);
 

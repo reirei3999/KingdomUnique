@@ -1,5 +1,6 @@
 package com.kingdomunique.building;
 
+import com.kingdomunique.data.WorldUniqueData;
 import com.kingdomunique.entity.CitizenVillager;
 import com.kingdomunique.entity.HeroEntity;
 import com.kingdomunique.entity.ModEntities;
@@ -10,6 +11,7 @@ import net.minecraft.block.Blocks;
 import net.minecraft.entity.EntityType;
 import net.minecraft.entity.effect.StatusEffects;
 import net.minecraft.entity.passive.VillagerEntity;
+import net.minecraft.item.Items;
 import net.minecraft.network.packet.c2s.common.SyncedClientOptions;
 import net.minecraft.server.network.ServerPlayerEntity;
 import net.minecraft.server.world.ServerWorld;
@@ -17,10 +19,66 @@ import net.minecraft.test.GameTest;
 import net.minecraft.test.TestContext;
 import net.minecraft.util.math.BlockPos;
 import net.minecraft.util.math.Box;
+import net.minecraft.world.World;
 
 import java.util.UUID;
 
 public final class BuildingEffectAllyGameTest {
+    @GameTest(templateName = FabricGameTest.EMPTY_STRUCTURE, batchId = "market_payout")
+    public void marketPaysAtWorldTimeBoundariesRegardlessOfRestartPhase(TestContext context) {
+        var server = context.getWorld().getServer();
+        var world = server.getWorld(World.OVERWORLD);
+        var properties = server.getSaveProperties().getMainWorldProperties();
+        long originalTime = world.getTime();
+        var data = CompletedBuildingsData.getOrCreate(world);
+        var originalEntries = new java.util.ArrayList<>(data.entries());
+        var owner = context.createMockCreativeServerPlayerInWorld();
+        context.assertTrue(server.getPlayerManager().getPlayer(owner.getUuid()) == owner,
+                "Market owner must be online in PlayerManager");
+        try {
+            data.entries().clear();
+            for (long savedTime : new long[]{24037L, 24000L}) {
+                owner.getInventory().clear();
+                data.add(BlockPos.ORIGIN, BuildingType.MARKET, owner.getUuid());
+                for (long time = savedTime + 1; time <= 48001L; time++) {
+                    properties.setTime(time);
+                    BuildingEffectHandler.tick(server);
+                    int expected = time < 36000L ? 0 : time < 48000L ? 3 : 6;
+                    context.assertEquals(owner.getInventory().count(Items.EMERALD), expected,
+                            "Market must pay exactly once per boundary from saved time " + savedTime
+                                    + " at world time " + time);
+                    BuildingEffectHandler.tick(server);
+                    BuildingEffectHandler.tick(server);
+                    context.assertEquals(owner.getInventory().count(Items.EMERALD), expected,
+                            "Repeated calls at frozen world time " + time + " must not pay again");
+                }
+                data.entries().clear();
+            }
+            owner.getInventory().clear();
+            properties.setTime(60000L);
+            BuildingEffectHandler.tick(server);
+            context.assertEquals(owner.getInventory().count(Items.EMERALD), 0,
+                    "No completed market must mean no payout");
+            data.add(BlockPos.ORIGIN, BuildingType.MARKET, UUID.randomUUID());
+            properties.setTime(72000L);
+            BuildingEffectHandler.tick(server);
+            context.assertEquals(owner.getInventory().count(Items.EMERALD), 0,
+                    "An offline owner's market must not pay another player");
+        } finally {
+            properties.setTime(originalTime);
+            data.entries().clear();
+            data.entries().addAll(originalEntries);
+            data.markDirty();
+            var ownership = WorldUniqueData.getOrCreate(world);
+            for (String id : java.util.Set.copyOf(ownership.getClaimedIds(owner.getUuid()))) {
+                ownership.releaseId(owner.getUuid(), id);
+            }
+            server.getPlayerManager().remove(owner);
+            owner.discard();
+        }
+        context.complete();
+    }
+
     @GameTest(templateName = FabricGameTest.EMPTY_STRUCTURE)
     public void infirmaryAndArsenalOnlyAffectOwnerAndAllies(TestContext context) {
         ServerWorld world = context.getWorld();

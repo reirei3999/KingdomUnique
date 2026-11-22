@@ -57,6 +57,11 @@ public final class NewCursesGameTest {
             CurseEffects.applyAttributes(player);
             assertNear(context, player.getAttributeValue(EntityAttributes.GENERIC_MOVEMENT_SPEED),
                     baseSpeed, "Daylight removes the speed bonus");
+            // 共有テストワールドでは他テストの建造物が頭上を塞ぐことがあるため、確実に空が見える高さで検証する。
+            player.refreshPositionAndAngles(context.getAbsolutePos(new BlockPos(1, 0, 1))
+                    .withY(world.getTopY() - 4), 0.0F, 0.0F);
+            context.assertTrue(world.isSkyVisible(BlockPos.ofFloored(player.getEyePos())),
+                    "The sunlight check position must see the sky");
             player.equipStack(EquipmentSlot.HEAD, new ItemStack(Items.IRON_HELMET));
             CurseEffects.tickSunlight(player);
             context.assertTrue(!player.isOnFire(), "A helmet protects against sunlight");

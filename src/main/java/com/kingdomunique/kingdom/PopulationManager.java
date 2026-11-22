@@ -6,6 +6,7 @@ import com.kingdomunique.entity.CitizenVillager;
 import com.kingdomunique.effect.RelicEffects;
 import net.fabricmc.fabric.api.entity.event.v1.ServerLivingEntityEvents;
 import net.fabricmc.fabric.api.event.lifecycle.v1.ServerTickEvents;
+import net.fabricmc.fabric.api.event.lifecycle.v1.ServerEntityEvents;
 import net.minecraft.entity.LivingEntity;
 import net.minecraft.entity.passive.VillagerEntity;
 import net.minecraft.item.ItemStack;
@@ -35,9 +36,6 @@ import java.util.UUID;
  */
 public final class PopulationManager {
 
-    private static final int BASE_POPULATION_CAP = 10;
-    private static final int CAP_PER_HOUSE = 5;
-    private static final int MAX_POPULATION_CAP = 40;
     /** 10分 (12000 tick) ごとに人口増加判定。 */
     private static final long GROWTH_CHECK_INTERVAL = 12000L;
     private static final Map<UUID, Double> GROWTH_PROGRESS = new HashMap<>();
@@ -48,15 +46,18 @@ public final class PopulationManager {
     public static void register() {
         ServerTickEvents.END_WORLD_TICK.register(PopulationManager::onWorldTick);
         ServerLivingEntityEvents.AFTER_DEATH.register(PopulationManager::onEntityDeath);
+        ServerEntityEvents.ENTITY_UNLOAD.register((entity, world) -> {
+            var reason = entity.getRemovalReason();
+            if (reason != null && reason.shouldDestroy() && entity instanceof LivingEntity living) {
+                onCitizenLost(living, false);
+            }
+        });
     }
 
-    /** 住宅数から人口上限を再計算（初期10 + 住宅数*5、最大40）。初期村の家は数えない。 */
+    /** 保存された王国の人口上限を返す。 */
     public static int calculateMaxPopulation(ServerWorld world, UUID kingUuid) {
-        KingdomBuildingState buildings = KingdomBuildingState.get(world);
-        long houseCount = buildings.entries().stream()
-                .filter(b -> b.ownerUuid.equals(kingUuid) && b.type == BuildingType.HOUSE && !b.starter)
-                .count();
-        return Math.min(MAX_POPULATION_CAP, BASE_POPULATION_CAP + (int) (houseCount * CAP_PER_HOUSE));
+        return KingdomData.getOrCreate(world.getServer().getOverworld())
+                .getOrCreate(kingUuid, world.getSpawnPos().getX(), world.getSpawnPos().getZ()).populationCap();
     }
 
     /** 生存中の国民エンティティ数を数える（既存 CitizenVillager の所有者判定）。 */
@@ -91,11 +92,9 @@ public final class PopulationManager {
                 continue;
             }
 
-            int currentPop = countLivingCitizens(world, kingId, center);
-            int maxPop = calculateMaxPopulation(world, kingId);
-
-            // 既存 KingdomData と実数を同期（15人トリガーもここで処理される）。
-            KingdomManager.setPopulation(king, currentPop);
+            var info = KingdomManager.getOrCreate(king);
+            int currentPop = info.population();
+            int maxPop = info.populationCap();
 
             if (currentPop >= maxPop || currentPop < 2) {
                 continue;
@@ -142,7 +141,9 @@ public final class PopulationManager {
             c.ku$setRole(CitizenVillager.ROLE_FARMER);
         }
         citizen.setPersistent();
-        world.spawnEntity(citizen);
+        if (!world.spawnEntity(citizen)) {
+            return;
+        }
 
         world.spawnParticles(ParticleTypes.HEART,
                 citizen.getX(), citizen.getBodyY(0.8D), citizen.getZ(),
@@ -150,18 +151,16 @@ public final class PopulationManager {
         king.sendMessage(Text.literal("§a[王国繁栄] 新たな国民が誕生しました！（人口: "
                 + newPop + "/" + maxPop + "）"), false);
 
-        // 15人到達時の遺物選択は setPopulation 側の onTick でも発火するが、
-        // 実際の国民数と同期するためここでも最新値を設定する。
         KingdomManager.setPopulation(king, newPop);
-        // 誕生した瞬間にHUDへ即時反映（Gemini 提示）。
-        net.fabricmc.fabric.api.networking.v1.ServerPlayNetworking.send(king,
-                new com.kingdomunique.network.KingdomPopulationSyncPayload(newPop, maxPop,
-                com.kingdomunique.world.KingdomTreasuryUtil.countTreasuryItem(world, king.getUuid(), Items.EMERALD),
-                com.kingdomunique.world.KingdomTreasuryUtil.countTreasuryItem(world, king.getUuid(), Items.BREAD)));
+        com.kingdomunique.status.StatusManager.syncPopulationToPlayer(king, world);
     }
 
     /** 国民・兵士が死亡したときの人口減少と訃報を通知する。 */
     private static void onEntityDeath(LivingEntity entity, net.minecraft.entity.damage.DamageSource source) {
+        onCitizenLost(entity, true);
+    }
+
+    private static void onCitizenLost(LivingEntity entity, boolean died) {
         if (entity.getWorld().isClient() || !(entity instanceof VillagerEntity villager)
                 || !(villager instanceof CitizenVillager citizen)) {
             return;
@@ -178,21 +177,26 @@ public final class PopulationManager {
         }
         ServerWorld world = (ServerWorld) villager.getWorld();
         ServerPlayerEntity king = world.getServer().getPlayerManager().getPlayer(ownerUuid);
-        BlockPos center = findKingdomCenter(KingdomBuildingState.get(world), ownerUuid,
-                villager.getBlockPos());
-
-        int remaining = countLivingCitizens(world, ownerUuid, center);
-        int maxPop = calculateMaxPopulation(world, ownerUuid);
+        KingdomData data = KingdomData.getOrCreate(world.getServer().getOverworld());
+        var info = data.get(ownerUuid);
+        if (info == null) {
+            return;
+        }
+        if (citizen.ku$isPopulationLossCounted()) {
+            return;
+        }
+        citizen.ku$setPopulationLossCounted(true);
+        int remaining = Math.max(0, info.population() - 1);
+        int maxPop = info.populationCap();
+        data.put(ownerUuid, new KingdomData.KingdomInfo(info.centerX(), info.centerZ(), remaining,
+                maxPop, info.houses(), info.heroSummoned(), info.heroSummonCount(), info.centerSet(),
+                info.territoryRadius(), info.villageGenerated(), info.kingdomName()));
         if (king != null) {
-            KingdomManager.setPopulation(king, remaining);
             String role = CitizenVillager.ROLE_SOLDIER.equals(citizen.ku$getRole()) ? "王国兵士" : "国民";
-            king.sendMessage(Text.literal("§c[訃報] " + role + "が死亡しました…（残り人口: "
+            king.sendMessage(Text.literal((died ? "§c[訃報] " + role + "が死亡しました…" : "§c[王国] 国民が王国を去りました。")
+                    + "（残り人口: "
                     + remaining + "/" + maxPop + "）"), false);
-            // 死亡した瞬間にHUDへ即時反映（Gemini 提示）。
-            net.fabricmc.fabric.api.networking.v1.ServerPlayNetworking.send(king,
-                    new com.kingdomunique.network.KingdomPopulationSyncPayload(remaining, maxPop,
-                    com.kingdomunique.world.KingdomTreasuryUtil.countTreasuryItem(world, ownerUuid, Items.EMERALD),
-                    com.kingdomunique.world.KingdomTreasuryUtil.countTreasuryItem(world, ownerUuid, Items.BREAD)));
+            com.kingdomunique.status.StatusManager.syncPopulationToPlayer(king, world);
         }
     }
 

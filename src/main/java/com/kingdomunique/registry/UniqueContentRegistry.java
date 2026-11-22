@@ -13,7 +13,7 @@ import java.util.List;
 import java.util.Map;
 
 /**
- * 世界で一つだけ存在する12のユニーク能力。
+ * 世界で一つだけ存在するユニーク能力。
  *
  * ステップ3で全種に実際の効果を実装したため、ID一覧をこの12種に統一した。
  */
@@ -54,10 +54,13 @@ public final class UniqueContentRegistry {
         map.put("shadow_step", new UniqueEntry("shadow_step", "影渡り", Category.SPECIAL));
         map.put("absolute_dominion", new UniqueEntry("absolute_dominion", "絶対支配", Category.SPECIAL));
         map.put("gravity_control", new UniqueEntry("gravity_control", "重力操作", Category.SPECIAL));
+        map.put("time_ruler", new UniqueEntry("time_ruler", "時の支配者", Category.SPECIAL));
+        map.put("alchemy", new UniqueEntry("alchemy", "錬金術", Category.PRODUCTION));
+        map.put("weather_control", new UniqueEntry("weather_control", "天候操作", Category.SPECIAL));
         ENTRIES = Collections.unmodifiableMap(map);
     }
 
-    /** 能力12種のID（UNIQUE_IDS はステップ1からの互換名）。 */
+    /** 能力のID（UNIQUE_IDS はステップ1からの互換名）。 */
     public static final List<String> ABILITY_IDS = List.copyOf(ENTRIES.keySet());
     public static final List<String> UNIQUE_IDS = ABILITY_IDS;
 
@@ -74,6 +77,9 @@ public final class UniqueContentRegistry {
     public static final String SHADOW_STEP = "shadow_step";
     public static final String ABSOLUTE_DOMINION = "absolute_dominion";
     public static final String GRAVITY_CONTROL = "gravity_control";
+    public static final String TIME_RULER = "time_ruler";
+    public static final String ALCHEMY = "alchemy";
+    public static final String WEATHER_CONTROL = "weather_control";
 
     private UniqueContentRegistry() {
     }

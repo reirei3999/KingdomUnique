@@ -2,6 +2,7 @@ package com.kingdomunique.mixin;
 
 import com.kingdomunique.ability.AbilityState;
 import com.kingdomunique.ability.PlayerAbilityState;
+import com.kingdomunique.item.unique.UniqueWeaponTriggers;
 import com.kingdomunique.registry.UniqueContentRegistry;
 import com.kingdomunique.util.EnhancementUtil;
 import net.minecraft.server.network.ServerPlayerEntity;
@@ -49,7 +50,11 @@ public abstract class AreaMiningMixin {
                 }
                 BlockPos target = pos.add(dx, 0, dz);
                 if (!world.isAir(target)) {
-                    world.breakBlock(target, true, player);
+                    var brokenState = world.getBlockState(target);
+                    var blockEntity = world.getBlockEntity(target);
+                    if (world.breakBlock(target, true, player)) {
+                        UniqueWeaponTriggers.onTrishulaBlockBreak(world, player, target, brokenState, blockEntity);
+                    }
                 }
             }
         }
