@@ -7,6 +7,12 @@
     "LootChestOriginMixin",
     "AnvilScreenHandlerMixin",
     "AnvilTransferMixin",
+    "ArmorAttributesMixin",
+    "ArmorEnchantingMixin",
+    "ArmorEntityMixin",
+    "ArmorPlayerMixin",
+    "ArmorProjectileMixin",
+    "ArmorTravelMixin",
     "AreaMiningMixin",
     "BowShotMixin",
     "CitizenVillagerMixin",
@@ -28,6 +34,7 @@
     "PoseidonTridentMixin",
     "PhantomSpawnerMixin",
     "RangedDamageMixin",
+    "RavagerKnockbackMixin",
     "ServerPlayerDamageMixin",
     "StatusEffectMixin",
     "SpawnRestrictionMixin",
@@ -36,11 +43,14 @@
     "TrishulaDamageMixin",
     "StormRaidMixin",
     "UniqueWeaponMixin",
+    "VaultUnlockMixin",
     "VillagerBreedTaskMixin",
     "VillagerProfessionMixin",
     "WeaponAttackMixin"
   ],
   "client": [
+    "client.ArmorElytraRendererMixin",
+    "client.ArmorVeilRendererMixin",
     "client.VillagerRendererMixin"
   ],
   "injectors": {

@@ -2,13 +2,17 @@ package com.kingdomunique.trade;
 
 import com.kingdomunique.building.BuildingType;
 import com.kingdomunique.entity.CitizenVillager;
+import com.kingdomunique.item.unique.UniqueArmors;
 import com.kingdomunique.kingdom.KingdomManager;
+import com.kingdomunique.util.EnhancementUtil;
 import net.fabricmc.fabric.api.event.player.UseEntityCallback;
 import net.fabricmc.fabric.api.gametest.v1.FabricGameTest;
 import net.minecraft.entity.EntityType;
 import net.minecraft.entity.passive.VillagerEntity;
+import net.minecraft.item.Item;
 import net.minecraft.item.ItemStack;
 import net.minecraft.item.Items;
+import net.minecraft.registry.Registries;
 import net.minecraft.screen.MerchantScreenHandler;
 import net.minecraft.server.network.ServerPlayerEntity;
 import net.minecraft.test.GameTest;
@@ -25,6 +29,7 @@ import net.minecraft.world.GameMode;
 import java.util.EnumSet;
 import java.util.List;
 import java.util.Optional;
+import java.util.Set;
 
 public final class CitizenMerchantGameTest {
     @GameTest(templateName = FabricGameTest.EMPTY_STRUCTURE)
@@ -164,12 +169,17 @@ public final class CitizenMerchantGameTest {
     }
 
     @GameTest(templateName = FabricGameTest.EMPTY_STRUCTURE)
-    public void registeredModItemsHaveNoAnvilEnhancementExamples(TestContext context) {
-        net.minecraft.registry.Registries.ITEM.getIds().stream()
+    public void onlyUniqueArmorModItemsSupportAnvilEnhancement(TestContext context) {
+        Set<Item> enhanceableArmor = Set.of(UniqueArmors.HADES_HELMET, UniqueArmors.MIMIR_HELMET,
+                UniqueArmors.DRAGONSCALE_WINGPLATE, UniqueArmors.NEMEAN_LION_HIDE, UniqueArmors.JOTUN_LEGGINGS,
+                UniqueArmors.HERMES_TALARIA, UniqueArmors.SALAMANDER_BOOTS);
+        Registries.ITEM.getIds().stream()
                 .filter(id -> id.getNamespace().equals("kingdomunique"))
-                .forEach(id -> context.assertFalse(com.kingdomunique.util.EnhancementUtil.isEnhanceable(
-                        new ItemStack(net.minecraft.registry.Registries.ITEM.get(id))),
-                        "Mod item unexpectedly supports enhancement: " + id));
+                .forEach(id -> {
+                    Item item = Registries.ITEM.get(id);
+                    context.assertEquals(EnhancementUtil.isEnhanceable(new ItemStack(item)),
+                            enhanceableArmor.contains(item), "Unexpected enhancement eligibility: " + id);
+                });
         context.complete();
     }
 

@@ -28,6 +28,7 @@
       "com.kingdomunique.unique.VillageWeaponChestGameTest",
       "com.kingdomunique.compat.jei.JeiLanguageGameTest",
       "com.kingdomunique.unique.UniqueWeaponGrantGameTest",
+      "com.kingdomunique.unique.UniqueArmorAcquisitionGameTest",
       "com.kingdomunique.unique.ApolloBowGameTest",
       "com.kingdomunique.unique.TrishulaGameTest",
       "com.kingdomunique.unique.NewUniqueWeaponsGameTest",

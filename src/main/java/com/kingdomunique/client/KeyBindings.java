@@ -1,20 +1,26 @@
 package com.kingdomunique.client;
 
+import com.kingdomunique.item.unique.UniqueArmorEffects;
 import com.kingdomunique.network.AbilityKeyPayload;
 import com.kingdomunique.network.PossessionPayload;
 import com.kingdomunique.network.DetonatePayload;
 import com.kingdomunique.network.RequestOpenItemMenuPayload;
 import com.kingdomunique.network.RequestStatusPayload;
 import com.kingdomunique.network.SoldierOrderPayload;
+import com.kingdomunique.network.TalariaJumpPayload;
 import net.fabricmc.api.EnvType;
 import net.fabricmc.api.Environment;
 import net.fabricmc.fabric.api.client.event.lifecycle.v1.ClientTickEvents;
 import net.fabricmc.fabric.api.client.networking.v1.ClientPlayNetworking;
 import net.fabricmc.fabric.api.client.keybinding.v1.KeyBindingHelper;
+import net.fabricmc.fabric.api.entity.event.v1.FabricElytraItem;
 import net.minecraft.client.MinecraftClient;
 import net.minecraft.client.option.KeyBinding;
 import net.minecraft.client.util.InputUtil;
+import net.minecraft.entity.EquipmentSlot;
 import net.minecraft.entity.passive.VillagerEntity;
+import net.minecraft.item.ElytraItem;
+import net.minecraft.item.Items;
 import net.minecraft.text.Text;
 import net.minecraft.util.hit.BlockHitResult;
 import net.minecraft.util.hit.HitResult;
@@ -38,6 +44,7 @@ public final class KeyBindings {
     private static boolean initialized = false;
     /** 左クリックのエッジ検出用（wasPressed はバニラに消費されるため自前で管理する）。 */
     private static boolean prevAttackPressed = false;
+    private static boolean prevJumpPressed = false;
 
     private KeyBindings() {
     }
@@ -94,6 +101,24 @@ public final class KeyBindings {
                 GLFW.GLFW_KEY_J,
                 "category.kingdomunique"
         ));
+
+        ClientTickEvents.START_CLIENT_TICK.register(client -> {
+            boolean jumping = client.options.jumpKey.isPressed();
+            boolean jumpPressed = jumping && !prevJumpPressed;
+            prevJumpPressed = jumping;
+            if (!jumpPressed || client.currentScreen != null || client.player == null
+                    || !UniqueArmorEffects.canAirJump(client.player)
+                    || !ClientPlayNetworking.canSend(TalariaJumpPayload.ID)) {
+                return;
+            }
+            var chest = client.player.getEquippedStack(EquipmentSlot.CHEST);
+            if ((chest.isOf(Items.ELYTRA) && ElytraItem.isUsable(chest))
+                    || (chest.getItem() instanceof FabricElytraItem wings
+                            && wings.useCustomElytra(client.player, chest, false))) {
+                return;
+            }
+            ClientPlayNetworking.send(new TalariaJumpPayload());
+        });
 
         ClientTickEvents.END_CLIENT_TICK.register(client -> {
             if (client.currentScreen != null) {
