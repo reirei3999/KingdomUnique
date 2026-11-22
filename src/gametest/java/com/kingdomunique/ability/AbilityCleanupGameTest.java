@@ -100,17 +100,7 @@ public final class AbilityCleanupGameTest {
     }
 
     @GameTest(templateName = FabricGameTest.EMPTY_STRUCTURE)
-    public void disconnectRestoresGravity(TestContext context) throws Exception {
-        var player = player(context);
-        var target = hold(context, player);
-        ServerPlayConnectionEvents.DISCONNECT.invoker().onPlayDisconnect(player.networkHandler, context.getWorld().getServer());
-        context.assertFalse(target.hasNoGravity(), "Disconnect must restore gravity");
-        context.assertFalse(AbilityState.all().containsKey(player.getUuid()), "Disconnect must remove state");
-        context.complete();
-    }
-
-    @GameTest(templateName = FabricGameTest.EMPTY_STRUCTURE, batchId = "ability_cooldown_relog")
-    public void gravityCooldownSurvivesRelog(TestContext context) {
+    public void disconnectRestoresGravity(TestContext context) {
         var world = context.getWorld();
         var server = world.getServer();
         var data = WorldUniqueData.getOrCreate(server.getOverworld());
@@ -131,6 +121,7 @@ public final class AbilityCleanupGameTest {
 
             ServerPlayConnectionEvents.DISCONNECT.invoker().onPlayDisconnect(player.networkHandler, server);
             context.assertFalse(target.hasNoGravity(), "Disconnect must release the target");
+            context.assertFalse(AbilityState.all().containsKey(uuid), "Disconnect must remove state");
             var rejoined = player(context, player.getGameProfile());
             context.assertTrue(world.getTime() == time, "The same game tick must still be active at relog");
             AbilityActions.handleActivate(rejoined);
