@@ -15,6 +15,7 @@ import net.fabricmc.fabric.api.gametest.v1.FabricGameTest;
 import net.minecraft.block.Blocks;
 import net.minecraft.entity.Entity;
 import net.minecraft.entity.EntityType;
+import net.minecraft.entity.ai.TargetPredicate;
 import net.minecraft.entity.effect.StatusEffects;
 import net.minecraft.network.packet.c2s.common.SyncedClientOptions;
 import net.minecraft.network.packet.s2c.play.PositionFlag;
@@ -116,6 +117,11 @@ public final class KingdomRelicsGameTest {
             guardian = KingdomRelicEffects.spawnGuardian(world, owner);
             context.assertTrue(guardian != null && guardian.isAlive(), "Guardian spawns at the base");
             context.assertTrue(KingdomRelicEffects.spawnGuardian(world, owner) == null, "Only one guardian spawns");
+            var creeper = context.spawnMob(EntityType.CREEPER, new BlockPos(3, 2, 3));
+            context.assertTrue(KingdomRelicEffects.isTerritoryEnemy(world, guardian, owner, creeper),
+                    "A creeper inside the kingdom is an intruder");
+            context.assertTrue(TargetPredicate.createAttackable().ignoreVisibility().test(guardian, creeper),
+                    "The vanilla targeting filter allows the guardian to attack creepers");
             var villager = context.spawnMob(EntityType.VILLAGER, new BlockPos(3, 2, 2));
             var soldier = (CitizenVillager) villager;
             soldier.ku$setOwnerUuid(enemy.toString());

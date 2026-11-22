@@ -37,6 +37,11 @@ public final class KingdomGuardianEntity extends IronGolemEntity {
     }
 
     @Override
+    public boolean canTarget(EntityType<?> type) {
+        return type == EntityType.CREEPER || super.canTarget(type);
+    }
+
+    @Override
     public void tick() {
         if (isAlive() && getWorld() instanceof ServerWorld world) {
             UUID owner = KingdomWarTargetHelper.getOwnerUuid(this);
