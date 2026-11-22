@@ -45,6 +45,49 @@ import java.util.List;
 import java.util.UUID;
 
 public final class VillagePlacementGameTest {
+    @GameTest(templateName = FabricGameTest.EMPTY_STRUCTURE, batchId = "citizen_death_reload")
+    public void dyingCitizenReloadDoesNotLosePopulationTwice(TestContext context) {
+        ServerWorld world = context.getWorld();
+        BlockPos pos = context.getAbsolutePos(new BlockPos(1, 3, 1));
+        UUID owner = UUID.randomUUID();
+        KingdomData data = KingdomData.getOrCreate(world.getServer().getOverworld());
+        data.put(owner, new KingdomData.KingdomInfo(pos.getX(), pos.getZ(), 2, 10, 0,
+                false, 0, true, 100, true, ""));
+        var victim = populationCitizen(world, pos, owner);
+        try {
+            context.assertTrue(!((com.kingdomunique.entity.CitizenVillager) victim)
+                    .ku$isPopulationLossCounted(), "New citizens must not have a counted loss");
+            victim.setHealth(0);
+            victim.onDeath(world.getDamageSources().generic());
+            victim.tick();
+            context.assertTrue(data.get(owner).population() == 1, "Death must free one slot");
+            NbtCompound saved = new NbtCompound();
+            context.assertTrue(victim.saveNbt(saved), "Dying citizens can be saved before removal");
+            context.assertTrue(saved.getFloat("Health") == 0 && saved.getShort("DeathTime") > 0,
+                    "Save must preserve the death animation");
+            victim.remove(net.minecraft.entity.Entity.RemovalReason.UNLOADED_TO_CHUNK);
+            data.put(owner, new KingdomData(data.writeNbt(new NbtCompound(), world.getRegistryManager())).get(owner));
+            var reloaded = EntityType.VILLAGER.create(world);
+            reloaded.readNbt(saved);
+            world.spawnEntity(reloaded);
+            try {
+                context.assertTrue(reloaded != victim && reloaded.isDead(), "Reload must create a dying instance");
+                for (int tick = 0; tick < 25 && !reloaded.isRemoved(); tick++) {
+                    reloaded.tick();
+                }
+                context.assertTrue(reloaded.isRemoved(), "Reloaded corpse must finish its death animation");
+                context.assertTrue(data.get(owner).population() == 1,
+                        "Removal of a reloaded corpse must not decrement population again");
+            } finally {
+                reloaded.discard();
+            }
+        } finally {
+            data.remove(owner);
+            victim.discard();
+        }
+        context.complete();
+    }
+
     @GameTest(templateName = FabricGameTest.EMPTY_STRUCTURE, batchId = "citizen_conversion")
     public void citizenConversionAndRemovalCountEachLossOnce(TestContext context) {
         ServerWorld world = context.getWorld();

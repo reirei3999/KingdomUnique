@@ -29,9 +29,6 @@ import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.UUID;
-import java.util.Collections;
-import java.util.Set;
-import java.util.WeakHashMap;
 
 /**
  * 王国の人口自然増減（Gemini 提示を既存 CitizenVillager / KingdomManager へ接続）。
@@ -42,7 +39,6 @@ public final class PopulationManager {
     /** 10分 (12000 tick) ごとに人口増加判定。 */
     private static final long GROWTH_CHECK_INTERVAL = 12000L;
     private static final Map<UUID, Double> GROWTH_PROGRESS = new HashMap<>();
-    private static final Set<LivingEntity> COUNTED_LOSSES = Collections.newSetFromMap(new WeakHashMap<>());
 
     private PopulationManager() {
     }
@@ -186,9 +182,10 @@ public final class PopulationManager {
         if (info == null) {
             return;
         }
-        if (!COUNTED_LOSSES.add(entity)) {
+        if (citizen.ku$isPopulationLossCounted()) {
             return;
         }
+        citizen.ku$setPopulationLossCounted(true);
         int remaining = Math.max(0, info.population() - 1);
         int maxPop = info.populationCap();
         data.put(ownerUuid, new KingdomData.KingdomInfo(info.centerX(), info.centerZ(), remaining,
