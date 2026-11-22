@@ -9,6 +9,7 @@ import net.minecraft.component.type.AttributeModifierSlot;
 import net.minecraft.component.type.AttributeModifiersComponent;
 import net.minecraft.entity.EntityType;
 import net.minecraft.entity.EquipmentSlot;
+import net.minecraft.entity.attribute.EntityAttributeInstance;
 import net.minecraft.entity.attribute.EntityAttributeModifier;
 import net.minecraft.entity.attribute.EntityAttributes;
 import net.minecraft.item.ItemStack;
@@ -125,6 +126,46 @@ public final class ArmorMigrationGameTest {
         });
     }
 
+    @GameTest(templateName = FabricGameTest.EMPTY_STRUCTURE, batchId = "armor_migration")
+    public void legacyCustomModifiersArePreserved(TestContext context) {
+        var custom = new EntityAttributeModifier(Identifier.of("kingdomunique", "custom_legacy_armor"),
+                2.0D, EntityAttributeModifier.Operation.ADD_VALUE);
+        ItemStack armor = new ItemStack(Items.DIAMOND_CHESTPLATE);
+        armor.set(DataComponentTypes.ATTRIBUTE_MODIFIERS, armor.getItem().getAttributeModifiers()
+                .with(EntityAttributes.GENERIC_ARMOR, custom, AttributeModifierSlot.CHEST).withShowInTooltip(false));
+        armor = EnhancementUtil.applyLevel(armor, 0, 3);
+        armor.remove(ModDataComponents.ATTR_VERSION);
+        var original = armor.get(DataComponentTypes.ATTRIBUTE_MODIFIERS);
+        int durability = armor.getMaxDamage();
+        EnhancementUtil.migrateLegacy(armor);
+        context.assertEquals(original, armor.get(DataComponentTypes.ATTRIBUTE_MODIFIERS),
+                "Legacy custom and default entries must remain unchanged when defaults already exist");
+        context.assertTrue(armor.contains(ModDataComponents.ATTR_VERSION), "Unchanged legacy armor must still be marked");
+        context.assertTrue(armor.getMaxDamage() == durability, "Custom armor migration must preserve durability");
+        EnhancementUtil.migrateLegacy(armor);
+        context.assertEquals(original, armor.get(DataComponentTypes.ATTRIBUTE_MODIFIERS),
+                "Marked custom armor must remain unchanged");
+
+        ItemStack missingDefaults = legacyArmor(2);
+        var customOnly = AttributeModifiersComponent.builder().add(
+                EntityAttributes.GENERIC_ARMOR, custom, AttributeModifierSlot.CHEST).build().withShowInTooltip(false);
+        missingDefaults.set(DataComponentTypes.ATTRIBUTE_MODIFIERS, customOnly);
+        EnhancementUtil.migrateLegacy(missingDefaults);
+        var repaired = missingDefaults.get(DataComponentTypes.ATTRIBUTE_MODIFIERS);
+        context.assertTrue(repaired.modifiers().containsAll(customOnly.modifiers()),
+                "Adding missing defaults must not rescale or remove existing custom entries");
+        context.assertFalse(repaired.showInTooltip(), "Migration must retain tooltip visibility");
+        assertArmor(context, missingDefaults, 9.68D + 2.0D);
+        context.assertTrue(repaired.modifiers().size() == customOnly.modifiers().size()
+                        + missingDefaults.getItem().getAttributeModifiers().modifiers().size(),
+                "Migration must add every missing default, including entries sharing an ID");
+        EnhancementUtil.migrateLegacy(missingDefaults);
+        context.assertEquals(repaired, missingDefaults.get(DataComponentTypes.ATTRIBUTE_MODIFIERS),
+                "Custom armor repaired with missing defaults must be idempotent");
+        System.out.println("Legacy custom armor: existing defaults/custom entries unchanged; missing defaults added without rescaling custom entries");
+        context.complete();
+    }
+
     private static ItemStack legacyArmor(int level) {
         ItemStack armor = new ItemStack(Items.DIAMOND_CHESTPLATE);
         armor.set(ModDataComponents.ENHANCE_LEVEL, level);
@@ -135,9 +176,13 @@ public final class ArmorMigrationGameTest {
     private static void assertArmor(TestContext context, ItemStack stack, double expected) {
         var modifiers = stack.get(DataComponentTypes.ATTRIBUTE_MODIFIERS);
         context.assertTrue(modifiers != null, "Armor must have rebuilt modifiers");
-        var armorModifiers = new AttributeModifiersComponent(modifiers.modifiers().stream()
-                .filter(entry -> entry.attribute().equals(EntityAttributes.GENERIC_ARMOR)).toList(), false);
-        assertNear(context, armorModifiers.applyOperations(0.0D, EquipmentSlot.CHEST), expected);
+        var armor = new EntityAttributeInstance(EntityAttributes.GENERIC_ARMOR, instance -> {});
+        modifiers.applyModifiers(EquipmentSlot.CHEST, (attribute, modifier) -> {
+            if (attribute.equals(EntityAttributes.GENERIC_ARMOR)) {
+                armor.addTemporaryModifier(modifier);
+            }
+        });
+        assertNear(context, armor.getValue(), expected);
     }
 
     private static void assertNear(TestContext context, double actual, double expected) {

@@ -383,9 +383,27 @@ public final class EnhancementUtil {
                 || stack.contains(ModDataComponents.ATTR_VERSION)) {
             return;
         }
-        if (getLevel(stack) > 0 || hasDivineBonus(stack)) {
-            rebuildSmithingAttributes(stack);
+        int level = getLevel(stack);
+        if (level == 0 && !hasDivineBonus(stack)) {
+            return;
         }
+        AttributeModifiersComponent current = stack.get(DataComponentTypes.ATTRIBUTE_MODIFIERS);
+        AttributeModifiersComponent defaults = effectiveModifiers(applyLevel(new ItemStack(stack.getItem()), 0, level));
+        List<AttributeModifiersComponent.Entry> entries = new ArrayList<>();
+        if (current != null) {
+            entries.addAll(current.modifiers());
+        }
+        for (AttributeModifiersComponent.Entry entry : defaults.modifiers()) {
+            if (current == null || current.modifiers().stream()
+                    .noneMatch(existing -> existing.modifier().id().equals(entry.modifier().id()))) {
+                entries.add(entry);
+            }
+        }
+        if (current == null || !entries.equals(current.modifiers())) {
+            stack.set(DataComponentTypes.ATTRIBUTE_MODIFIERS,
+                    new AttributeModifiersComponent(entries, current == null || current.showInTooltip()));
+        }
+        stack.set(ModDataComponents.ATTR_VERSION, 1);
     }
 
     private static boolean hasDivineBonus(ItemStack stack) {
