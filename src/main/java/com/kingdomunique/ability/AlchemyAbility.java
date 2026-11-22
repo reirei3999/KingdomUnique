@@ -75,6 +75,7 @@ public final class AlchemyAbility {
 
         String from = held.getName().getString();
         ItemStack converted = new ItemStack(result);
+        String to = converted.getName().getString();
         if (held.getCount() == 1) {
             player.setStackInHand(Hand.MAIN_HAND, converted);
         } else {
@@ -86,7 +87,7 @@ public final class AlchemyAbility {
                 30, 0.5D, 0.5D, 0.5D, 0.5D);
         world.playSound(null, player.getBlockPos(), SoundEvents.BLOCK_ENCHANTMENT_TABLE_USE,
                 SoundCategory.PLAYERS, 1.0F, 1.2F);
-        player.sendMessage(Text.literal("§6[錬金術] " + from + " → " + converted.getName().getString()
+        player.sendMessage(Text.literal("§6[錬金術] " + from + " → " + to
                 + "（本日の残り " + (DAILY_LIMIT - used) + "回）"), true);
         return true;
     }

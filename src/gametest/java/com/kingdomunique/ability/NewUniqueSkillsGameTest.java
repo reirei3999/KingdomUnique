@@ -125,4 +125,23 @@ public final class NewUniqueSkillsGameTest {
             pending.clearPending(player.getUuid());
         }
     }
+
+    @GameTest(templateName = FabricGameTest.EMPTY_STRUCTURE)
+    public void ancientCitySkillTakesTheActivateKeyOverEarlierSkills(TestContext context) {
+        var world = context.getWorld();
+        var player = player(context);
+        var ownership = WorldUniqueData.getOrCreate(world);
+        try {
+            context.assertTrue(ownership.claimId(player.getUuid(), UniqueContentRegistry.SPATIAL_LEAP)
+                            && ownership.claimId(player.getUuid(), UniqueContentRegistry.WEATHER_CONTROL),
+                    "The test player must receive both skills");
+            context.assertTrue(UniqueContentRegistry.WEATHER_CONTROL.equals(
+                            UniqueContentRegistry.getActiveAbility(player)),
+                    "The R key must use the Ancient City skill");
+            context.complete();
+        } finally {
+            ownership.releaseId(player.getUuid(), UniqueContentRegistry.SPATIAL_LEAP);
+            ownership.releaseId(player.getUuid(), UniqueContentRegistry.WEATHER_CONTROL);
+        }
+    }
 }

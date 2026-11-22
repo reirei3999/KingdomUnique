@@ -102,7 +102,13 @@ public final class UniqueContentRegistry {
     }
 
     public static String getActiveAbility(ServerPlayerEntity player) {
-        for (String id : getAbilities(player)) {
+        List<String> owned = getAbilities(player);
+        for (String id : ANCIENT_CITY_ABILITY_IDS) {
+            if (owned.contains(id)) {
+                return id;
+            }
+        }
+        for (String id : owned) {
             if (AbilityDescriptions.cooldownTicks(id) > 0) {
                 return id;
             }
