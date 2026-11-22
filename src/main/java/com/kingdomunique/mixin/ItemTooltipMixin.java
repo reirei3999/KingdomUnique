@@ -137,6 +137,7 @@ public abstract class ItemTooltipMixin {
 
     private static String flavor(String id) {
         return switch (id) {
+            case "trishula" -> "炎を越え、着弾の地へ導く三叉槍。";
             case "excalibur" -> "王の威光を宿す、選ばれし者の剣。";
             case "gae_bolg" -> "投げられし魔槍は、必ず獲物を追う。";
             case "muramasa" -> "飲み干すほどに強くなる、妖の刀。";
@@ -149,6 +150,13 @@ public abstract class ItemTooltipMixin {
 
     private static String[] lines(String id, ItemStack stack) {
         return switch (id) {
+            case "trishula" -> new String[]{
+                    "#プレイヤー以外への近接・投擲ダメージ ×2",
+                    "~右クリック: 投擲、着弾時に小爆発と安全な地点へのワープ",
+                    "~爆発はブロックと投擲者を傷つけない",
+                    "*ワープ後5秒間、炎上・落下ダメージ無効",
+                    "!クールタイム: 20秒"
+            };
             case "excalibur" -> new String[]{
                     "#王国領地内での攻撃力 ×1.8",
                     "~領地半径100マス（王城で200マス）",
