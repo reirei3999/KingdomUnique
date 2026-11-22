@@ -20,7 +20,8 @@
       "com.kingdomunique.trade.CitizenMerchantGameTest",
       "com.kingdomunique.unique.VillageWeaponChestGameTest",
       "com.kingdomunique.compat.jei.JeiLanguageGameTest",
-      "com.kingdomunique.unique.UniqueWeaponGrantGameTest"
+      "com.kingdomunique.unique.UniqueWeaponGrantGameTest",
+      "com.kingdomunique.unique.ApolloBowGameTest"
     ]
   },
   "depends": {

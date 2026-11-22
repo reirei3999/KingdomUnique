@@ -2,6 +2,7 @@ package com.kingdomunique.item.unique;
 
 import com.kingdomunique.component.ModDataComponents;
 import com.kingdomunique.data.WorldUniqueData;
+import com.kingdomunique.mixin.PersistentProjectileEntityAccessor;
 import net.minecraft.entity.Entity;
 import net.minecraft.entity.EntityType;
 import net.minecraft.entity.LivingEntity;
@@ -292,7 +293,7 @@ public final class UniqueWeaponManager {
         com.kingdomunique.item.unique.UniqueWeaponTriggers.onBowShot(player);
     }
 
-    /** 光の矢の飛翔中パーティクル（毎20ティック）。消えた矢の登録も掃除する。 */
+    /** 飛翔中の光の矢にパーティクルを出し、飛翔を終えた矢の登録を掃除する。 */
     public static void tickLightArrows(MinecraftServer server) {
         for (Map.Entry<UUID, UUID> entry : new HashMap<>(LIGHT_ARROW_BY_OWNER).entrySet()) {
             ArrowEntity arrow = null;
@@ -304,7 +305,7 @@ public final class UniqueWeaponManager {
                     break;
                 }
             }
-            if (arrow == null || !arrow.isAlive()) {
+            if (!isInFlight(arrow)) {
                 LIGHT_ARROW_BY_OWNER.remove(entry.getKey());
                 continue;
             }
@@ -313,12 +314,16 @@ public final class UniqueWeaponManager {
         }
     }
 
-    /** 右クリック: 自分の光の矢があるならその座標で太陽の爆発。 */
+    private static boolean isInFlight(ArrowEntity arrow) {
+        return arrow != null && arrow.isAlive() && !((PersistentProjectileEntityAccessor) arrow).ku$isInGround();
+    }
+
+    /** 右クリック: 飛翔中の自分の光の矢をその座標で起爆する。 */
     public static void detonateLightArrow(ServerPlayerEntity player) {
         ServerWorld world = player.getServerWorld();
         UUID arrowUuid = LIGHT_ARROW_BY_OWNER.remove(player.getUuid());
         Entity arrow = arrowUuid == null ? null : world.getEntity(arrowUuid);
-        if (!(arrow instanceof ArrowEntity) || !arrow.isAlive()) {
+        if (!(arrow instanceof ArrowEntity lightArrow) || !isInFlight(lightArrow)) {
             player.sendMessage(Text.literal("§c[太陽弓] 飛翔中の光の矢がありません。"), true);
             return;
         }

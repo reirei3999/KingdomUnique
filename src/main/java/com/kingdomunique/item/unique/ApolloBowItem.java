@@ -1,6 +1,7 @@
 package com.kingdomunique.item.unique;
 
 import net.fabricmc.fabric.api.event.player.AttackBlockCallback;
+import net.fabricmc.fabric.api.event.player.UseItemCallback;
 import net.minecraft.entity.player.PlayerEntity;
 import net.minecraft.item.Item;
 import net.minecraft.item.ItemStack;
@@ -28,7 +29,6 @@ public final class ApolloBowItem extends Item implements UniqueWeapon {
         return "apollo_bow";
     }
 
-    /** ブロックを攻撃した瞬間の左クリックも発射扱いにする。 */
     public static void registerEvents() {
         AttackBlockCallback.EVENT.register((player, world, hand, pos, direction) -> {
             if (world.isClient() || hand != Hand.MAIN_HAND
@@ -40,6 +40,16 @@ public final class ApolloBowItem extends Item implements UniqueWeapon {
                 UniqueWeaponManager.fireLightArrowWithCooldown(serverPlayer);
             }
             return ActionResult.SUCCESS;
+        });
+
+        // バニラはクールタイム中に Item#use を呼ばないため、起爆だけ先に処理する。
+        UseItemCallback.EVENT.register((player, world, hand) -> {
+            ItemStack stack = player.getStackInHand(hand);
+            if (player.isSpectator() || !stack.isOf(UniqueWeapons.APOLLO_BOW)
+                    || !player.getItemCooldownManager().isCoolingDown(UniqueWeapons.APOLLO_BOW)) {
+                return TypedActionResult.pass(stack);
+            }
+            return stack.use(world, player, hand);
         });
     }
 
