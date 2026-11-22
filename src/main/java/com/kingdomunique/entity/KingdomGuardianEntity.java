@@ -3,6 +3,7 @@ package com.kingdomunique.entity;
 import com.kingdomunique.effect.KingdomRelicEffects;
 import com.kingdomunique.kingdom.KingdomManager;
 import com.kingdomunique.war.KingdomWarTargetHelper;
+import com.kingdomunique.world.VillageProtection;
 import net.minecraft.entity.EntityType;
 import net.minecraft.entity.LivingEntity;
 import net.minecraft.entity.ai.goal.ActiveTargetGoal;
@@ -31,7 +32,8 @@ public final class KingdomGuardianEntity extends IronGolemEntity {
     private boolean isIntruder(LivingEntity candidate) {
         UUID owner = KingdomWarTargetHelper.getOwnerUuid(this);
         return owner != null && candidate != this && getWorld() instanceof ServerWorld world
-                && KingdomRelicEffects.isTerritoryEnemy(world, this, owner, candidate);
+                && KingdomRelicEffects.isTerritoryEnemy(world, this, owner, candidate)
+                && !VillageProtection.protectsFromMobDamage(candidate);
     }
 
     @Override

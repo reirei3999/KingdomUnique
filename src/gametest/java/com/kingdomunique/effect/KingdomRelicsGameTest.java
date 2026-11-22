@@ -1,6 +1,7 @@
 package com.kingdomunique.effect;
 
 import com.kingdomunique.data.WorldUniqueData;
+import com.kingdomunique.entity.CitizenVillager;
 import com.kingdomunique.entity.HeroClass;
 import com.kingdomunique.entity.KingdomGuardianEntity;
 import com.kingdomunique.entity.ModEntities;
@@ -104,6 +105,7 @@ public final class KingdomRelicsGameTest {
         var world = context.getWorld();
         var ownership = WorldUniqueData.getOrCreate(world);
         UUID owner = UUID.randomUUID();
+        UUID enemy = UUID.randomUUID();
         BlockPos center = prepareLanding(context);
         setCenter(world, owner, center);
         long time = world.getTimeOfDay();
@@ -114,6 +116,18 @@ public final class KingdomRelicsGameTest {
             guardian = KingdomRelicEffects.spawnGuardian(world, owner);
             context.assertTrue(guardian != null && guardian.isAlive(), "Guardian spawns at the base");
             context.assertTrue(KingdomRelicEffects.spawnGuardian(world, owner) == null, "Only one guardian spawns");
+            var villager = context.spawnMob(EntityType.VILLAGER, new BlockPos(3, 2, 2));
+            var soldier = (CitizenVillager) villager;
+            soldier.ku$setOwnerUuid(enemy.toString());
+            soldier.ku$setRole(CitizenVillager.ROLE_SOLDIER);
+            KingdomDiplomacyState.get(world).setRelation(owner, enemy, KingdomDiplomacyState.Relation.WAR);
+            context.assertTrue(KingdomRelicEffects.isTerritoryEnemy(world, guardian, owner, villager),
+                    "The enemy soldier is within the kingdom");
+            context.assertFalse(villager.damage(villager.getDamageSources().mobAttack(guardian), 4),
+                    "Village protection blocks damage from the guardian");
+            guardian.setTarget(villager);
+            guardian.tick();
+            context.assertTrue(guardian.getTarget() != villager, "Guardian drops an invulnerable village target");
             guardian.kill();
             context.assertTrue(KingdomRelicEffects.spawnGuardian(world, owner) == null, "No same-day replacement");
             world.setTimeOfDay(time + 24000L);
@@ -122,6 +136,7 @@ public final class KingdomRelicsGameTest {
             context.assertTrue(!revived.getUuid().equals(guardian.getUuid()), "Dead guardian is replaced");
             context.complete();
         } finally {
+            KingdomDiplomacyState.get(world).setRelation(owner, enemy, KingdomDiplomacyState.Relation.NEUTRAL);
             world.setTimeOfDay(time);
             if (guardian != null) guardian.discard();
             if (revived != null) revived.discard();
