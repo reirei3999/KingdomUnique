@@ -11,6 +11,7 @@
     "ArmorEnchantingMixin",
     "ArmorEntityMixin",
     "ArmorPlayerMixin",
+    "ArmorProjectileMixin",
     "ArmorTravelMixin",
     "AreaMiningMixin",
     "BowShotMixin",
