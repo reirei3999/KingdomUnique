@@ -79,7 +79,7 @@ public final class BuildingEffectAllyGameTest {
         context.complete();
     }
 
-    @GameTest(templateName = FabricGameTest.EMPTY_STRUCTURE)
+    @GameTest(templateName = FabricGameTest.EMPTY_STRUCTURE, batchId = "training_ground")
     public void trainingGroundOnlyTrainsOwnerAndAlliedHeroes(TestContext context) {
         ServerWorld world = context.getWorld();
         for (int x = 0; x <= 6; x++) {
