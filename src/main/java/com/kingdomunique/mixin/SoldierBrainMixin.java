@@ -5,6 +5,7 @@ import net.minecraft.entity.LivingEntity;
 import net.minecraft.entity.ai.brain.Activity;
 import net.minecraft.entity.ai.brain.Brain;
 import net.minecraft.entity.ai.brain.MemoryModuleType;
+import net.minecraft.entity.ai.brain.task.StayAboveWaterTask;
 import net.minecraft.entity.passive.VillagerEntity;
 import net.minecraft.server.world.ServerWorld;
 import org.spongepowered.asm.mixin.Mixin;
@@ -35,6 +36,9 @@ public abstract class SoldierBrainMixin {
         brain.forget(MemoryModuleType.AVOID_TARGET);
         if (brain.hasActivity(Activity.PANIC)) {
             brain.doExclusively(Activity.IDLE);
+        }
+        if (StayAboveWaterTask.isUnderwater(soldier)) {
+            soldier.getJumpControl().setActive();
         }
         ci.cancel();
     }
