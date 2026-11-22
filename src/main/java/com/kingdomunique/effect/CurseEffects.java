@@ -28,6 +28,9 @@ public final class CurseEffects {
     private static final Identifier VOID_DARK_DAMAGE = id("void_dark_damage");
     private static final Identifier VOID_LIGHT_ARMOR = id("void_light_armor");
     private static final Identifier DESTRUCTION_MINING = id("destruction_mining");
+    private static final Identifier GLUTTONY_DAMAGE = id("gluttony_damage");
+    /** 暴食の指輪：撃破後の攻撃力上昇（+50%）。 */
+    public static final double GLUTTONY_DAMAGE_BONUS = 0.5D;
 
     private CurseEffects() {
     }
@@ -112,6 +115,11 @@ public final class CurseEffects {
         if (enabled) {
             instance.addTemporaryModifier(new EntityAttributeModifier(modifierId, value, operation));
         }
+    }
+
+    /** 暴食の指輪：撃破後の一時的な攻撃力上昇を付け外しする。 */
+    public static void applyGluttonyFrenzy(ServerPlayerEntity player, boolean active) {
+        multiply(player, EntityAttributes.GENERIC_ATTACK_DAMAGE, GLUTTONY_DAMAGE, active, GLUTTONY_DAMAGE_BONUS);
     }
 
     /** 虚空のランタン：透明化判定用。 */

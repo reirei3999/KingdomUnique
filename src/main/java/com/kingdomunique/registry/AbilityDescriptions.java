@@ -141,7 +141,7 @@ public final class AbilityDescriptions {
                     "・自然回復が不能になる"
             };
             case "ring_of_gluttony" -> new String[]{
-                    "・撃破で一時的に攻撃力が上昇",
+                    "・撃破後10秒間、攻撃力1.5倍",
                     "・空腹の減少3倍、空腹0で猛毒"
             };
             case "glass_cannon" -> new String[]{

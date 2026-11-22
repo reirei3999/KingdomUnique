@@ -23,7 +23,8 @@
       "com.kingdomunique.unique.VillageWeaponChestGameTest",
       "com.kingdomunique.compat.jei.JeiLanguageGameTest",
       "com.kingdomunique.unique.UniqueWeaponGrantGameTest",
-      "com.kingdomunique.unique.ApolloBowGameTest"
+      "com.kingdomunique.unique.ApolloBowGameTest",
+      "com.kingdomunique.selection.GluttonyRingGameTest"
     ]
   },
   "depends": {
