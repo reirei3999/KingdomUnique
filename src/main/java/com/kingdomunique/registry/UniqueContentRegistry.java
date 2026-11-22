@@ -1,6 +1,7 @@
 package com.kingdomunique.registry;
 
 import com.kingdomunique.data.WorldUniqueData;
+import com.kingdomunique.effect.CurseEffects;
 import net.minecraft.server.network.ServerPlayerEntity;
 import net.minecraft.server.world.ServerWorld;
 import net.minecraft.world.World;
@@ -61,11 +62,7 @@ public final class UniqueContentRegistry {
 
     /** 能力のID（UNIQUE_IDS はステップ1からの互換名）。 */
     public static final List<String> ABILITY_IDS = List.copyOf(ENTRIES.keySet());
-    /** 古代都市の宝箱を開けたときだけ候補に出る能力（ダイヤ取得・初回覚醒の抽選には出ない）。 */
-    public static final List<String> ANCIENT_CITY_ABILITY_IDS = List.of("time_ruler", "alchemy", "weather_control");
-    /** ダイヤ取得・初回覚醒で抽選される能力。 */
-    public static final List<String> UNIQUE_IDS = ABILITY_IDS.stream()
-            .filter(id -> !ANCIENT_CITY_ABILITY_IDS.contains(id)).toList();
+    public static final List<String> UNIQUE_IDS = ABILITY_IDS;
 
     /** 能力ID定数（誤記防止用）。 */
     public static final String DIVINE_SMITH = "divine_smith";
@@ -102,13 +99,7 @@ public final class UniqueContentRegistry {
     }
 
     public static String getActiveAbility(ServerPlayerEntity player) {
-        List<String> owned = getAbilities(player);
-        for (String id : ANCIENT_CITY_ABILITY_IDS) {
-            if (owned.contains(id)) {
-                return id;
-            }
-        }
-        for (String id : owned) {
+        for (String id : getAbilities(player)) {
             if (AbilityDescriptions.cooldownTicks(id) > 0) {
                 return id;
             }
@@ -138,8 +129,12 @@ public final class UniqueContentRegistry {
         return abilities;
     }
 
-    /** プレイヤーが指定IDの能力を持つか。 */
+    /** プレイヤーが指定IDの能力を現在使えるか。所持一覧は getAbilities。 */
     public static boolean has(ServerPlayerEntity player, String id) {
-        return id != null && getAbilities(player).contains(id);
+        return id != null && !CurseEffects.abilitiesSealed(player) && getAbilities(player).contains(id);
+    }
+
+    public static List<String> getEnabledAbilities(ServerPlayerEntity player) {
+        return CurseEffects.abilitiesSealed(player) ? List.of() : getAbilities(player);
     }
 }

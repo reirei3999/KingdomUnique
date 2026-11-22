@@ -1,5 +1,9 @@
 package com.kingdomunique.building;
 
+import com.kingdomunique.entity.HeroEntity;
+import com.kingdomunique.war.DiplomacyData;
+import com.kingdomunique.war.KingdomDiplomacyState;
+import com.kingdomunique.war.KingdomWarTargetHelper;
 import net.minecraft.entity.LivingEntity;
 import net.minecraft.entity.effect.StatusEffectInstance;
 import net.minecraft.entity.effect.StatusEffects;
@@ -59,17 +63,7 @@ public final class BuildingEffectHandler {
             for (CompletedBuildingsData.Entry entry : data.entries()) {
                 Box area = new Box(entry.pos()).expand(32.0D, 16.0D, 32.0D);
                 switch (entry.type()) {
-                    case INFIRMARY -> {
-                        for (LivingEntity ally : world.getEntitiesByClass(LivingEntity.class, area,
-                                e -> e.isAlive() && (e instanceof ServerPlayerEntity
-                                        || e instanceof VillagerEntity
-                                        || e instanceof com.kingdomunique.entity.HeroEntity))) {
-                            if (ally.getHealth() < ally.getMaxHealth()) {
-                                ally.addStatusEffect(new StatusEffectInstance(
-                                        StatusEffects.REGENERATION, 120, 0, true, false));
-                            }
-                        }
-                    }
+                    case INFIRMARY -> applyInfirmary(world, entry.owner(), area);
                     case MARKET -> {
                         if (world.getTime() % 12000L == 0L) {
                             ServerPlayerEntity owner = server.getPlayerManager().getPlayer(entry.owner());
@@ -87,17 +81,10 @@ public final class BuildingEffectHandler {
                             owner.getHungerManager().add(2, 0.5F);
                         }
                     }
-                    case ARSENAL -> {
-                        for (LivingEntity defender : world.getEntitiesByClass(LivingEntity.class, area,
-                                e -> e.isAlive() && (e instanceof VillagerEntity
-                                        || e instanceof com.kingdomunique.entity.HeroEntity))) {
-                            defender.addStatusEffect(new StatusEffectInstance(
-                                    StatusEffects.RESISTANCE, 120, 0, true, false));
-                        }
-                    }
+                    case ARSENAL -> applyArsenal(world, entry.owner(), area);
                     case TRAINING_GROUND -> {
                         for (LivingEntity trainee : world.getEntitiesByClass(LivingEntity.class, area,
-                                e -> e.isAlive() && (e instanceof com.kingdomunique.entity.HeroEntity
+                                e -> e.isAlive() && (e instanceof HeroEntity
                                         || e instanceof ServerPlayerEntity
                                         && e.getUuid().equals(entry.owner())))) {
                             trainee.addStatusEffect(new StatusEffectInstance(
@@ -118,5 +105,57 @@ public final class BuildingEffectHandler {
                 }
             }
         }
+    }
+
+    /** 救護院：範囲内で負傷している所有者陣営（本人・自国民・自国英雄・同盟国）に再生を付与する。 */
+    static void applyInfirmary(ServerWorld world, UUID owner, Box area) {
+        for (LivingEntity ally : world.getEntitiesByClass(LivingEntity.class, area,
+                e -> receivesInfirmary(world, owner, e))) {
+            if (ally.getHealth() < ally.getMaxHealth()) {
+                ally.addStatusEffect(new StatusEffectInstance(
+                        StatusEffects.REGENERATION, 120, 0, true, false));
+            }
+        }
+    }
+
+    /** 軍事庫：範囲内の所有者陣営の国民・英雄（同盟国を含む）に耐性を付与する。 */
+    static void applyArsenal(ServerWorld world, UUID owner, Box area) {
+        for (LivingEntity defender : world.getEntitiesByClass(LivingEntity.class, area,
+                e -> receivesArsenal(world, owner, e))) {
+            defender.addStatusEffect(new StatusEffectInstance(
+                    StatusEffects.RESISTANCE, 120, 0, true, false));
+        }
+    }
+
+    static boolean receivesInfirmary(ServerWorld world, UUID owner, LivingEntity entity) {
+        return entity.isAlive() && (entity instanceof ServerPlayerEntity
+                || entity instanceof VillagerEntity
+                || entity instanceof HeroEntity)
+                && isAllyOf(world, owner, entity);
+    }
+
+    static boolean receivesArsenal(ServerWorld world, UUID owner, LivingEntity entity) {
+        return entity.isAlive() && (entity instanceof VillagerEntity || entity instanceof HeroEntity)
+                && isAllyOf(world, owner, entity);
+    }
+
+    /** 建築所有者と同じ王国、または戦争中でない同盟国に属するエンティティか。所属のない者は対象外。 */
+    static boolean isAllyOf(ServerWorld world, UUID owner, LivingEntity entity) {
+        if (owner == null) {
+            return false;
+        }
+        UUID kingdom = entity instanceof ServerPlayerEntity player
+                ? player.getUuid() : KingdomWarTargetHelper.getOwnerUuid(entity);
+        if (kingdom == null) {
+            return false;
+        }
+        if (kingdom.equals(owner)) {
+            return true;
+        }
+        KingdomDiplomacyState diplomacy = KingdomDiplomacyState.get(world);
+        if (diplomacy.isAtWar(owner, kingdom)) {
+            return false;
+        }
+        return diplomacy.isAlly(owner, kingdom) || DiplomacyData.getOrCreate(world).isAllied(owner, kingdom);
     }
 }

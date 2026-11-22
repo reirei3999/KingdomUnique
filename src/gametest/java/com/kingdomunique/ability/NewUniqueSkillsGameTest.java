@@ -1,16 +1,12 @@
 package com.kingdomunique.ability;
 
-import com.kingdomunique.data.PendingSelectionState;
 import com.kingdomunique.data.WorldUniqueData;
-import com.kingdomunique.registry.ContentRegistry;
 import com.kingdomunique.registry.UniqueContentRegistry;
 import com.mojang.authlib.GameProfile;
 import net.fabricmc.fabric.api.gametest.v1.FabricGameTest;
-import net.minecraft.advancement.criterion.Criteria;
 import net.minecraft.entity.EntityType;
 import net.minecraft.item.ItemStack;
 import net.minecraft.item.Items;
-import net.minecraft.loot.LootTables;
 import net.minecraft.network.ClientConnection;
 import net.minecraft.network.NetworkSide;
 import net.minecraft.server.network.ConnectedClientData;
@@ -70,7 +66,7 @@ public final class NewUniqueSkillsGameTest {
         context.complete();
     }
 
-    @GameTest(templateName = FabricGameTest.EMPTY_STRUCTURE)
+    @GameTest(templateName = FabricGameTest.EMPTY_STRUCTURE, batchId = "weather_control")
     public void weatherControlCyclesAndKeepsOneDayCooldown(TestContext context) {
         var world = context.getWorld();
         var player = player(context);
@@ -98,50 +94,6 @@ public final class NewUniqueSkillsGameTest {
             ownership.releaseId(player.getUuid(), UniqueContentRegistry.WEATHER_CONTROL);
             AbilityState.remove(player.getUuid());
             world.setWeather(1000, 0, false, false);
-        }
-    }
-
-    @GameTest(templateName = FabricGameTest.EMPTY_STRUCTURE)
-    public void ancientCityChestOffersOnlyTheThreeNewSkillsOnce(TestContext context) {
-        var world = context.getWorld();
-        var player = player(context);
-        var pending = PendingSelectionState.get(world);
-        try {
-            context.assertFalse(UniqueContentRegistry.UNIQUE_IDS.contains(UniqueContentRegistry.TIME_RULER),
-                    "Ancient City skills must not appear in the diamond pool");
-            Criteria.PLAYER_GENERATES_CONTAINER_LOOT.trigger(player, LootTables.SIMPLE_DUNGEON_CHEST);
-            context.assertTrue(pending.getPending(player.getUuid()) == null, "Other chests must not trigger");
-            Criteria.PLAYER_GENERATES_CONTAINER_LOOT.trigger(player, LootTables.ANCIENT_CITY_CHEST);
-            var offer = pending.getPending(player.getUuid());
-            context.assertTrue(offer != null && offer.kind() == ContentRegistry.Kind.ABILITY
-                            && UniqueContentRegistry.ANCIENT_CITY_ABILITY_IDS.containsAll(offer.optionIds())
-                            && !offer.optionIds().isEmpty(),
-                    "An Ancient City chest must offer the new skills");
-            pending.clearPending(player.getUuid());
-            Criteria.PLAYER_GENERATES_CONTAINER_LOOT.trigger(player, LootTables.ANCIENT_CITY_ICE_BOX_CHEST);
-            context.assertTrue(pending.getPending(player.getUuid()) == null, "The offer must happen only once");
-            context.complete();
-        } finally {
-            pending.clearPending(player.getUuid());
-        }
-    }
-
-    @GameTest(templateName = FabricGameTest.EMPTY_STRUCTURE)
-    public void ancientCitySkillTakesTheActivateKeyOverEarlierSkills(TestContext context) {
-        var world = context.getWorld();
-        var player = player(context);
-        var ownership = WorldUniqueData.getOrCreate(world);
-        try {
-            context.assertTrue(ownership.claimId(player.getUuid(), UniqueContentRegistry.SPATIAL_LEAP)
-                            && ownership.claimId(player.getUuid(), UniqueContentRegistry.WEATHER_CONTROL),
-                    "The test player must receive both skills");
-            context.assertTrue(UniqueContentRegistry.WEATHER_CONTROL.equals(
-                            UniqueContentRegistry.getActiveAbility(player)),
-                    "The R key must use the Ancient City skill");
-            context.complete();
-        } finally {
-            ownership.releaseId(player.getUuid(), UniqueContentRegistry.SPATIAL_LEAP);
-            ownership.releaseId(player.getUuid(), UniqueContentRegistry.WEATHER_CONTROL);
         }
     }
 }

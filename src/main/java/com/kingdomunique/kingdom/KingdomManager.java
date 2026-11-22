@@ -36,6 +36,7 @@ public final class KingdomManager {
 
     /** プレイヤーUUID -> 憑依中の英雄UUID。 */
     private static final Map<UUID, UUID> POSSESSING = new HashMap<>();
+    private static final Map<UUID, Boolean> PRE_POSSESSION_NO_GRAVITY = new HashMap<>();
     private static final int INITIAL_CAP = 10;
     private static final int MAX_CAP = 40;
     private static final long GROWTH_INTERVAL = 400L;
@@ -270,9 +271,7 @@ public final class KingdomManager {
     public static void togglePossession(ServerPlayerEntity player) {
         UUID current = POSSESSING.get(player.getUuid());
         if (current != null) {
-            player.setCameraEntity(player);
-            player.removeStatusEffect(StatusEffects.INVISIBILITY);
-            POSSESSING.remove(player.getUuid());
+            clearPossession(player);
             player.sendMessage(Text.literal("§7[憑依] 本体へ意識を戻しました。"), true);
             return;
         }
@@ -288,6 +287,7 @@ public final class KingdomManager {
             player.sendMessage(Text.literal("§c[憑依] 近くに刺客英雄がいません。"), true);
             return;
         }
+        PRE_POSSESSION_NO_GRAVITY.put(player.getUuid(), player.hasNoGravity());
         POSSESSING.put(player.getUuid(), found.getUuid());
         player.setCameraEntity(found);
         player.addStatusEffect(new StatusEffectInstance(StatusEffects.INVISIBILITY, 200000, 0, true, false));
@@ -300,15 +300,20 @@ public final class KingdomManager {
             return null;
         }
         if (!(player.getServerWorld().getEntity(uuid) instanceof HeroEntity hero) || !hero.isAlive()) {
-            POSSESSING.remove(player.getUuid());
-            player.setCameraEntity(player);
+            clearPossession(player);
             return null;
         }
         return hero;
     }
 
     public static void clearPossession(ServerPlayerEntity player) {
-        POSSESSING.remove(player.getUuid());
+        if (POSSESSING.remove(player.getUuid()) == null) {
+            return;
+        }
+        Boolean noGravity = PRE_POSSESSION_NO_GRAVITY.remove(player.getUuid());
+        player.setNoGravity(Boolean.TRUE.equals(noGravity));
+        player.setCameraEntity(player);
+        player.removeStatusEffect(StatusEffects.INVISIBILITY);
     }
 
     /** 王国名を返す（未設定なら「無名の王国」）。 */

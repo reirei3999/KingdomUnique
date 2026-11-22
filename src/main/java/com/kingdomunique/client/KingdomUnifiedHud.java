@@ -79,7 +79,7 @@ public final class KingdomUnifiedHud {
         String name = abilityId == null || abilityId.isEmpty()
                 ? "未覚醒" : ContentRegistry.nameOf(abilityId);
         int range = status.miningRange();
-        String rangeLabel = range > 1 ? " §b[" + range + "x" + range + "]" : "";
+        String rangeLabel = !status.abilitiesSealed() && range > 1 ? " §b[" + range + "x" + range + "]" : "";
 
         // 人口の色分け（Gemini 提示）：満員=赤 / 80%以上=黄 / 余裕あり=緑。
         String popColor = cachedCurrentPop >= cachedMaxPop ? "§c"
@@ -117,12 +117,13 @@ public final class KingdomUnifiedHud {
         }
         int maxCt = AbilityDescriptions.cooldownTicks(abilityId);
         int ct = Math.max(0, status.cooldownTicks());
+        boolean sealed = status.abilitiesSealed();
         boolean ready = maxCt <= 0 || ct <= 0;
 
         int slotX = sw / 2 + 98;
         int slotY = sh - 22;
         int size = 22;
-        int border = ready ? KuTheme.GOLD : KuTheme.BORDER;
+        int border = sealed ? KuTheme.PURPLE : ready ? KuTheme.GOLD : KuTheme.BORDER;
 
         context.fill(slotX, slotY, slotX + size, slotY + size, KuTheme.withAlpha(KuTheme.INSET, 0xB0));
         KuTheme.drawBorder(context, slotX, slotY, size, size, border);
@@ -130,6 +131,13 @@ public final class KingdomUnifiedHud {
         ItemStack icon = SelectionIcons.iconFor(abilityId);
         if (!icon.isEmpty()) {
             context.drawItem(icon, slotX + 3, slotY + 3);
+        }
+
+        if (sealed) {
+            String hint = "封印中";
+            context.drawTextWithShadow(tr, Text.literal(hint),
+                    slotX + (size - tr.getWidth(hint)) / 2, slotY - 12, KuTheme.PURPLE);
+            return;
         }
 
         if (maxCt > 0 && ct > 0) {

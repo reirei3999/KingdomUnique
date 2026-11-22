@@ -3,6 +3,7 @@ package com.kingdomunique.mixin;
 import com.kingdomunique.ability.AbilityPassives;
 import com.kingdomunique.ability.AbilityState;
 import com.kingdomunique.ability.AlliedMobManager;
+import com.kingdomunique.effect.CurseEffects;
 import com.kingdomunique.entity.CitizenVillager;
 import com.kingdomunique.kingdom.PolicyManager;
 import com.kingdomunique.registry.UniqueContentRegistry;
@@ -45,11 +46,12 @@ public abstract class LivingEntityMixin {
             }
         }
 
-        if (attacker instanceof ServerPlayerEntity player) {
+        if (attacker instanceof ServerPlayerEntity player && !CurseEffects.isEnvyReflection(source)) {
             if (UniqueContentRegistry.has(player, UniqueContentRegistry.CONQUEROR)) {
                 amount *= 1.3F;
             }
-            if (AbilityState.get(player.getUuid()).isShadowDamageBuff()) {
+            if (UniqueContentRegistry.has(player, UniqueContentRegistry.SHADOW_STEP)
+                    && AbilityState.get(player.getUuid()).isShadowDamageBuff()) {
                 amount *= 1.5F;
                 AbilityState.get(player.getUuid()).setShadowDamageBuff(false);
             }

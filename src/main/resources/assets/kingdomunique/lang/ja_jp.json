@@ -68,6 +68,9 @@
   "item.kingdomunique.apollo_bow": "神弓 アポロンの太陽弓",
   "item.kingdomunique.mjolnir": "雷神銃 ミョルニル",
   "item.kingdomunique.chronos_dagger": "空間の短剣 クロノス・ダガー",
+  "item.kingdomunique.kusanagi": "草薙の剣",
+  "item.kingdomunique.poseidon_trident": "トライデント・オブ・ポセイドン",
+  "item.kingdomunique.twilight_scythe": "黄昏の鎌（ハルパー）",
   "block.kingdomunique.blueprint_house": "設計図：民家",
   "block.kingdomunique.blueprint_barracks": "設計図：兵舎",
   "block.kingdomunique.blueprint_blacksmith": "設計図：鍛冶工房",
@@ -76,5 +79,13 @@
   "block.kingdomunique.blueprint_gate": "設計図：国の門",
   "block.kingdomunique.blueprint_wall": "設計図：防壁",
   "block.kingdomunique.blueprint_hero_sanctuary": "設計図：英雄召喚の祭壇",
-  "entity.kingdomunique.hero": "王国の英雄"
+  "entity.kingdomunique.hero": "王国の英雄",
+  "entity.kingdomunique.kingdom_guardian": "王国の守護獣",
+  "message.kingdomunique.relic.crystal.intrusion": "[千里眼の水晶] %s が自国領内に侵入しました。",
+  "message.kingdomunique.relic.crystal.intrusions": "[千里眼の水晶] %s ほか %s 体が自国領内に侵入しました。",
+  "message.kingdomunique.relic.compass.required": "旅人の羅針盤を所持していません。",
+  "message.kingdomunique.relic.compass.possessing": "[旅人の羅針盤] 帰還するには先に憑依を解除してください。",
+  "message.kingdomunique.relic.compass.used": "[旅人の羅針盤] 本日はすでに帰還しました。",
+  "message.kingdomunique.relic.compass.no_destination": "[旅人の羅針盤] 自国の拠点に安全な帰還場所が見つかりません。",
+  "message.kingdomunique.relic.compass.recalled": "[旅人の羅針盤] 自国の拠点に帰還しました。"
 }

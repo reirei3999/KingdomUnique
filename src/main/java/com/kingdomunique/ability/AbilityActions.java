@@ -2,6 +2,7 @@ package com.kingdomunique.ability;
 
 import com.kingdomunique.data.AbilityUsageData;
 import com.kingdomunique.registry.AbilityDescriptions;
+import com.kingdomunique.effect.CurseEffects;
 import com.kingdomunique.registry.UniqueContentRegistry;
 import com.kingdomunique.util.EnhancementUtil;
 import net.minecraft.entity.EntityType;
@@ -41,6 +42,9 @@ public final class AbilityActions {
 
     /** Vキー：神匠の採掘範囲を切り替える。 */
     public static void handleModeSwitch(ServerPlayerEntity player) {
+        if (rejectSealed(player)) {
+            return;
+        }
         if (!UniqueContentRegistry.has(player, UniqueContentRegistry.DIVINE_SMITH)) {
             player.sendMessage(Text.literal("§7[KingdomUnique] モード切替可能な能力を持っていません。"), false);
             return;
@@ -58,6 +62,9 @@ public final class AbilityActions {
 
     /** Rキー：サーバー側で world.getTime() によるクールタイムを厳密に_checkして発動。 */
     public static void handleActivate(ServerPlayerEntity player) {
+        if (rejectSealed(player)) {
+            return;
+        }
         String ability = UniqueContentRegistry.getActiveAbility(player);
         if (ability == null) {
             if (!UniqueContentRegistry.getAbilities(player).isEmpty()) {
@@ -106,6 +113,14 @@ public final class AbilityActions {
 
     private static AbilityUsageData usageData(ServerPlayerEntity player) {
         return AbilityUsageData.getOrCreate(player.getServer().getWorld(World.OVERWORLD));
+    }
+
+    private static boolean rejectSealed(ServerPlayerEntity player) {
+        if (!CurseEffects.abilitiesSealed(player)) {
+            return false;
+        }
+        player.sendMessage(Text.literal("§5[封印の鎖] ユニーク能力は封印されています。"), true);
+        return true;
     }
 
     /** 空間跳躍：最大8マス先の安全な地点へ瞬間移動（5秒）。 */

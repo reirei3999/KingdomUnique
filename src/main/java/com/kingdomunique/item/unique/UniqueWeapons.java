@@ -12,7 +12,7 @@ import net.minecraft.text.Text;
 import net.minecraft.util.Formatting;
 import net.minecraft.util.Identifier;
 
-/** 世界に一つだけの6本の武器登録。 */
+/** 世界に一つだけの武器登録。 */
 public final class UniqueWeapons {
 
     public static final ExcaliburItem EXCALIBUR = register("excalibur",
@@ -43,8 +43,24 @@ public final class UniqueWeapons {
                     .component(DataComponentTypes.ATTRIBUTE_MODIFIERS,
                             SwordItem.createAttributeModifiers(ToolMaterials.DIAMOND, 3, -1.2F))));
 
+    public static final KusanagiItem KUSANAGI = register("kusanagi",
+            new KusanagiItem(ToolMaterials.DIAMOND, base("kusanagi", 2500)
+                    .component(DataComponentTypes.ATTRIBUTE_MODIFIERS,
+                            SwordItem.createAttributeModifiers(ToolMaterials.DIAMOND, 3, -2.4F))));
+
+    public static final PoseidonTridentItem POSEIDON_TRIDENT = register("poseidon_trident",
+            new PoseidonTridentItem(base("poseidon_trident", 2500)
+                    .component(DataComponentTypes.ATTRIBUTE_MODIFIERS,
+                            net.minecraft.item.TridentItem.createAttributeModifiers())));
+
+    public static final TwilightScytheItem TWILIGHT_SCYTHE = register("twilight_scythe",
+            new TwilightScytheItem(ToolMaterials.DIAMOND, base("twilight_scythe", 2500)
+                    .component(DataComponentTypes.ATTRIBUTE_MODIFIERS,
+                            SwordItem.createAttributeModifiers(ToolMaterials.DIAMOND, 3, -2.6F))));
+
     public static final String[] ALL_IDS = {
-            "excalibur", "gae_bolg", "muramasa", "apollo_bow", "mjolnir", "chronos_dagger"
+            "excalibur", "gae_bolg", "muramasa", "apollo_bow", "mjolnir", "chronos_dagger",
+            "kusanagi", "poseidon_trident", "twilight_scythe"
     };
 
     private static Item.Settings base(String uniqueId, int durability) {
@@ -74,6 +90,6 @@ public final class UniqueWeapons {
             return;
         }
         initialized = true;
-        KingdomUniqueMod.LOGGER.info("[KingdomUnique] Registered 6 unique weapons.");
+        KingdomUniqueMod.LOGGER.info("[KingdomUnique] Registered {} unique weapons.", ALL_IDS.length);
     }
 }

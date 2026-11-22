@@ -13,8 +13,10 @@ import net.minecraft.world.PersistentState;
 import java.util.ArrayList;
 import java.util.EnumSet;
 import java.util.HashMap;
+import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
+import java.util.Set;
 import java.util.UUID;
 
 /**
@@ -31,6 +33,7 @@ public final class PendingSelectionState extends PersistentState {
     /** プレイヤーUUID -> 未確定選択の順序付きキュー。 */
     private final Map<UUID, List<Pending>> pendingMap = new HashMap<>();
     private final Map<UUID, EnumSet<ContentRegistry.Kind>> triggered = new HashMap<>();
+    private final Set<UUID> ancientCityTriggered = new HashSet<>();
 
     public record Pending(ContentRegistry.Kind kind, List<String> optionIds) {
     }
@@ -98,8 +101,27 @@ public final class PendingSelectionState extends PersistentState {
         return true;
     }
 
+    public boolean recordAncientCityTrigger(UUID playerUuid) {
+        if (!ancientCityTriggered.add(playerUuid)) return false;
+        markDirty();
+        return true;
+    }
+
+    public void enqueuePending(UUID playerUuid, ContentRegistry.Kind kind, List<String> options) {
+        pendingMap.computeIfAbsent(playerUuid, ignored -> new ArrayList<>())
+                .add(new Pending(kind, new ArrayList<>(options)));
+        markDirty();
+    }
+
     static PendingSelectionState fromNbt(NbtCompound nbt, RegistryWrapper.WrapperLookup lookup) {
         PendingSelectionState state = new PendingSelectionState();
+        NbtList ancientCity = nbt.getList("ancientCityTriggered", NbtElement.STRING_TYPE);
+        for (int i = 0; i < ancientCity.size(); i++) {
+            try {
+                state.ancientCityTriggered.add(UUID.fromString(ancientCity.getString(i)));
+            } catch (IllegalArgumentException ignored) {
+            }
+        }
         NbtCompound players = nbt.getCompound("players");
         for (String key : players.getKeys()) {
             try {
@@ -148,7 +170,7 @@ public final class PendingSelectionState extends PersistentState {
             options.add(list.getString(i));
         }
         if (!options.isEmpty()) {
-            state.setPending(uuid, kind, options);
+            state.enqueuePending(uuid, kind, options);
         }
     }
 
@@ -179,6 +201,9 @@ public final class PendingSelectionState extends PersistentState {
             triggers.put(uuid.toString(), entry);
         });
         nbt.put("triggered", triggers);
+        NbtList ancientCity = new NbtList();
+        ancientCityTriggered.forEach(uuid -> ancientCity.add(NbtString.of(uuid.toString())));
+        nbt.put("ancientCityTriggered", ancientCity);
         return nbt;
     }
 }

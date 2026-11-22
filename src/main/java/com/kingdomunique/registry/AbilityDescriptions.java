@@ -115,20 +115,17 @@ public final class AbilityDescriptions {
             case UniqueContentRegistry.TIME_RULER -> new String[]{
                     "・Rキー：周囲8ブロックの敵（敵対Mobと自分を狙うMob）の時間を3秒止める",
                     "・停止中の敵は動けず攻撃もしない、CT 40秒",
-                    "・対象がいない場合はクールタイムを消費しない",
-                    "・入手：古代都市の宝箱を初めて開けたときの3択から選ぶ"
+                    "・対象がいない場合はクールタイムを消費しない"
             };
             case UniqueContentRegistry.ALCHEMY -> new String[]{
                     "・Rキー：手に持ったブロック1個を1段上の素材に変える",
                     "・石/丸石/石炭・銅鉱石→鉄鉱石→金鉱石→ダイヤ鉱石（深層岩も同様）",
                     "・石炭・銅ブロック→鉄ブロック→金ブロック→ダイヤブロック",
-                    "・1日10回まで（ゲーム内の日付で回復）",
-                    "・入手：古代都市の宝箱を初めて開けたときの3択から選ぶ"
+                    "・1日10回まで（ゲーム内の日付で回復）"
             };
             case UniqueContentRegistry.WEATHER_CONTROL -> new String[]{
                     "・Rキー：天候を 晴れ→雨→雷雨→晴れ の順に切り替える（地上のみ）",
-                    "・切り替えた天候はゲーム内1日続く、CT ゲーム内1日",
-                    "・入手：古代都市の宝箱を初めて開けたときの3択から選ぶ"
+                    "・切り替えた天候はゲーム内1日続く、CT ゲーム内1日"
             };
             // ---- 遺物（レリック） ----
             case "chalice_of_abundance" -> new String[]{
@@ -164,6 +161,15 @@ public final class AbilityDescriptions {
             };
             case "cradle_of_prosperity" -> new String[]{
                     "・王国の人口増加速度が1.5倍"
+            };
+            case RelicRegistry.CRYSTAL -> new String[]{
+                    "・自国領内に戦争相手のプレイヤーや敵対Mobが入ると通知し、領内にいる間は発光表示する"
+            };
+            case RelicRegistry.COMPASS -> new String[]{
+                    "・/ku recall で自国の拠点に帰還する（ゲーム内の1日につき1回）"
+            };
+            case RelicRegistry.GUARDIAN_EGG -> new String[]{
+                    "・自国を守るアイアンゴーレムを1体召喚する。倒されると翌日に復活する"
             };
             // ---- 呪物（カース） ----
             case "berserker_mask" -> new String[]{
@@ -201,6 +207,26 @@ public final class AbilityDescriptions {
             case "pickaxe_of_destruction" -> new String[]{
                     "・採掘速度402倍、専用ツルハシでどんなブロックも一瞬で破壊",
                     "・破壊したブロックのドロップは消滅"
+            };
+            case CurseRegistry.VAMPIRE_FANG -> new String[]{
+                    "・攻撃で実際に減らした体力の25%を回復、夜は移動速度1.3倍",
+                    "・日光に当たると燃える（ヘルメットで防げるが、耐久を消費する）"
+            };
+            case CurseRegistry.REAPER_HOURGLASS -> new String[]{
+                    "・体力が減るほど攻撃力が上昇（最大2.5倍）",
+                    "・最大体力と回復量が、それぞれ30%・50%減少する"
+            };
+            case CurseRegistry.ENVY_MIRROR -> new String[]{
+                    "・実際に失った体力の30%を攻撃者に反射（反射の再反射はしない）",
+                    "・味方や自国民からの回復・有利なステータス効果を無効化"
+            };
+            case CurseRegistry.MAD_MOON_NECKLACE -> new String[]{
+                    "・夜は攻撃力1.5倍、移動速度1.3倍",
+                    "・昼は攻撃力0.7倍、ベッドで眠れない"
+            };
+            case CurseRegistry.SEALING_CHAIN -> new String[]{
+                    "・被ダメージ50%カット、ノックバック無効",
+                    "・ユニーク能力の発動と常在効果が無効になる"
             };
             default -> new String[]{"世界で唯一の力。所持しているだけで効果が発動します。"};
         };

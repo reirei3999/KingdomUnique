@@ -2,17 +2,12 @@ package com.kingdomunique.data;
 
 import net.minecraft.datafixer.DataFixTypes;
 import net.minecraft.nbt.NbtCompound;
-import net.minecraft.nbt.NbtElement;
-import net.minecraft.nbt.NbtList;
-import net.minecraft.nbt.NbtString;
 import net.minecraft.registry.RegistryWrapper;
 import net.minecraft.server.world.ServerWorld;
 import net.minecraft.world.PersistentState;
 
 import java.util.HashMap;
-import java.util.HashSet;
 import java.util.Map;
-import java.util.Set;
 import java.util.UUID;
 
 /** 再ログイン・再起動をまたいで保持する能力のクールタイムと1日の使用回数。 */
@@ -31,9 +26,6 @@ public class AbilityUsageData extends PersistentState {
     /** プレイヤー -> 能力ID -> {日, 使用回数}。 */
     private final Map<UUID, Map<String, long[]>> dailyUses = new HashMap<>();
 
-    /** 古代都市の宝箱で能力選択を受けたプレイヤー。 */
-    private final Set<UUID> ancientCityTriggered = new HashSet<>();
-
     public AbilityUsageData() {
     }
 
@@ -47,13 +39,6 @@ public class AbilityUsageData extends PersistentState {
             NbtCompound abilities = ready.getCompound(player);
             for (String id : abilities.getKeys()) {
                 readyTicks.computeIfAbsent(uuid, ignored -> new HashMap<>()).put(id, abilities.getLong(id));
-            }
-        }
-        NbtList ancientCity = nbt.getList("ancient_city_triggered", NbtElement.STRING_TYPE);
-        for (int i = 0; i < ancientCity.size(); i++) {
-            UUID uuid = parse(ancientCity.getString(i));
-            if (uuid != null) {
-                ancientCityTriggered.add(uuid);
             }
         }
         NbtCompound uses = nbt.getCompound("daily_uses");
@@ -104,19 +89,7 @@ public class AbilityUsageData extends PersistentState {
             uses.put(uuid.toString(), entry);
         });
         nbt.put("daily_uses", uses);
-        NbtList ancientCity = new NbtList();
-        ancientCityTriggered.forEach(uuid -> ancientCity.add(NbtString.of(uuid.toString())));
-        nbt.put("ancient_city_triggered", ancientCity);
         return nbt;
-    }
-
-    /** 古代都市の宝箱トリガーを記録する。初回のみ true。 */
-    public boolean recordAncientCityTrigger(UUID player) {
-        if (!ancientCityTriggered.add(player)) {
-            return false;
-        }
-        markDirty();
-        return true;
     }
 
     public long getReadyTick(UUID player, String abilityId) {
