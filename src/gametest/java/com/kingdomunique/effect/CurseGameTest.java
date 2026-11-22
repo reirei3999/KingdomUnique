@@ -37,6 +37,18 @@ public final class CurseGameTest {
             context.assertTrue(player.getMaxHealth() == 10.0F, "Glass cannon must cap max health at 10");
             context.assertTrue(player.getHealth() == 10.0F, "Current health must be clamped to max health");
 
+            UUID previousReaper = data.getOwner(CurseRegistry.REAPER_HOURGLASS);
+            if (previousReaper != null) {
+                data.releaseId(previousReaper, CurseRegistry.REAPER_HOURGLASS);
+            }
+            context.assertTrue(data.claimId(player.getUuid(), CurseRegistry.REAPER_HOURGLASS),
+                    "The test player must be able to claim reaper hourglass");
+            CurseEffects.applyAttributes(player);
+            context.assertTrue(player.getMaxHealth() == 7.0F, "Glass cannon with reaper must give 7 max health");
+            CurseEffects.applyAttributes(player);
+            context.assertTrue(player.getMaxHealth() == 7.0F, "Repeated application must keep 7 max health");
+            data.releaseId(player.getUuid(), CurseRegistry.REAPER_HOURGLASS);
+
             data.releaseId(player.getUuid(), CurseRegistry.GLASS_CANNON);
             CurseEffects.applyAttributes(player);
             context.assertTrue(player.getMaxHealth() == 20.0F, "Max health must return to 20 without the curse");
@@ -51,6 +63,7 @@ public final class CurseGameTest {
             context.complete();
         } finally {
             data.releaseId(player.getUuid(), CurseRegistry.GLASS_CANNON);
+            data.releaseId(player.getUuid(), CurseRegistry.REAPER_HOURGLASS);
         }
     }
 }

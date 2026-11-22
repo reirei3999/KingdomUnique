@@ -99,7 +99,7 @@ public final class CurseEffects {
             health.removeModifier(GLASS_HEALTH);
             if (glass) {
                 health.addTemporaryModifier(new EntityAttributeModifier(GLASS_HEALTH,
-                        GLASS_CANNON_MAX_HEALTH - health.getValue(), EntityAttributeModifier.Operation.ADD_VALUE));
+                        GLASS_CANNON_MAX_HEALTH - health.getBaseValue(), EntityAttributeModifier.Operation.ADD_VALUE));
             }
             if (player.getHealth() > player.getMaxHealth()) {
                 player.setHealth(player.getMaxHealth());
