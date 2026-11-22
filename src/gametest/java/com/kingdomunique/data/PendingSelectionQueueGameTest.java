@@ -23,6 +23,103 @@ import java.util.UUID;
 
 public final class PendingSelectionQueueGameTest {
     @GameTest(templateName = FabricGameTest.EMPTY_STRUCTURE)
+    public void ancientCityAndPopulationOfferIndependentRelics(TestContext context) {
+        var messages = new ArrayList<String>();
+        var player = player(context, UUID.randomUUID(), messages);
+        var state = PendingSelectionState.get(context.getWorld());
+        var uuid = player.getUuid();
+        try {
+            SelectionManager.onAncientCityChestOpened(player);
+            var first = state.getPending(uuid);
+            context.assertTrue(first != null && first.kind() == Kind.RELIC && first.optionIds().size() == 3,
+                    "Ancient City must offer three relics");
+            SelectionManager.onAncientCityChestOpened(player);
+            SelectionManager.onCitizenCountReached(player, 14);
+            SelectionManager.onCitizenCountReached(player, 15);
+            SelectionManager.handleChoice(player, Kind.RELIC, "invalid");
+            context.assertEquals(state.getPending(uuid), first, "Invalid choices must preserve the offer");
+            var lookup = context.getWorld().getRegistryManager();
+            var loaded = PendingSelectionState.fromNbt(state.writeNbt(new NbtCompound(), lookup), lookup);
+            context.assertFalse(loaded.recordAncientCityTrigger(uuid), "City flag must survive reload");
+            context.assertFalse(loaded.recordTrigger(uuid, Kind.RELIC), "Population flag must remain independent");
+            loaded.clearPending(uuid);
+            context.assertTrue(loaded.getPending(uuid) != null && loaded.getPending(uuid).kind() == Kind.RELIC,
+                    "Both relic offers must survive reload without replacing each other");
+            loaded.clearPending(uuid);
+            context.assertFalse(loaded.hasPending(uuid), "Repeated city opens must not add a third offer");
+            context.assertTrue(messages.stream().anyMatch(message -> message.contains("古代都市")),
+                    "Explain the Ancient City reward in Japanese");
+            context.assertTrue(loaded.recordAncientCityTrigger(UUID.randomUUID()), "Each player has their own flag");
+            context.complete();
+        } finally {
+            while (state.hasPending(uuid)) state.clearPending(uuid);
+        }
+    }
+
+    @GameTest(templateName = FabricGameTest.EMPTY_STRUCTURE)
+    public void ancientCityEmptyPoolIsConsumedOnce(TestContext context) {
+        var messages = new ArrayList<String>();
+        var player = player(context, UUID.randomUUID(), messages);
+        var state = PendingSelectionState.get(context.getWorld());
+        var ownership = WorldUniqueData.getOrCreate(context.getWorld());
+        var rival = UUID.randomUUID();
+        var previous = new HashMap<String, UUID>();
+        var ids = com.kingdomunique.registry.ContentRegistry.idsOf(Kind.RELIC);
+        try {
+            for (var id : ids) {
+                var owner = ownership.getOwner(id);
+                if (owner != null) {
+                    previous.put(id, owner);
+                    ownership.releaseId(owner, id);
+                }
+                ownership.claimId(rival, id);
+            }
+            SelectionManager.onAncientCityChestOpened(player);
+            SelectionManager.onAncientCityChestOpened(player);
+            context.assertFalse(state.hasPending(player.getUuid()), "Empty pools must not create an offer");
+            context.assertEquals(messages.stream().filter(message -> message.contains("未取得アイテムは残っていません")).count(),
+                    1L, "Empty pool must use the normal fallback only once");
+            context.complete();
+        } finally {
+            for (var id : ids) {
+                ownership.releaseId(rival, id);
+                if (previous.containsKey(id)) ownership.claimId(previous.get(id), id);
+            }
+        }
+    }
+
+    @GameTest(templateName = FabricGameTest.EMPTY_STRUCTURE)
+    public void cityLootChestOriginSurvivesGenerationAndReload(TestContext context) {
+        verifyChestOrigin(context, net.minecraft.loot.LootTables.ANCIENT_CITY_CHEST);
+        verifyChestOrigin(context, net.minecraft.loot.LootTables.ANCIENT_CITY_ICE_BOX_CHEST);
+        var player = player(context, UUID.randomUUID());
+        com.kingdomunique.selection.AncientCityRelicTrigger.onChestOpened(player,
+                context.getAbsolutePos(net.minecraft.util.math.BlockPos.ORIGIN));
+        context.waitAndRun(2, () -> {
+            context.assertFalse(PendingSelectionState.get(context.getWorld()).hasPending(player.getUuid()),
+                    "A chest outside an Ancient City must not grant a reward");
+            context.complete();
+        });
+    }
+
+    private static void verifyChestOrigin(TestContext context,
+                                         net.minecraft.registry.RegistryKey<net.minecraft.loot.LootTable> table) {
+        var chest = new net.minecraft.block.entity.ChestBlockEntity(net.minecraft.util.math.BlockPos.ORIGIN,
+                net.minecraft.block.Blocks.CHEST.getDefaultState());
+        chest.setWorld(context.getWorld());
+        chest.setLootTable(table);
+        chest.generateLoot(null);
+        var lookup = context.getWorld().getRegistryManager();
+        var nbt = chest.createNbt(lookup);
+        context.assertTrue(nbt.getBoolean("KingdomUniqueAncientCityLoot"), "Loot generation must preserve chest origin");
+        var loaded = new net.minecraft.block.entity.ChestBlockEntity(net.minecraft.util.math.BlockPos.ORIGIN,
+                net.minecraft.block.Blocks.CHEST.getDefaultState());
+        loaded.read(nbt, lookup);
+        context.assertTrue(loaded.createNbt(lookup).getBoolean("KingdomUniqueAncientCityLoot"),
+                "Opened chests must remain eligible for other players after reload");
+    }
+
+    @GameTest(templateName = FabricGameTest.EMPTY_STRUCTURE)
     public void conflictOpensNextSelectionAfterEmptyPool(TestContext context) {
         emptyPoolOpensNextSelection(context, false);
     }

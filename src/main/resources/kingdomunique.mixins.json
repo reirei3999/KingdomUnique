@@ -3,6 +3,8 @@
   "package": "com.kingdomunique.mixin",
   "compatibilityLevel": "JAVA_21",
   "mixins": [
+    "AncientCityChestMixin",
+    "LootChestOriginMixin",
     "AnvilScreenHandlerMixin",
     "AnvilTransferMixin",
     "AreaMiningMixin",

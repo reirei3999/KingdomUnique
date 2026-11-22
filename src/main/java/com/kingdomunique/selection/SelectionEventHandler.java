@@ -88,6 +88,7 @@ public final class SelectionEventHandler {
     }
 
     public static void register() {
+        AncientCityRelicTrigger.register();
         SelectionResultPayload.initialize();
         ServerTickEvents.END_SERVER_TICK.register(SelectionEventHandler::onTick);
         ServerPlayConnectionEvents.DISCONNECT.register((handler, server) -> {
