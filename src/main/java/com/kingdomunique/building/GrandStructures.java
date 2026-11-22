@@ -6,6 +6,7 @@ import net.minecraft.block.Blocks;
 import net.minecraft.block.CandleBlock;
 import net.minecraft.block.ChestBlock;
 import net.minecraft.block.LeavesBlock;
+import net.minecraft.block.LadderBlock;
 import net.minecraft.block.WallBannerBlock;
 import net.minecraft.block.enums.DoorHinge;
 import net.minecraft.block.enums.SlabType;
@@ -241,6 +242,9 @@ final class GrandStructures {
             b.set(lo + 1, 4, 8, hangingLantern(Blocks.LANTERN));
             b.set((lo + hi) / 2, 1, 5, Blocks.BOOKSHELF.getDefaultState());
             b.set((lo + hi) / 2, 1, 11, Blocks.BOOKSHELF.getDefaultState());
+            b.fill(inner, 1, 7, inner, 6, 7, Blocks.LADDER.getDefaultState()
+                    .with(LadderBlock.FACING, side == 0 ? Direction.WEST : Direction.EAST));
+            b.set(inner, 7, 7, Blocks.AIR.getDefaultState());
         }
 
         // 四隅の塔と尖塔
@@ -343,6 +347,17 @@ final class GrandStructures {
         b.set(tx + 1, 13, tz + 1, Blocks.GOLD_BLOCK.getDefaultState());
         b.set(tx + 1, 14, tz + 1, Blocks.SPRUCE_FENCE.getDefaultState());
         b.set(tx + 1, 15, tz + 1, Blocks.RED_BANNER.getDefaultState());
+        int entranceZ = tz == 1 ? tz + 2 : tz;
+        int landingZ = tz == 1 ? tz + 3 : tz - 1;
+        b.fill(tx, 1, tz + 1, tx, 9, tz + 1, Blocks.QUARTZ_BRICKS.getDefaultState());
+        b.fill(tx + 1, 1, tz + 1, tx + 1, 9, tz + 1,
+                Blocks.LADDER.getDefaultState().with(LadderBlock.FACING, Direction.EAST));
+        for (int y : new int[]{1, 6, 9}) {
+            b.fill(tx + 1, y, entranceZ, tx + 1, y + 1, entranceZ, Blocks.AIR.getDefaultState());
+            b.set(tx + 1, y - 1, entranceZ, Blocks.QUARTZ_BRICKS.getDefaultState());
+        }
+        b.fill(tx, 8, landingZ, tx + 2, 8, landingZ, Blocks.QUARTZ_BRICKS.getDefaultState());
+        b.fill(tx, 9, landingZ, tx + 2, 10, landingZ, Blocks.AIR.getDefaultState());
     }
 
     /** 正方形の外周に、中心へ向かって登る階段を並べる。top なら逆さ（軒の蛇腹）。 */
