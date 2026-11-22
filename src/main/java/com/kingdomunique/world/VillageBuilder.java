@@ -268,7 +268,9 @@ public final class VillageBuilder {
         Set<BlockPos> plaza = new HashSet<>();
         if (plan.warehouse() != null) {
             blocked.add(VillageTerrain.footprint(plan.warehouse(), WarehouseBuilder.SIZE, WarehouseBuilder.SIZE));
-            entrances.add(plan.warehouse().add(3, -1, WarehouseBuilder.SIZE - 1));
+            BlockPos entrance = plan.warehouse().add(3, -1, WarehouseBuilder.SIZE);
+            surfaces.put(roadColumn(entrance), entrance);
+            entrances.add(entrance);
         }
         for (int x = wellBox.getMinX() - 1; x <= wellBox.getMaxX() + 1; x++) {
             for (int z = wellBox.getMinZ() - 1; z <= wellBox.getMaxZ() + 1; z++) {

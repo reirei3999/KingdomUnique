@@ -32,6 +32,14 @@ public final class WarehouseGameTest {
         KingdomBuildingState buildings = KingdomBuildingState.get(world);
         context.assertTrue(buildings.hasCompletedBuilding(owner, BuildingType.WAREHOUSE),
                 "The starter village must register a kingdom warehouse");
+        var warehouse = buildings.entries().stream()
+                .filter(building -> building.ownerUuid.equals(owner) && building.type == BuildingType.WAREHOUSE)
+                .findFirst().orElseThrow();
+        BlockPos road = new BlockPos(warehouse.boundingBox.getMinX() + 3, warehouse.boundingBox.getMinY(),
+                warehouse.boundingBox.getMaxZ() + 1);
+        context.assertTrue(world.getBlockState(road).isOf(Blocks.DIRT_PATH)
+                        || world.getBlockState(road).isOf(Blocks.GRAVEL),
+                "The warehouse doorway must connect to the village road");
         List<Inventory> storages = KingdomTreasuryUtil.getKingdomStorages(world, owner);
         context.assertTrue(storages.size() >= 6, "The warehouse chests and barrels must count as kingdom storage (found "
                 + storages.size() + ")");
