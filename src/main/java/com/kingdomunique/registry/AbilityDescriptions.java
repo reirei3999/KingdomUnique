@@ -205,8 +205,8 @@ public final class AbilityDescriptions {
                     "・明所では防御力が半減する"
             };
             case "pickaxe_of_destruction" -> new String[]{
-                    "・採掘速度402倍、専用ツルハシでどんなブロックも一瞬で破壊",
-                    "・破壊したブロックのドロップは消滅"
+                    "・専用ツルハシをメインハンドに持っている間、採掘速度402倍",
+                    "・そのツルハシで壊したブロックのドロップは消滅"
             };
             case CurseRegistry.VAMPIRE_FANG -> new String[]{
                     "・攻撃で実際に減らした体力の25%を回復、夜は移動速度1.3倍",

@@ -95,7 +95,7 @@ public final class SelectionIcons {
             case "gravity_shackles" -> new String[]{"被ダメ60%カット", "ジャンプ不可・速度0.8倍"};
             case "immoral_contract" -> new String[]{"国民コスト0", "国民死亡で呪いダメージ"};
             case "void_lantern" -> new String[]{"暗所で透明化・攻撃2倍", "明所で防御半減"};
-            case "pickaxe_of_destruction" -> new String[]{"即破壊", "ドロップ消滅"};
+            case "pickaxe_of_destruction" -> new String[]{"メインハンドで採掘速度大幅UP", "そのツルハシのドロップ消滅"};
             case CurseRegistry.VAMPIRE_FANG -> new String[]{"与ダメージの25%吸血・夜の移動1.3倍", "日光で燃焼（ヘルメットで防御）"};
             case CurseRegistry.REAPER_HOURGLASS -> new String[]{"低体力ほど攻撃上昇（最大2.5倍）", "最大体力-30%・回復量半減"};
             case CurseRegistry.ENVY_MIRROR -> new String[]{"被ダメージの30%を反射", "味方・自国民からの回復や強化が無効"};

@@ -107,7 +107,7 @@ public final class BalanceGameTest {
         var data = WorldUniqueData.getOrCreate(context.getWorld().getServer().getOverworld());
         String[] ids = {CurseRegistry.GLASS_CANNON, CurseRegistry.SOLITUDE, CurseRegistry.DESTRUCTION,
                 UniqueContentRegistry.SITE_SUPERVISOR};
-        double[] multipliers = {5.0D, 3.0D, 402.0D, 3.0D};
+        double[] multipliers = {5.0D, 3.0D, 1.0D, 3.0D};
         for (int i = 0; i < ids.length; i++) {
             context.assertTrue(data.claimId(player.getUuid(), ids[i]), "Mining ability must be available");
             try {
