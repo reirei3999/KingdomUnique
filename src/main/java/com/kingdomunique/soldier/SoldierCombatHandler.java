@@ -155,7 +155,9 @@ public final class SoldierCombatHandler {
             soldier.heal(Math.max(1.0f, damageDealt * 0.25f));
             ServerWorld world = (ServerWorld) soldier.getWorld();
             for (HostileEntity extra : world.getEntitiesByClass(HostileEntity.class,
-                    new Box(target.getBlockPos()).expand(3.0D), e -> e != target && e.isAlive())) {
+                    new Box(target.getBlockPos()).expand(3.0D),
+                    e -> e != target && e.isAlive()
+                            && !com.kingdomunique.ability.AlliedMobManager.isAlly(e))) {
                 extra.damage(world.getDamageSources().mobAttack(soldier), damageDealt * 0.5f);
             }
         } finally {
@@ -166,7 +168,7 @@ public final class SoldierCombatHandler {
     private static LivingEntity findNearestEnemy(ServerWorld world, VillagerEntity soldier, double radius) {
         Box searchBox = new Box(soldier.getBlockPos()).expand(radius);
         List<HostileEntity> hostiles = world.getEntitiesByClass(HostileEntity.class,
-                searchBox, LivingEntity::isAlive);
+                searchBox, e -> e.isAlive() && !com.kingdomunique.ability.AlliedMobManager.isAlly(e));
         LivingEntity closest = null;
         double minDist = Double.MAX_VALUE;
         for (HostileEntity hostile : hostiles) {
