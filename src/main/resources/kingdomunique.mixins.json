@@ -18,17 +18,21 @@
     "LivingEntityMixin",
     "LoseJobOnSiteLossTaskMixin",
     "MobEntityAccessor",
+    "MonumentGuardianMixin",
     "PersistentProjectileEntityAccessor",
     "PlayerCurseMixin",
     "PlayerInventoryMixin",
+    "PoseidonTridentMixin",
     "PhantomSpawnerMixin",
     "RangedDamageMixin",
     "StatusEffectMixin",
     "SpawnRestrictionMixin",
     "SmithingTransformRecipeMixin",
+    "StormRaidMixin",
     "UniqueWeaponMixin",
     "VillagerBreedTaskMixin",
-    "VillagerProfessionMixin"
+    "VillagerProfessionMixin",
+    "WeaponAttackMixin"
   ],
   "client": [
     "client.VillagerRendererMixin"

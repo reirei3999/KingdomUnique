@@ -24,6 +24,7 @@
       "com.kingdomunique.compat.jei.JeiLanguageGameTest",
       "com.kingdomunique.unique.UniqueWeaponGrantGameTest",
       "com.kingdomunique.unique.ApolloBowGameTest",
+      "com.kingdomunique.unique.NewUniqueWeaponsGameTest",
       "com.kingdomunique.selection.GluttonyRingGameTest"
     ]
   },
