@@ -45,6 +45,73 @@ import java.util.List;
 import java.util.UUID;
 
 public final class VillagePlacementGameTest {
+    @GameTest(templateName = FabricGameTest.EMPTY_STRUCTURE, batchId = "citizen_conversion")
+    public void citizenConversionAndRemovalCountEachLossOnce(TestContext context) {
+        ServerWorld world = context.getWorld();
+        BlockPos pos = context.getAbsolutePos(new BlockPos(1, 3, 1));
+        UUID owner = UUID.randomUUID();
+        ServerPlayerEntity player = new ServerPlayerEntity(world.getServer(), world,
+                new GameProfile(owner, "conversion_test"), SyncedClientOptions.createDefault());
+        KingdomData data = KingdomData.getOrCreate(world.getServer().getOverworld());
+        data.put(owner, new KingdomData.KingdomInfo(pos.getX(), pos.getZ(), 3, 3, 0,
+                false, 0, true, 100, true, ""));
+        var difficulty = world.getDifficulty();
+        try {
+            world.getServer().setDifficulty(net.minecraft.world.Difficulty.HARD, true);
+            context.assertTrue(world.getServer().getPlayerManager().getPlayer(owner) == null,
+                    "The citizen owner must be offline");
+            var lightningVictim = populationCitizen(world, pos, owner);
+            var lightning = EntityType.LIGHTNING_BOLT.create(world);
+            lightningVictim.onStruckByLightning(world, lightning);
+            context.assertTrue(lightningVictim.isRemoved(), "Lightning must remove the original villager");
+            context.assertTrue(world.getEntitiesByClass(net.minecraft.entity.mob.WitchEntity.class,
+                    new Box(pos).expand(8), witch -> true).size() == 1, "Lightning must create a witch");
+            context.assertTrue(data.get(owner).population() == 2,
+                    "Witch conversion must free one population slot for an offline owner");
+            var hud = com.kingdomunique.status.StatusManager.populationPayload(player, world);
+            context.assertTrue(hud.currentPopulation() == 2 && hud.maxPopulation() == 3,
+                    "HUD must show the freed slot");
+
+            var zombieVictim = populationCitizen(world, pos, owner);
+            var zombie = EntityType.ZOMBIE.create(world);
+            zombieVictim.setHealth(0);
+            zombieVictim.onDeath(world.getDamageSources().mobAttack(zombie));
+            context.assertTrue(zombieVictim.isRemoved(), "Zombie kill must convert the villager");
+            context.assertTrue(world.getEntitiesByClass(net.minecraft.entity.mob.ZombieVillagerEntity.class,
+                    new Box(pos).expand(8), converted -> true).size() == 1,
+                    "Hard-difficulty zombie kill must create a zombie villager");
+            context.assertTrue(data.get(owner).population() == 1,
+                    "Zombie conversion followed by AFTER_DEATH must count only once");
+
+            var unloaded = populationCitizen(world, pos, owner);
+            unloaded.remove(net.minecraft.entity.Entity.RemovalReason.UNLOADED_TO_CHUNK);
+            context.assertTrue(data.get(owner).population() == 1, "Chunk unloading must not lose a citizen");
+            var discarded = populationCitizen(world, pos, owner);
+            discarded.discard();
+            context.assertTrue(data.get(owner).population() == 0, "Permanent discard must lose one citizen");
+            populationCitizen(world, pos, UUID.randomUUID()).discard();
+            context.assertTrue(data.get(owner).population() == 0, "Unknown owners must not affect this kingdom");
+        } finally {
+            data.remove(owner);
+            world.getServer().setDifficulty(difficulty, true);
+            for (var entity : world.getEntitiesByClass(net.minecraft.entity.LivingEntity.class,
+                    new Box(pos).expand(8), entity -> true)) {
+                entity.discard();
+            }
+        }
+        context.complete();
+    }
+
+    private static net.minecraft.entity.passive.VillagerEntity populationCitizen(
+            ServerWorld world, BlockPos pos, UUID owner) {
+        var citizen = EntityType.VILLAGER.create(world);
+        citizen.refreshPositionAndAngles(pos.getX() + 0.5, pos.getY(), pos.getZ() + 0.5, 0, 0);
+        citizen.setAiDisabled(true);
+        ((com.kingdomunique.entity.CitizenVillager) citizen).ku$setOwnerUuid(owner.toString());
+        world.spawnEntity(citizen);
+        return citizen;
+    }
+
     @GameTest(templateName = FabricGameTest.EMPTY_STRUCTURE, batchId = "starter_population")
     public void starterPopulationSurvivesReloadAndMatchesRecruitment(TestContext context) {
         ServerWorld world = context.getWorld();

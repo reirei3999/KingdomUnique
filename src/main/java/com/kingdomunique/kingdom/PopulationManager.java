@@ -6,6 +6,7 @@ import com.kingdomunique.entity.CitizenVillager;
 import com.kingdomunique.effect.RelicEffects;
 import net.fabricmc.fabric.api.entity.event.v1.ServerLivingEntityEvents;
 import net.fabricmc.fabric.api.event.lifecycle.v1.ServerTickEvents;
+import net.fabricmc.fabric.api.event.lifecycle.v1.ServerEntityEvents;
 import net.minecraft.entity.LivingEntity;
 import net.minecraft.entity.passive.VillagerEntity;
 import net.minecraft.item.ItemStack;
@@ -28,6 +29,9 @@ import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.UUID;
+import java.util.Collections;
+import java.util.Set;
+import java.util.WeakHashMap;
 
 /**
  * 王国の人口自然増減（Gemini 提示を既存 CitizenVillager / KingdomManager へ接続）。
@@ -38,6 +42,7 @@ public final class PopulationManager {
     /** 10分 (12000 tick) ごとに人口増加判定。 */
     private static final long GROWTH_CHECK_INTERVAL = 12000L;
     private static final Map<UUID, Double> GROWTH_PROGRESS = new HashMap<>();
+    private static final Set<LivingEntity> COUNTED_LOSSES = Collections.newSetFromMap(new WeakHashMap<>());
 
     private PopulationManager() {
     }
@@ -45,6 +50,12 @@ public final class PopulationManager {
     public static void register() {
         ServerTickEvents.END_WORLD_TICK.register(PopulationManager::onWorldTick);
         ServerLivingEntityEvents.AFTER_DEATH.register(PopulationManager::onEntityDeath);
+        ServerEntityEvents.ENTITY_UNLOAD.register((entity, world) -> {
+            var reason = entity.getRemovalReason();
+            if (reason != null && reason.shouldDestroy() && entity instanceof LivingEntity living) {
+                onCitizenLost(living, false);
+            }
+        });
     }
 
     /** 保存された王国の人口上限を返す。 */
@@ -150,6 +161,10 @@ public final class PopulationManager {
 
     /** 国民・兵士が死亡したときの人口減少と訃報を通知する。 */
     private static void onEntityDeath(LivingEntity entity, net.minecraft.entity.damage.DamageSource source) {
+        onCitizenLost(entity, true);
+    }
+
+    private static void onCitizenLost(LivingEntity entity, boolean died) {
         if (entity.getWorld().isClient() || !(entity instanceof VillagerEntity villager)
                 || !(villager instanceof CitizenVillager citizen)) {
             return;
@@ -171,6 +186,9 @@ public final class PopulationManager {
         if (info == null) {
             return;
         }
+        if (!COUNTED_LOSSES.add(entity)) {
+            return;
+        }
         int remaining = Math.max(0, info.population() - 1);
         int maxPop = info.populationCap();
         data.put(ownerUuid, new KingdomData.KingdomInfo(info.centerX(), info.centerZ(), remaining,
@@ -178,7 +196,8 @@ public final class PopulationManager {
                 info.territoryRadius(), info.villageGenerated(), info.kingdomName()));
         if (king != null) {
             String role = CitizenVillager.ROLE_SOLDIER.equals(citizen.ku$getRole()) ? "王国兵士" : "国民";
-            king.sendMessage(Text.literal("§c[訃報] " + role + "が死亡しました…（残り人口: "
+            king.sendMessage(Text.literal((died ? "§c[訃報] " + role + "が死亡しました…" : "§c[王国] 国民が王国を去りました。")
+                    + "（残り人口: "
                     + remaining + "/" + maxPop + "）"), false);
             com.kingdomunique.status.StatusManager.syncPopulationToPlayer(king, world);
         }
