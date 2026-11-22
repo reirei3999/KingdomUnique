@@ -30,6 +30,7 @@ import net.minecraft.server.network.ConnectedClientData;
 import net.minecraft.server.network.ServerPlayNetworkHandler;
 import net.minecraft.server.world.ServerWorld;
 import net.minecraft.state.property.Properties;
+import net.minecraft.structure.StructurePlacementData;
 import net.minecraft.text.Text;
 import net.minecraft.util.math.BlockBox;
 import net.minecraft.test.GameTest;
@@ -665,10 +666,16 @@ public final class VillagePlacementGameTest {
                 world.setBlockState(ground.up(), Blocks.SHORT_GRASS.getDefaultState(), Block.NOTIFY_LISTENERS);
             }
         }
-        BlockPos hall = TownHallBuilder.findVillageOrigin(world, center.getX(), center.getZ());
-        context.assertTrue(hall != null, "A starter hall plot must exist under the short grass");
-        BlockPos hallWall = hall.south(5);
-        BlockPos wellWall = center.add(-2, 1, -2);
+        var plan = VillageBuilder.planVillage(world, center.getX(), center.getZ());
+        context.assertTrue(plan != null && plan.well() != null, "Starter hall and well plots must exist under the short grass");
+        BlockPos hallWall = plan.hallOrigin().south(5);
+        var well = plan.well();
+        BlockPos wellWall = well.template() == null ? well.plot()
+                : well.template().getInfosForBlock(well.plot().add(1, -1, 1), new StructurePlacementData(),
+                        Blocks.COBBLESTONE).stream()
+                .map(info -> info.pos())
+                .filter(pos -> pos.getY() == well.plot().getY())
+                .findFirst().orElseThrow(() -> new IllegalStateException("Well template needs an above-ground wall"));
         CowEntity hallCow = spawnCow(world, hallWall);
         CowEntity wellCow = spawnCow(world, wellWall);
         context.assertTrue(!hallCow.isInsideWall() && !wellCow.isInsideWall(),

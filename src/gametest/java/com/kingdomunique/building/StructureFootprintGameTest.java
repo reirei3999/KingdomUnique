@@ -16,7 +16,7 @@ public final class StructureFootprintGameTest {
     private static final BlockState SENTINEL = Blocks.GLASS.getDefaultState();
     private static final Direction[] FACINGS = {Direction.SOUTH, Direction.WEST, Direction.NORTH, Direction.EAST};
 
-    @GameTest(templateName = FabricGameTest.EMPTY_STRUCTURE)
+    @GameTest(templateName = FabricGameTest.EMPTY_STRUCTURE, batchId = "structure_footprint_playtest")
     public void playtestFixturesAndDefenseAccessSurviveUpdates(TestContext context) {
         ServerWorld world = context.getWorld();
         BuildingType[] types = {BuildingType.BLACKSMITH, BuildingType.TOWN_HALL,
@@ -67,7 +67,7 @@ public final class StructureFootprintGameTest {
         context.complete();
     }
 
-    @GameTest(templateName = FabricGameTest.EMPTY_STRUCTURE)
+    @GameTest(templateName = FabricGameTest.EMPTY_STRUCTURE, batchId = "structure_footprint_playtest")
     public void adjacentWallsAreAllowedButOverlapsAreRejected(TestContext context) {
         ServerWorld world = context.getWorld();
         var owner = java.util.UUID.randomUUID();
@@ -105,7 +105,7 @@ public final class StructureFootprintGameTest {
         context.complete();
     }
 
-    @GameTest(templateName = FabricGameTest.EMPTY_STRUCTURE)
+    @GameTest(templateName = FabricGameTest.EMPTY_STRUCTURE, batchId = "structure_footprint_playtest")
     public void foundationsReachDeepGroundAndStopAtWorldBottom(TestContext context) {
         ServerWorld world = context.getWorld();
         BlockPos origin = context.getAbsolutePos(new BlockPos(0, 40, 3000));
