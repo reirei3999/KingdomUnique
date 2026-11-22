@@ -1,8 +1,10 @@
 package com.kingdomunique.entity;
 
 import com.kingdomunique.KingdomUniqueMod;
+import net.fabricmc.fabric.api.object.builder.v1.entity.FabricDefaultAttributeRegistry;
 import net.minecraft.entity.EntityType;
 import net.minecraft.entity.SpawnGroup;
+import net.minecraft.entity.passive.IronGolemEntity;
 import net.minecraft.registry.Registries;
 import net.minecraft.registry.Registry;
 import net.minecraft.util.Identifier;
@@ -21,6 +23,15 @@ public final class ModEntities {
                     .build("hero")
     );
 
+    public static final EntityType<KingdomGuardianEntity> KINGDOM_GUARDIAN = Registry.register(
+            Registries.ENTITY_TYPE,
+            Identifier.of(KingdomUniqueMod.MOD_ID, "kingdom_guardian"),
+            EntityType.Builder.create(KingdomGuardianEntity::new, SpawnGroup.MISC)
+                    .dimensions(1.4F, 2.7F)
+                    .maxTrackingRange(10)
+                    .build("kingdom_guardian")
+    );
+
     private static boolean initialized = false;
 
     private ModEntities() {
@@ -31,6 +42,7 @@ public final class ModEntities {
             return;
         }
         initialized = true;
+        FabricDefaultAttributeRegistry.register(KINGDOM_GUARDIAN, IronGolemEntity.createIronGolemAttributes());
         KingdomUniqueMod.LOGGER.info("[KingdomUnique] Registered hero entity.");
     }
 }

@@ -1,6 +1,7 @@
 package com.kingdomunique.client;
 
 import com.kingdomunique.registry.CurseRegistry;
+import com.kingdomunique.registry.RelicRegistry;
 import net.minecraft.item.ItemStack;
 import net.minecraft.item.Items;
 
@@ -33,6 +34,9 @@ public final class SelectionIcons {
             case "artisans_hammer" -> new ItemStack(Items.IRON_PICKAXE);
             case "blade_of_slaughter" -> new ItemStack(Items.DIAMOND_SWORD);
             case "cradle_of_prosperity" -> new ItemStack(Items.CRIMSON_FUNGUS);
+            case RelicRegistry.CRYSTAL -> new ItemStack(Items.AMETHYST_SHARD);
+            case RelicRegistry.COMPASS -> new ItemStack(Items.COMPASS);
+            case RelicRegistry.GUARDIAN_EGG -> new ItemStack(Items.EGG);
             case "berserker_mask" -> new ItemStack(Items.WITHER_SKELETON_SKULL);
             case "ring_of_gluttony" -> new ItemStack(Items.COOKED_BEEF);
             case "glass_cannon" -> new ItemStack(Items.TNT);
@@ -74,6 +78,9 @@ public final class SelectionIcons {
             case "artisans_hammer" -> new String[]{"30秒ごと12%でエンチャント本を生成"};
             case "blade_of_slaughter" -> new String[]{"専用剣を付与", "中立・敵対Mob撃破で攻撃力上昇"};
             case "cradle_of_prosperity" -> new String[]{"人口増加1.5倍"};
+            case RelicRegistry.CRYSTAL -> new String[]{"領内への侵入を通知・発光表示"};
+            case RelicRegistry.COMPASS -> new String[]{"1日1回 /ku recall で帰還"};
+            case RelicRegistry.GUARDIAN_EGG -> new String[]{"守護獣1体を召喚", "倒されると翌日復活"};
             case "berserker_mask" -> new String[]{"与ダメージ1.6倍", "自然回復不可"};
             case "ring_of_gluttony" -> new String[]{"撃破で一時強化", "空腹3倍・0で猛毒"};
             case "glass_cannon" -> new String[]{"攻撃2.5倍・採掘5倍", "最大HP10固定"};

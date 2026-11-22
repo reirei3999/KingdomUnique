@@ -135,6 +135,15 @@ public final class AbilityDescriptions {
             case "cradle_of_prosperity" -> new String[]{
                     "・王国の人口増加速度が1.5倍"
             };
+            case RelicRegistry.CRYSTAL -> new String[]{
+                    "・自国領内に戦争相手のプレイヤーや敵対Mobが入ると通知し、領内にいる間は発光表示する"
+            };
+            case RelicRegistry.COMPASS -> new String[]{
+                    "・/ku recall で自国の拠点に帰還する（ゲーム内の1日につき1回）"
+            };
+            case RelicRegistry.GUARDIAN_EGG -> new String[]{
+                    "・自国を守るアイアンゴーレムを1体召喚する。倒されると翌日に復活する"
+            };
             // ---- 呪物（カース） ----
             case "berserker_mask" -> new String[]{
                     "・与ダメージ1.6倍",

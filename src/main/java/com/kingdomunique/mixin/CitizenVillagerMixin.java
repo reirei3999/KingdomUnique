@@ -4,14 +4,18 @@ import com.kingdomunique.entity.CitizenVillager;
 import com.kingdomunique.soldier.SoldierOrderManager;
 import net.minecraft.entity.EquipmentSlot;
 import net.minecraft.entity.passive.VillagerEntity;
+import net.minecraft.entity.player.PlayerEntity;
 import net.minecraft.item.ItemStack;
 import net.minecraft.nbt.NbtCompound;
 import net.minecraft.nbt.NbtElement;
+import net.minecraft.util.ActionResult;
+import net.minecraft.util.Hand;
 import org.spongepowered.asm.mixin.Mixin;
 import org.spongepowered.asm.mixin.Unique;
 import org.spongepowered.asm.mixin.injection.At;
 import org.spongepowered.asm.mixin.injection.Inject;
 import org.spongepowered.asm.mixin.injection.callback.CallbackInfo;
+import org.spongepowered.asm.mixin.injection.callback.CallbackInfoReturnable;
 
 /** バニラ村人に国民データを付与する（軽量・既存エンティティ再利用）。 */
 @Mixin(VillagerEntity.class)
@@ -22,6 +26,14 @@ public abstract class CitizenVillagerMixin implements CitizenVillager {
 
     @Unique
     private String kingdomUnique$ownerUuid = "";
+
+    @Inject(method = "interactMob", at = @At("HEAD"), cancellable = true)
+    private void kingdomUnique$preventVanillaTrading(PlayerEntity player, Hand hand,
+                                                    CallbackInfoReturnable<ActionResult> cir) {
+        if (!kingdomUnique$ownerUuid.isEmpty()) {
+            cir.setReturnValue(ActionResult.SUCCESS);
+        }
+    }
 
     /** 兵士の武器ロック（Gemini 提示: バニラAIによる消去を防ぐ）。 */
     @Unique
