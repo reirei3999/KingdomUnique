@@ -55,7 +55,8 @@ public final class SoldierCombatHandler {
             if (!(entity instanceof VillagerEntity soldier)
                     || !(soldier instanceof CitizenVillager citizen)
                     || !CitizenVillager.ROLE_SOLDIER.equals(citizen.ku$getRole())
-                    || !soldier.isAlive()) {
+                    || !soldier.isAlive()
+                    || soldier.isAiDisabled()) {
                 continue;
             }
             // 武器が消えないよう自動拾得を禁止する。
