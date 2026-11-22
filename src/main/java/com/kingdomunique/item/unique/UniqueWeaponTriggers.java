@@ -204,7 +204,7 @@ public final class UniqueWeaponTriggers {
             // カタログに無くても登録済みIDなら必ず有効なスタックを生成する。
             com.kingdomunique.util.RewardUtil.grantPhysical(player, id);
         } else {
-            player.giveItemStack(stack);
+            com.kingdomunique.util.RewardUtil.deliver(player, stack);
         }
 
         String name = ItemCatalog.entries().stream()
