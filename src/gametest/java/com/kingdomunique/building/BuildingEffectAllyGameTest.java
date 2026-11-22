@@ -1,5 +1,6 @@
 package com.kingdomunique.building;
 
+import com.kingdomunique.data.WorldUniqueData;
 import com.kingdomunique.entity.CitizenVillager;
 import com.kingdomunique.war.KingdomDiplomacyState;
 import com.mojang.authlib.GameProfile;
@@ -66,6 +67,10 @@ public final class BuildingEffectAllyGameTest {
             data.entries().clear();
             data.entries().addAll(originalEntries);
             data.markDirty();
+            var ownership = WorldUniqueData.getOrCreate(world);
+            for (String id : java.util.Set.copyOf(ownership.getClaimedIds(owner.getUuid()))) {
+                ownership.releaseId(owner.getUuid(), id);
+            }
             server.getPlayerManager().remove(owner);
             owner.discard();
         }
