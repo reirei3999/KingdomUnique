@@ -318,12 +318,18 @@ public final class VillagePlacementGameTest {
         context.complete();
     }
 
-    @GameTest(templateName = FabricGameTest.EMPTY_STRUCTURE)
+    @GameTest(templateName = FabricGameTest.EMPTY_STRUCTURE, batchId = "starter_hall_terrace")
     public void starterHallUsesTerraceInsteadOfBuriedCenterHeight(TestContext context) {
         ServerWorld world = context.getWorld();
         BlockPos center = context.getAbsolutePos(new BlockPos(40, 70, 40));
         for (int x = -18; x <= 18; x++) {
             for (int z = -35; z <= 18; z++) {
+                // 共有テストワールドに残る他テストの建造物が地形を覆うと高さマップが変わるため、先に取り除く。
+                int top = world.getTopY(Heightmap.Type.WORLD_SURFACE, center.getX() + x, center.getZ() + z);
+                for (int y = center.getY(); y < top; y++) {
+                    world.setBlockState(center.add(x, y - center.getY(), z), Blocks.AIR.getDefaultState(),
+                            Block.NOTIFY_LISTENERS | Block.FORCE_STATE | Block.SKIP_DROPS);
+                }
                 int elevation = z <= -8 ? 12 : z <= -1 ? -z : 0;
                 BlockPos ground = center.add(x, elevation, z);
                 world.setBlockState(ground, Blocks.STONE.getDefaultState(), Block.NOTIFY_LISTENERS);
