@@ -6,10 +6,8 @@ import com.kingdomunique.entity.ModEntities;
 import com.kingdomunique.war.KingdomDiplomacyState;
 import com.mojang.authlib.GameProfile;
 import net.fabricmc.fabric.api.gametest.v1.FabricGameTest;
-import net.fabricmc.fabric.api.object.builder.v1.entity.FabricDefaultAttributeRegistry;
 import net.minecraft.block.Blocks;
 import net.minecraft.entity.EntityType;
-import net.minecraft.entity.attribute.DefaultAttributeRegistry;
 import net.minecraft.entity.effect.StatusEffects;
 import net.minecraft.entity.passive.VillagerEntity;
 import net.minecraft.network.packet.c2s.common.SyncedClientOptions;
@@ -127,9 +125,6 @@ public final class BuildingEffectAllyGameTest {
     }
 
     private static HeroEntity hero(TestContext context, int x, ServerPlayerEntity king) {
-        if (!DefaultAttributeRegistry.hasDefinitionFor(ModEntities.HERO)) {
-            FabricDefaultAttributeRegistry.register(ModEntities.HERO, HeroEntity.createHeroAttributes());
-        }
         HeroEntity hero = context.spawnEntity(ModEntities.HERO, x + 0.5f, 2.0f, 1.5f);
         hero.setAiDisabled(true);
         if (king != null) {
