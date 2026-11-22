@@ -386,7 +386,7 @@ public final class VillagePlacementGameTest {
                         + " (cleared=" + cleared + ", leveled=" + leveled + ")");
         context.assertTrue(world.getBlockState(outside).isOf(Blocks.OAK_LEAVES),
                 "Site preparation must keep canopy outside the hall footprint");
-        for (BlockPos lantern : List.of(origin.add(5, 6, 4), origin.add(5, 6, 8), origin.add(5, 2, 13))) {
+        for (BlockPos lantern : List.of(origin.add(5, 6, 4), origin.add(5, 6, 8), origin.add(5, 3, 13))) {
             var state = world.getBlockState(lantern);
             context.assertTrue(state.isOf(Blocks.LANTERN) && state.get(LanternBlock.HANGING)
                             && state.canPlaceAt(world, lantern),

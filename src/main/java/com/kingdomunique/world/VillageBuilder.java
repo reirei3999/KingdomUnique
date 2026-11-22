@@ -283,7 +283,7 @@ public final class VillageBuilder {
         }
     }
 
-    private static void buildWell(ServerWorld world, int x, int y, int z) {
+    static void buildWell(ServerWorld world, int x, int y, int z) {
         VillageTerrain.clearPlants(world, new BlockPos(x - 1, y, z - 1), 3, 3, 3);
         for (int dx = -1; dx <= 1; dx++) {
             for (int dz = -1; dz <= 1; dz++) {
@@ -296,6 +296,11 @@ public final class VillageBuilder {
                     world.setBlockState(new BlockPos(x + dx, y + 2, z + dz),
                             Blocks.OAK_PLANKS.getDefaultState());
                 }
+            }
+        }
+        for (int dx = -1; dx <= 1; dx++) {
+            for (int dz = -1; dz <= 1; dz++) {
+                world.setBlockState(new BlockPos(x + dx, y + 2, z + dz), Blocks.OAK_PLANKS.getDefaultState());
             }
         }
         world.setBlockState(new BlockPos(x, y + 3, z), Blocks.BELL.getDefaultState());
