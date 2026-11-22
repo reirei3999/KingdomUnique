@@ -1,7 +1,6 @@
 package com.kingdomunique.selection;
 
 import com.kingdomunique.data.PendingSelectionState;
-import com.kingdomunique.data.WorldUniqueData;
 import com.kingdomunique.network.OpenSelectionPayload;
 import net.fabricmc.fabric.api.event.lifecycle.v1.ServerTickEvents;
 import net.fabricmc.fabric.api.networking.v1.ServerPlayConnectionEvents;
@@ -11,7 +10,6 @@ import net.minecraft.server.network.ServerPlayerEntity;
 import net.minecraft.server.world.ServerWorld;
 import net.minecraft.text.Text;
 
-import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.Iterator;
 import java.util.List;
@@ -69,17 +67,7 @@ public final class SelectionResendHandler {
             return;
         }
 
-        WorldUniqueData data = WorldUniqueData.getOrCreate(world.getServer().getOverworld());
-        List<String> available = data.getAvailableIds(pending.optionIds());
-        if (available.isEmpty()) {
-            state.clearPending(player.getUuid());
-            player.sendMessage(Text.literal(
-                    "§e[通知] 保留していた選択肢が他のプレイヤーに取得されたため、選択状態がリセットされました。"), false);
-            return;
-        }
-
-        List<String> options = new ArrayList<>(available);
-        state.setPending(player.getUuid(), pending.kind(), options);
+        List<String> options = SelectionManager.refreshOptions(player, pending);
         if (ServerPlayNetworking.canSend(player, OpenSelectionPayload.ID)) {
             ServerPlayNetworking.send(player, new OpenSelectionPayload(pending.kind(), options));
             player.sendMessage(Text.literal("§6[未完了の選択] 前回未確定だった選択画面を再表示しました。"), false);

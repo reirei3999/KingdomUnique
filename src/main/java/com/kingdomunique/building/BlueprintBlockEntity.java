@@ -69,7 +69,7 @@ public final class BlueprintBlockEntity extends BlockEntity {
         int needed = 0;
         for (Map.Entry<Item, Integer> entry : type.materials().entrySet()) {
             if (entry.getKey() == stack.getItem()) {
-                needed = Math.max(1, (int) Math.ceil(entry.getValue() * costMultiplier));
+                needed = BuildingType.requiredAmount(entry.getValue(), costMultiplier);
                 break;
             }
         }
@@ -124,7 +124,7 @@ public final class BlueprintBlockEntity extends BlockEntity {
     /** 資材が全て揃っているか（必要数はコスト倍率適用後の値）。 */
     public boolean hasAllMaterials(BuildingType type, double costMultiplier) {
         for (Map.Entry<Item, Integer> entry : type.materials().entrySet()) {
-            int needed = Math.max(1, (int) Math.ceil(entry.getValue() * costMultiplier));
+            int needed = BuildingType.requiredAmount(entry.getValue(), costMultiplier);
             if (countOf(entry.getKey()) < needed) {
                 return false;
             }
@@ -135,7 +135,7 @@ public final class BlueprintBlockEntity extends BlockEntity {
     /** 建築開始時に資材を消費する。 */
     public void consume(BuildingType type, double costMultiplier) {
         for (Map.Entry<Item, Integer> entry : type.materials().entrySet()) {
-            int remaining = Math.max(1, (int) Math.ceil(entry.getValue() * costMultiplier));
+            int remaining = BuildingType.requiredAmount(entry.getValue(), costMultiplier);
             for (int i = 0; i < inventory.size() && remaining > 0; i++) {
                 ItemStack stack = inventory.getStack(i);
                 if (stack.isOf(entry.getKey())) {

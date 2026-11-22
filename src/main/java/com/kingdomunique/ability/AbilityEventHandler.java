@@ -32,6 +32,7 @@ public final class AbilityEventHandler {
         });
 
         ServerPlayConnectionEvents.DISCONNECT.register((handler, server) -> {
+            AbilityPassives.clearGravity(handler.getPlayer());
             AbilityState.remove(handler.getPlayer().getUuid());
             AlliedMobManager.forgetOwner(handler.getPlayer().getUuid());
         });

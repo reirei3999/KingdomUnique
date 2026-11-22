@@ -1,6 +1,7 @@
 package com.kingdomunique.item;
 
 import com.kingdomunique.component.ModDataComponents;
+import com.kingdomunique.building.BuildingType;
 import com.kingdomunique.data.WorldUniqueData;
 import com.kingdomunique.network.OpenItemMenuPayload;
 import com.kingdomunique.network.RequestItemPayload;
@@ -75,7 +76,7 @@ public final class ItemMenuHandler {
                     } else {
                         for (java.util.Map.Entry<net.minecraft.item.Item, Integer> entry
                                 : type.materials().entrySet()) {
-                            int needed = Math.max(1, (int) Math.ceil(entry.getValue() * multiplier));
+                            int needed = BuildingType.requiredAmount(entry.getValue(), multiplier);
                             int have = be.countOf(entry.getKey());
                             lines.add(entry.getKey().getName().getString() + " " + have + "/" + needed);
                         }
