@@ -3,6 +3,7 @@ package com.kingdomunique.compat.jei;
 import com.kingdomunique.building.BuildingType;
 import com.kingdomunique.item.unique.UniqueWeapons;
 import net.fabricmc.fabric.api.gametest.v1.FabricGameTest;
+import net.minecraft.item.ItemStack;
 import net.minecraft.registry.Registries;
 import net.minecraft.test.GameTest;
 import net.minecraft.test.TestContext;
@@ -19,6 +20,27 @@ import java.util.Map;
 import java.util.Set;
 
 public final class JeiLanguageGameTest {
+    @GameTest(templateName = FabricGameTest.EMPTY_STRUCTURE, batchId = "jei_language")
+    public void weaponsAppearBeforeBlueprintsInJei(TestContext context) {
+        var ids = KingdomJeiPlugin.orderedIngredients().stream()
+                .map(ItemStack::getItem)
+                .map(Registries.ITEM::getId)
+                .toList();
+        var modItems = Registries.ITEM.getIds().stream()
+                .filter(id -> id.getNamespace().equals("kingdomunique"))
+                .toList();
+        context.assertEquals(Set.copyOf(ids), Set.copyOf(modItems), "JEI must keep every KingdomUnique item");
+        context.assertEquals(ids.size(), modItems.size(), "JEI must list each item only once");
+        var paths = ids.stream().map(Identifier::getPath).toList();
+        context.assertEquals(paths.subList(0, 7), List.of(
+                "apollo_bow", "chronos_dagger", "excalibur", "gae_bolg", "mjolnir", "muramasa", "slaughter_blade"),
+                "Weapons must be grouped first");
+        var blueprints = paths.stream().filter(path -> path.startsWith("blueprint_")).sorted().toList();
+        context.assertEquals(paths.subList(7, 7 + blueprints.size()), blueprints,
+                "Blueprints must form a sorted group immediately after the weapons");
+        context.complete();
+    }
+
     @GameTest(templateName = FabricGameTest.EMPTY_STRUCTURE, batchId = "jei_language")
     public void uniqueWeaponsHaveNoJeiInformationRecipe(TestContext context) {
         for (String path : UniqueWeapons.ALL_IDS) {
