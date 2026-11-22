@@ -20,8 +20,11 @@ import net.minecraft.entity.EntityType;
 import net.minecraft.entity.ai.TargetPredicate;
 import net.minecraft.entity.attribute.DefaultAttributeRegistry;
 import net.minecraft.entity.effect.StatusEffects;
-import net.minecraft.network.packet.c2s.common.SyncedClientOptions;
+import net.minecraft.network.ClientConnection;
+import net.minecraft.network.NetworkSide;
 import net.minecraft.network.packet.s2c.play.PositionFlag;
+import net.minecraft.server.network.ConnectedClientData;
+import net.minecraft.server.network.ServerPlayNetworkHandler;
 import net.minecraft.server.network.ServerPlayerEntity;
 import net.minecraft.server.world.ServerWorld;
 import net.minecraft.test.GameTest;
@@ -174,8 +177,9 @@ public final class KingdomRelicsGameTest {
     }
 
     private static ServerPlayerEntity player(ServerWorld world) {
-        return new ServerPlayerEntity(world.getServer(), world, new GameProfile(UUID.randomUUID(), "relic_test"),
-                SyncedClientOptions.createDefault()) {
+        var profile = new GameProfile(UUID.randomUUID(), "relic_test");
+        var client = ConnectedClientData.createDefault(profile, false);
+        var player = new ServerPlayerEntity(world.getServer(), world, profile, client.syncedOptions()) {
             @Override
             public void sendMessage(Text text, boolean overlay) {
             }
@@ -191,5 +195,7 @@ public final class KingdomRelicsGameTest {
                 return true;
             }
         };
+        new ServerPlayNetworkHandler(world.getServer(), new ClientConnection(NetworkSide.SERVERBOUND), player, client);
+        return player;
     }
 }
