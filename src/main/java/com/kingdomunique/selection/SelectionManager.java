@@ -5,6 +5,7 @@ import com.kingdomunique.data.WorldUniqueData;
 import com.kingdomunique.effect.RelicEffects;
 import com.kingdomunique.effect.CurseEffects;
 import com.kingdomunique.network.OpenSelectionPayload;
+import com.kingdomunique.network.SelectionResultPayload;
 import com.kingdomunique.registry.ContentRegistry;
 import net.fabricmc.fabric.api.networking.v1.ServerPlayNetworking;
 import net.minecraft.server.network.ServerPlayerEntity;
@@ -69,7 +70,7 @@ public final class SelectionManager {
         if (pending == null) {
             return false;
         }
-        sendScreen(player, pending.kind(), pending.optionIds());
+        sendScreen(player, pending.kind(), refreshOptions(player, pending));
         return true;
     }
 
@@ -106,12 +107,21 @@ public final class SelectionManager {
         PendingSelectionState state = pendingState(player);
         PendingSelectionState.Pending pending = state.getPending(player.getUuid());
         if (pending == null || pending.kind() != kind || !pending.optionIds().contains(chosenId)) {
+            String reason = pending == null ? "未確定の選択がありません。"
+                    : pending.kind() != kind ? "選択の種類が変更されています。画面を開き直してください。"
+                    : "このカードは現在の選択肢にありません。選び直してください。";
+            sendResult(player, kind, false, reason,
+                    pending != null && pending.kind() == kind ? pending.optionIds() : List.of());
             return;
         }
         WorldUniqueData data = uniqueData(player);
         if (!data.claimId(player.getUuid(), chosenId)) {
-            player.sendMessage(Text.literal("§c[KingdomUnique] このアイテムは他のプレイヤーに取得されました。"), false);
-            state.clearPending(player.getUuid());
+            List<String> options = refreshOptions(player, pending);
+            String message = ContentRegistry.nameOf(chosenId)
+                    + "は他のプレイヤーに取得されました。"
+                    + (options.isEmpty() ? "残りのカードはありません。" : "残りのカードから選び直してください。");
+            player.sendMessage(Text.literal("§c[KingdomUnique] " + message), false);
+            sendResult(player, kind, false, message, options);
             return;
         }
         state.clearPending(player.getUuid());
@@ -131,6 +141,29 @@ public final class SelectionManager {
             }
             player.sendMessage(Text.literal("§e操作: "
                     + com.kingdomunique.registry.AbilityDescriptions.controlHint(chosenId)), false);
+        }
+        sendResult(player, kind, true, "獲得が確定しました。", List.of());
+    }
+
+    static List<String> refreshOptions(ServerPlayerEntity player, PendingSelectionState.Pending pending) {
+        WorldUniqueData data = uniqueData(player);
+        List<String> options = data.getAvailableIds(pending.optionIds());
+        if (options.isEmpty()) {
+            int count = switch (pending.kind()) {
+                case ABILITY -> DIAMOND_OPTIONS;
+                case RELIC -> RELIC_OPTIONS;
+                case CURSE -> CURSE_OPTIONS;
+            };
+            options = ContentRegistry.randomDistinct(data.getAvailableIds(ContentRegistry.idsOf(pending.kind())), count);
+        }
+        pendingState(player).setPending(player.getUuid(), pending.kind(), options);
+        return options;
+    }
+
+    private static void sendResult(ServerPlayerEntity player, ContentRegistry.Kind kind, boolean accepted,
+                                   String message, List<String> options) {
+        if (ServerPlayNetworking.canSend(player, SelectionResultPayload.ID)) {
+            ServerPlayNetworking.send(player, new SelectionResultPayload(kind, accepted, message, options));
         }
     }
 
