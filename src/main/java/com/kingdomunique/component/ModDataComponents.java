@@ -18,6 +18,18 @@ import net.minecraft.util.Identifier;
  */
 public final class ModDataComponents {
 
+    public static final ComponentType<Integer> ATTR_VERSION = Registry.register(
+            Registries.DATA_COMPONENT_TYPE,
+            Identifier.of(KingdomUniqueMod.MOD_ID, "attr_version"),
+            ComponentType.<Integer>builder().codec(Codec.INT).packetCodec(PacketCodecs.VAR_INT).build()
+    );
+
+    public static final ComponentType<Double> ARMOR_BOOST = Registry.register(
+            Registries.DATA_COMPONENT_TYPE,
+            Identifier.of(KingdomUniqueMod.MOD_ID, "armor_boost"),
+            ComponentType.<Double>builder().codec(Codec.DOUBLE).packetCodec(PacketCodecs.DOUBLE).build()
+    );
+
     /** 強化段階（0 = 未強化、1以上 = +N）。 */
     public static final ComponentType<Integer> ENHANCE_LEVEL = Registry.register(
             Registries.DATA_COMPONENT_TYPE,

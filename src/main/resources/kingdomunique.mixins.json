@@ -19,10 +19,12 @@
     "LoseJobOnSiteLossTaskMixin",
     "MobEntityAccessor",
     "PlayerCurseMixin",
+    "PlayerInventoryMixin",
     "PhantomSpawnerMixin",
     "RangedDamageMixin",
     "StatusEffectMixin",
     "SpawnRestrictionMixin",
+    "SmithingTransformRecipeMixin",
     "UniqueWeaponMixin",
     "VillagerBreedTaskMixin",
     "VillagerProfessionMixin"
