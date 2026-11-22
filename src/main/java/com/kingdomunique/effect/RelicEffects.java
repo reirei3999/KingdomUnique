@@ -20,7 +20,7 @@ import net.minecraft.world.World;
 
 import java.util.UUID;
 
-/** 遺物9種のパッシブ効果（所持しているだけでも発動）。 */
+/** 遺物のパッシブ効果（所持しているだけでも発動）。 */
 public final class RelicEffects {
 
     private static final long DAY_TICKS = 24000L;
@@ -100,6 +100,7 @@ public final class RelicEffects {
 
     /** サーバーTick: 黄金の天秤の1日ごとの王庫生成と職人の神槌の自動生産。 */
     public static void onServerTick(MinecraftServer server) {
+        KingdomRelicEffects.onServerTick(server);
         for (ServerPlayerEntity player : server.getPlayerManager().getPlayerList()) {
             if (has(player, RelicRegistry.GOLDEN_SCALE)) {
                 tickGoldenScale(player);

@@ -5,7 +5,7 @@ import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 
-/** 遺物9種の定義。 */
+/** 遺物の定義。 */
 public final class RelicRegistry {
 
     private static final Map<String, String> NAMES;
@@ -21,6 +21,9 @@ public final class RelicRegistry {
         map.put("artisans_hammer", "職人の神槌");
         map.put("blade_of_slaughter", "殺戮の宝剣");
         map.put("cradle_of_prosperity", "繁栄の揺りかご");
+        map.put("clairvoyant_crystal", "千里眼の水晶");
+        map.put("travelers_compass", "旅人の羅針盤");
+        map.put("guardian_egg", "守護獣の卵");
         NAMES = Collections.unmodifiableMap(map);
     }
 
@@ -35,6 +38,9 @@ public final class RelicRegistry {
     public static final String HAMMER = "artisans_hammer";
     public static final String BLADE = "blade_of_slaughter";
     public static final String CRADLE = "cradle_of_prosperity";
+    public static final String CRYSTAL = "clairvoyant_crystal";
+    public static final String COMPASS = "travelers_compass";
+    public static final String GUARDIAN_EGG = "guardian_egg";
 
     private RelicRegistry() {
     }

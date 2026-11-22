@@ -2,6 +2,7 @@ package com.kingdomunique.client;
 
 import com.kingdomunique.registry.AbilityDescriptions;
 import com.kingdomunique.registry.ContentRegistry;
+import com.kingdomunique.registry.RelicRegistry;
 import net.fabricmc.api.EnvType;
 import net.fabricmc.api.Environment;
 import net.minecraft.item.ItemStack;
@@ -81,6 +82,9 @@ public final class UniqueLoreRegistry {
             case "chalice_of_abundance", "banner_of_victory", "sages_blueprint", "golden_scale",
                  "ward_stone", "cradle_of_prosperity" -> "王国パッシブ（所持で常時発動）";
             case "phoenix_feather" -> "致命傷時に1日1回発動";
+            case RelicRegistry.CRYSTAL -> "敵が領内へ侵入すると発動";
+            case RelicRegistry.COMPASS -> "/ku recall で1日1回発動";
+            case RelicRegistry.GUARDIAN_EGG -> "王国パッシブ（倒されると翌日に復活）";
             case "artisans_hammer" -> "一定間隔で自動生産";
             case "blade_of_slaughter", "pickaxe_of_destruction" -> "専用アイテムとして付与";
             case "immoral_contract" -> "国民化のコスト0（死亡時に呪い）";

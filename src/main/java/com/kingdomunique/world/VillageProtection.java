@@ -3,6 +3,7 @@ package com.kingdomunique.world;
 import com.kingdomunique.data.WorldUniqueData;
 import com.kingdomunique.kingdom.KingdomData;
 import net.fabricmc.fabric.api.entity.event.v1.ServerLivingEntityEvents;
+import net.minecraft.entity.LivingEntity;
 import net.minecraft.entity.damage.DamageSource;
 import net.minecraft.server.network.ServerPlayerEntity;
 import net.minecraft.entity.passive.VillagerEntity;
@@ -21,16 +22,15 @@ public final class VillageProtection {
         ServerLivingEntityEvents.ALLOW_DAMAGE.register(VillageProtection::allowDamage);
     }
 
-    private static boolean allowDamage(net.minecraft.entity.LivingEntity entity,
-                                       DamageSource source, float amount) {
-        if (!(entity instanceof VillagerEntity) || entity.getWorld().isClient()) {
-            return true;
-        }
+    private static boolean allowDamage(LivingEntity entity, DamageSource source, float amount) {
         // プレイヤーが意図的に攻撃した場合は通常どおりダメージを通す。
-        if (source.getAttacker() instanceof ServerPlayerEntity) {
-            return true;
+        return source.getAttacker() instanceof ServerPlayerEntity || !protectsFromMobDamage(entity);
+    }
+
+    public static boolean protectsFromMobDamage(LivingEntity entity) {
+        if (!(entity instanceof VillagerEntity) || !(entity.getWorld() instanceof ServerWorld world)) {
+            return false;
         }
-        ServerWorld world = (ServerWorld) entity.getWorld();
         double x = entity.getX();
         double z = entity.getZ();
 
@@ -38,7 +38,7 @@ public final class VillageProtection {
             double dx = info.centerX() - x;
             double dz = info.centerZ() - z;
             if (dx * dx + dz * dz <= KINGDOM_RADIUS_SQ) {
-                return false;
+                return true;
             }
         }
         for (WorldUniqueData.VillageSite site
@@ -46,9 +46,9 @@ public final class VillageProtection {
             double dx = site.x() - x;
             double dz = site.z() - z;
             if (dx * dx + dz * dz <= VILLAGE_RADIUS_SQ) {
-                return false;
+                return true;
             }
         }
-        return true;
+        return false;
     }
 }
