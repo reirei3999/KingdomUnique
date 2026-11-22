@@ -52,7 +52,13 @@ public final class KuTextPanel {
     }
 
     public void reset() { scroll = 0; }
-    public void scroll(int delta) { scroll = Math.clamp(scroll + delta, 0, maxScroll); }
+    public void scroll(int delta) {
+        // At 320x240 a multi-row hand can leave a one-line viewport. A wheel/page
+        // action must never skip unseen effect or drawback lines in that case.
+        int visible = Math.max(1, height / 12);
+        int step = Math.clamp(delta, -visible, visible);
+        scroll = Math.clamp(scroll + step, 0, maxScroll);
+    }
     public void end() { scroll = maxScroll; }
     public boolean contains(double mouseX, double mouseY) {
         return mouseX >= x && mouseX < x + width && mouseY >= y && mouseY < y + height;
