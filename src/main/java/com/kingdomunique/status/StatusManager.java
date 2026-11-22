@@ -7,6 +7,7 @@ import com.kingdomunique.building.BuildingManager;
 import com.kingdomunique.building.BuildingValidator;
 import com.kingdomunique.building.KingdomBuildingState;
 import com.kingdomunique.building.StructureRotationUtil;
+import com.kingdomunique.data.AbilityUsageData;
 import com.kingdomunique.data.WorldUniqueData;
 import com.kingdomunique.kingdom.PopulationManager;
 import com.kingdomunique.network.BuildingBoxesSyncPayload;
@@ -136,8 +137,8 @@ public final class StatusManager {
         if (!ServerPlayNetworking.canSend(player, SyncPlayerStatusPayload.ID)) {
             return;
         }
-        WorldUniqueData data = WorldUniqueData.getOrCreate(
-                player.getServer().getWorld(World.OVERWORLD));
+        ServerWorld overworld = player.getServer().getOverworld();
+        WorldUniqueData data = WorldUniqueData.getOrCreate(overworld);
         List<String> owned = new ArrayList<>(data.getClaimedIds(player.getUuid()));
 
         String abilityId = UniqueContentRegistry.getActiveAbility(player);
@@ -148,7 +149,7 @@ public final class StatusManager {
         long now = player.getServerWorld().getTime();
         int cooldown = 0;
         if (abilityId != null) {
-            long ready = state.getReadyTick(abilityId);
+            long ready = AbilityUsageData.getOrCreate(overworld).getReadyTick(player.getUuid(), abilityId);
             if (ready > now) {
                 cooldown = (int) (ready - now);
             }

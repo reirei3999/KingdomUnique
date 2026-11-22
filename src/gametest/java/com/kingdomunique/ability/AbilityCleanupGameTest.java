@@ -1,6 +1,8 @@
 package com.kingdomunique.ability;
 
+import com.kingdomunique.data.WorldUniqueData;
 import com.kingdomunique.entity.CitizenVillager;
+import com.kingdomunique.registry.UniqueContentRegistry;
 import com.kingdomunique.war.KingdomWarTargetHelper;
 import com.mojang.authlib.GameProfile;
 import net.fabricmc.fabric.api.gametest.v1.FabricGameTest;
@@ -20,8 +22,12 @@ import java.util.UUID;
 
 public final class AbilityCleanupGameTest {
     private ServerPlayerEntity player(TestContext context) {
-        var world = context.getWorld();
         var profile = new GameProfile(UUID.randomUUID(), "ability_test");
+        return player(context, profile);
+    }
+
+    private ServerPlayerEntity player(TestContext context, GameProfile profile) {
+        var world = context.getWorld();
         var client = ConnectedClientData.createDefault(profile, false);
         var player = new ServerPlayerEntity(world.getServer(), world, profile, client.syncedOptions());
         new ServerPlayNetworkHandler(world.getServer(), new ClientConnection(NetworkSide.SERVERBOUND), player, client);
@@ -100,6 +106,44 @@ public final class AbilityCleanupGameTest {
         ServerPlayConnectionEvents.DISCONNECT.invoker().onPlayDisconnect(player.networkHandler, context.getWorld().getServer());
         context.assertFalse(target.hasNoGravity(), "Disconnect must restore gravity");
         context.assertFalse(AbilityState.all().containsKey(player.getUuid()), "Disconnect must remove state");
+        context.complete();
+    }
+
+    @GameTest(templateName = FabricGameTest.EMPTY_STRUCTURE, batchId = "ability_cooldown_relog")
+    public void gravityCooldownSurvivesRelog(TestContext context) {
+        var world = context.getWorld();
+        var server = world.getServer();
+        var data = WorldUniqueData.getOrCreate(server.getOverworld());
+        var ability = UniqueContentRegistry.GRAVITY_CONTROL;
+        var player = player(context);
+        var owner = data.getOwner(ability);
+        var uuid = player.getUuid();
+        context.assertTrue(owner == null ? data.claimId(uuid, ability) : data.transferId(owner, uuid, ability),
+                "Test player must own gravity control");
+        try {
+            var target = context.spawnEntity(EntityType.ZOMBIE, 1, 2, 4);
+            target.setAiDisabled(true);
+            long time = world.getTime();
+            AbilityActions.handleActivate(player);
+            context.assertTrue(target.hasNoGravity(), "Gravity control must activate");
+            AbilityActions.handleActivate(player);
+            context.assertTrue(target.hasNoGravity(), "Cooldown must block immediate reuse before disconnect");
+
+            ServerPlayConnectionEvents.DISCONNECT.invoker().onPlayDisconnect(player.networkHandler, server);
+            context.assertFalse(target.hasNoGravity(), "Disconnect must release the target");
+            var rejoined = player(context, player.getGameProfile());
+            context.assertTrue(world.getTime() == time, "The same game tick must still be active at relog");
+            AbilityActions.handleActivate(rejoined);
+            context.assertFalse(target.hasNoGravity(), "Relog must not allow gravity control before cooldown expires");
+        } finally {
+            AbilityPassives.clearGravity(player);
+            AbilityState.remove(uuid);
+            if (owner == null) {
+                data.releaseId(uuid, ability);
+            } else {
+                data.transferId(uuid, owner, ability);
+            }
+        }
         context.complete();
     }
 

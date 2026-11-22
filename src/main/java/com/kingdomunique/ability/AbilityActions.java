@@ -1,5 +1,6 @@
 package com.kingdomunique.ability;
 
+import com.kingdomunique.data.AbilityUsageData;
 import com.kingdomunique.registry.AbilityDescriptions;
 import com.kingdomunique.effect.CurseEffects;
 import com.kingdomunique.registry.UniqueContentRegistry;
@@ -74,9 +75,10 @@ public final class AbilityActions {
         }
         int cooldown = AbilityDescriptions.cooldownTicks(ability);
 
-        PlayerAbilityState state = AbilityState.get(player.getUuid());
+        AbilityUsageData usage = AbilityUsageData.getOrCreate(player.getServer().getOverworld());
+        UUID uuid = player.getUuid();
         long now = player.getServerWorld().getTime();
-        long ready = state.getReadyTick(ability);
+        long ready = usage.getReadyTick(uuid, ability);
         if (now < ready) {
             float remaining = (ready - now) / 20.0F;
             player.sendMessage(Text.literal("§c[KingdomUnique] クールタイム中です（残り "
@@ -94,7 +96,7 @@ public final class AbilityActions {
         };
         // 対象が見つからない等で失敗した場合はCTを消費しない。
         if (success) {
-            state.setReadyTick(ability, player.getServerWorld().getTime() + cooldown);
+            usage.setReadyTick(uuid, ability, player.getServerWorld().getTime() + cooldown);
         }
     }
 
