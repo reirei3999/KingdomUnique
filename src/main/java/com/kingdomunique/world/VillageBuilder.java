@@ -2,6 +2,7 @@ package com.kingdomunique.world;
 
 import net.minecraft.block.Block;
 import net.minecraft.block.Blocks;
+import net.minecraft.block.BlockState;
 import net.minecraft.block.CropBlock;
 import net.minecraft.entity.EntityType;
 import net.minecraft.entity.passive.AnimalEntity;
@@ -344,8 +345,12 @@ public final class VillageBuilder {
                 world.setBlockState(support, Blocks.COBBLESTONE.getDefaultState(), Block.NOTIFY_LISTENERS);
             }
         }
-        world.setBlockState(surface.up(2), Blocks.AIR.getDefaultState(), Block.NOTIFY_LISTENERS);
-        world.setBlockState(surface.up(), Blocks.AIR.getDefaultState(), Block.NOTIFY_LISTENERS);
+        BlockState overhead = world.getBlockState(surface.up(3));
+        if (overhead.isIn(net.minecraft.registry.tag.BlockTags.LEAVES) || overhead.isReplaceable()) {
+            world.setBlockState(surface.up(3), Blocks.AIR.getDefaultState(), Block.NOTIFY_LISTENERS | Block.FORCE_STATE);
+        }
+        world.setBlockState(surface.up(2), Blocks.AIR.getDefaultState(), Block.NOTIFY_LISTENERS | Block.FORCE_STATE);
+        world.setBlockState(surface.up(), Blocks.AIR.getDefaultState(), Block.NOTIFY_LISTENERS | Block.FORCE_STATE);
         world.setBlockState(surface, (needsSupport ? Blocks.GRAVEL : Blocks.DIRT_PATH).getDefaultState(),
                 Block.NOTIFY_LISTENERS);
     }
