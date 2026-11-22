@@ -368,6 +368,29 @@ public final class EnhancementUtil {
         }
     }
 
+    public static void rebuildSmithingAttributes(ItemStack stack) {
+        if (!isEnhanceable(stack)) {
+            return;
+        }
+        int level = getLevel(stack);
+        float attack = stack.getOrDefault(ModDataComponents.DIVINE_ATTACK_DAMAGE, 0.0F);
+        float speed = stack.getOrDefault(ModDataComponents.DIVINE_ATTACK_SPEED, 0.0F);
+        float mining = stack.getOrDefault(ModDataComponents.DIVINE_MINING_SPEED, 0.0F);
+        float armor = stack.getOrDefault(ModDataComponents.DIVINE_ARMOR, 0.0F);
+        float toughness = stack.getOrDefault(ModDataComponents.DIVINE_TOUGHNESS, 0.0F);
+        if (level == 0 && attack <= 0 && speed <= 0 && mining <= 0 && armor <= 0 && toughness <= 0) {
+            return;
+        }
+        ItemStack rebuilt = new ItemStack(stack.getItem());
+        applyDivineBonuses(rebuilt, attack, speed, mining, armor, toughness);
+        if (level > 0) {
+            rebuilt = applyLevel(rebuilt, 0, level);
+        }
+        AttributeModifiersComponent current = stack.get(DataComponentTypes.ATTRIBUTE_MODIFIERS);
+        stack.set(DataComponentTypes.ATTRIBUTE_MODIFIERS, new AttributeModifiersComponent(
+                effectiveModifiers(rebuilt).modifiers(), current == null || current.showInTooltip()));
+    }
+
     private static AttributeModifiersComponent effectiveModifiers(ItemStack stack) {
         AttributeModifiersComponent modifiers = stack.get(DataComponentTypes.ATTRIBUTE_MODIFIERS);
         return modifiers == null || modifiers.modifiers().isEmpty()

@@ -9,6 +9,8 @@ import net.minecraft.entity.EquipmentSlot;
 import net.minecraft.entity.attribute.EntityAttributes;
 import net.minecraft.item.ItemStack;
 import net.minecraft.item.Items;
+import net.minecraft.recipe.RecipeType;
+import net.minecraft.recipe.input.SmithingRecipeInput;
 import net.minecraft.test.GameTest;
 import net.minecraft.test.TestContext;
 
@@ -88,5 +90,67 @@ public final class ArmorEnhancementGameTest {
     private static void assertArmor(TestContext context, double actual, double expected) {
         context.assertTrue(Math.abs(actual - expected) < 1.0E-6,
                 "Expected armor " + expected + ", got " + actual);
+    }
+
+    @GameTest(templateName = FabricGameTest.EMPTY_STRUCTURE, batchId = "armor_smithing")
+    public void smithingUsesEnhancedNetheriteDefaults(TestContext context) {
+        ItemStack diamond = EnhancementUtil.applyLevel(new ItemStack(Items.DIAMOND_CHESTPLATE), 0, 1);
+        ItemStack netherite = smith(context, diamond);
+        context.assertTrue(netherite.isOf(Items.NETHERITE_CHESTPLATE), "Smithing must produce netherite");
+        context.assertTrue(EnhancementUtil.getLevel(netherite) == 1, "Smithing must retain enhancement level");
+        var wearer = context.spawnEntity(EntityType.ARMOR_STAND, 1, 2, 1);
+        wearer.equipStack(EquipmentSlot.CHEST, netherite);
+        context.waitAndRun(2, () -> {
+            assertArmor(context, wearer.getAttributeValue(EntityAttributes.GENERIC_ARMOR), 8.8D);
+            assertArmor(context, wearer.getAttributeValue(EntityAttributes.GENERIC_ARMOR_TOUGHNESS), 3.3D);
+            assertArmor(context, wearer.getAttributeValue(EntityAttributes.GENERIC_KNOCKBACK_RESISTANCE), 0.11D);
+            System.out.println("Enhanced netherite: armor=8.8, toughness=3.3, knockback resistance=0.11");
+            context.complete();
+        });
+    }
+
+    @GameTest(templateName = FabricGameTest.EMPTY_STRUCTURE, batchId = "armor_smithing")
+    public void smithingRetainsDivineBonusesWithoutCompounding(TestContext context) {
+        ItemStack diamond = new ItemStack(Items.DIAMOND_CHESTPLATE);
+        EnhancementUtil.applyDivineBonuses(diamond, 0, 0, 0, 0.25F, 0.5F);
+        diamond = EnhancementUtil.applyLevel(diamond, 0, 2);
+        ItemStack netherite = smith(context, diamond);
+        var wearer = context.spawnEntity(EntityType.ARMOR_STAND, 1, 2, 1);
+        wearer.equipStack(EquipmentSlot.CHEST, netherite);
+        context.waitAndRun(2, () -> {
+            double factor = EnhancementUtil.multiplier(2);
+            assertArmor(context, wearer.getAttributeValue(EntityAttributes.GENERIC_ARMOR),
+                    8.0D * factor * (1.0D + 0.25D * factor));
+            assertArmor(context, wearer.getAttributeValue(EntityAttributes.GENERIC_ARMOR_TOUGHNESS),
+                    3.0D * factor * (1.0D + 0.5D * factor));
+            context.complete();
+        });
+    }
+
+    @GameTest(templateName = FabricGameTest.EMPTY_STRUCTURE, batchId = "armor_smithing")
+    public void smithingToolsAndUnenhancedArmor(TestContext context) {
+        ItemStack sword = EnhancementUtil.applyLevel(new ItemStack(Items.DIAMOND_SWORD), 0, 1);
+        ItemStack netheriteSword = smith(context, sword);
+        context.assertTrue(netheriteSword.isOf(Items.NETHERITE_SWORD), "Sword must upgrade to netherite");
+        double[] damage = {0.0D};
+        netheriteSword.applyAttributeModifiers(EquipmentSlot.MAINHAND, (attribute, modifier) -> {
+            if (attribute.equals(EntityAttributes.GENERIC_ATTACK_DAMAGE)) {
+                damage[0] += modifier.value();
+            }
+        });
+        assertArmor(context, damage[0], 7.0D * 1.1D);
+        ItemStack plain = smith(context, new ItemStack(Items.DIAMOND_CHESTPLATE));
+        context.assertEquals(new ItemStack(Items.NETHERITE_CHESTPLATE).get(DataComponentTypes.ATTRIBUTE_MODIFIERS),
+                plain.get(DataComponentTypes.ATTRIBUTE_MODIFIERS), "Unenhanced modifiers must be unchanged");
+        EnhancementUtil.rebuildSmithingAttributes(ItemStack.EMPTY);
+        context.complete();
+    }
+
+    private static ItemStack smith(TestContext context, ItemStack base) {
+        var input = new SmithingRecipeInput(new ItemStack(Items.NETHERITE_UPGRADE_SMITHING_TEMPLATE),
+                base, new ItemStack(Items.NETHERITE_INGOT));
+        var recipe = context.getWorld().getRecipeManager().getFirstMatch(RecipeType.SMITHING, input, context.getWorld());
+        context.assertTrue(recipe.isPresent(), "Vanilla netherite smithing recipe must match");
+        return recipe.orElseThrow().value().craft(input, context.getWorld().getRegistryManager());
     }
 }
