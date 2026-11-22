@@ -166,6 +166,33 @@ public final class ArmorMigrationGameTest {
         context.complete();
     }
 
+    @GameTest(templateName = FabricGameTest.EMPTY_STRUCTURE, batchId = "armor_migration")
+    public void legacySharedModifierIdDoesNotHideMissingArmor(TestContext context) {
+        ItemStack armor = legacyArmor(2);
+        var defaults = armor.getItem().getAttributeModifiers();
+        var armorEntry = defaults.modifiers().stream()
+                .filter(entry -> entry.attribute().equals(EntityAttributes.GENERIC_ARMOR)).findFirst().orElseThrow();
+        var customToughness = new EntityAttributeModifier(armorEntry.modifier().id(), 7.0D,
+                EntityAttributeModifier.Operation.ADD_VALUE);
+        var customOnly = AttributeModifiersComponent.builder().add(EntityAttributes.GENERIC_ARMOR_TOUGHNESS,
+                customToughness, AttributeModifierSlot.CHEST).build();
+        armor.set(DataComponentTypes.ATTRIBUTE_MODIFIERS, customOnly);
+        EnhancementUtil.migrateLegacy(armor);
+        var repaired = armor.get(DataComponentTypes.ATTRIBUTE_MODIFIERS);
+        assertArmor(context, armor, 9.68D);
+        context.assertTrue(repaired.modifiers().containsAll(customOnly.modifiers()),
+                "Custom toughness sharing the vanilla armor ID must be preserved unchanged");
+        context.assertTrue(repaired.modifiers().stream()
+                        .filter(entry -> entry.attribute().equals(EntityAttributes.GENERIC_ARMOR_TOUGHNESS)).count() == 1,
+                "Existing toughness must not be duplicated");
+        context.assertTrue(armor.contains(ModDataComponents.ATTR_VERSION), "Repaired armor must be marked");
+        EnhancementUtil.migrateLegacy(armor);
+        context.assertEquals(repaired, armor.get(DataComponentTypes.ATTRIBUTE_MODIFIERS),
+                "Shared-ID migration must be idempotent");
+        System.out.println("Shared-ID legacy armor: missing armor=9.68 added; custom toughness=7.0 preserved");
+        context.complete();
+    }
+
     private static ItemStack legacyArmor(int level) {
         ItemStack armor = new ItemStack(Items.DIAMOND_CHESTPLATE);
         armor.set(ModDataComponents.ENHANCE_LEVEL, level);

@@ -395,7 +395,8 @@ public final class EnhancementUtil {
         }
         for (AttributeModifiersComponent.Entry entry : defaults.modifiers()) {
             if (current == null || current.modifiers().stream()
-                    .noneMatch(existing -> existing.modifier().id().equals(entry.modifier().id()))) {
+                    .noneMatch(existing -> existing.attribute().equals(entry.attribute())
+                            && existing.modifier().id().equals(entry.modifier().id()))) {
                 entries.add(entry);
             }
         }
