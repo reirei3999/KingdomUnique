@@ -84,6 +84,7 @@ public final class KingdomRelicsGameTest {
             FabricDefaultAttributeRegistry.register(ModEntities.HERO, HeroEntity.createHeroAttributes());
         }
         var assassin = context.spawnMob(ModEntities.HERO, new BlockPos(2, 2, 2));
+        assassin.refreshPositionAndAngles(center, 0, 0);
         assassin.setOwnerUuid(player.getUuid());
         assassin.setHeroClass(HeroClass.ASSASSIN);
         player.refreshPositionAndAngles(center.add(2, 0, 0), 0, 0);
