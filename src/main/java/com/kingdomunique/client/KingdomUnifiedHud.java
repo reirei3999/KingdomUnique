@@ -179,9 +179,11 @@ public final class KingdomUnifiedHud {
             BuildingType held = getHeldBlueprint(player);
             if (held != null) {
                 title = "📐 " + held.getDisplayName() + " 必要資材";
+                double multiplier = StatusClient.latest().buildingCostMultiplier();
                 for (var entry : held.materials().entrySet()) {
                     int owned = countItem(player, entry.getKey());
-                    lines.add(entry.getKey().getName().getString() + " " + owned + "/" + entry.getValue());
+                    int needed = BuildingType.requiredAmount(entry.getValue(), multiplier);
+                    lines.add(entry.getKey().getName().getString() + " " + owned + "/" + needed);
                 }
             }
         }

@@ -3,6 +3,7 @@ package com.kingdomunique.status;
 import com.kingdomunique.ability.AbilityState;
 import com.kingdomunique.ability.PlayerAbilityState;
 import com.kingdomunique.building.BuildData;
+import com.kingdomunique.building.BuildingManager;
 import com.kingdomunique.building.BuildingValidator;
 import com.kingdomunique.building.KingdomBuildingState;
 import com.kingdomunique.building.StructureRotationUtil;
@@ -154,6 +155,6 @@ public final class StatusManager {
         }
         ServerPlayNetworking.send(player, new SyncPlayerStatusPayload(
                 owned, abilityId == null ? "" : abilityId, cooldown,
-                state.getMiningRange(), openScreen));
+                state.getMiningRange(), openScreen, BuildingManager.costMultiplier(player)));
     }
 }
