@@ -8,6 +8,12 @@ import java.util.Map;
 /** 呪物の定義。 */
 public final class CurseRegistry {
 
+    public static final String VAMPIRE_FANG = "vampire_fang";
+    public static final String REAPER_HOURGLASS = "reaper_hourglass";
+    public static final String ENVY_MIRROR = "envy_mirror";
+    public static final String MAD_MOON_NECKLACE = "mad_moon_necklace";
+    public static final String SEALING_CHAIN = "sealing_chain";
+
     private static final Map<String, String> NAMES;
 
     static {
@@ -40,11 +46,6 @@ public final class CurseRegistry {
     public static final String CONTRACT = "immoral_contract";
     public static final String VOID_LANTERN = "void_lantern";
     public static final String DESTRUCTION = "pickaxe_of_destruction";
-    public static final String VAMPIRE_FANG = "vampire_fang";
-    public static final String REAPER_HOURGLASS = "reaper_hourglass";
-    public static final String ENVY_MIRROR = "envy_mirror";
-    public static final String MAD_MOON_NECKLACE = "mad_moon_necklace";
-    public static final String SEALING_CHAIN = "sealing_chain";
 
     private CurseRegistry() {
     }

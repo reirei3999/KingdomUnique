@@ -11,6 +11,7 @@ import com.kingdomunique.selection.SelectionManager;
 import com.mojang.authlib.GameProfile;
 import net.fabricmc.fabric.api.gametest.v1.FabricGameTest;
 import net.minecraft.block.Blocks;
+import net.minecraft.entity.AreaEffectCloudEntity;
 import net.minecraft.entity.EntityType;
 import net.minecraft.entity.EquipmentSlot;
 import net.minecraft.entity.attribute.EntityAttributes;
@@ -112,6 +113,10 @@ public final class NewCursesGameTest {
 
             context.assertTrue(!player.addStatusEffect(new StatusEffectInstance(StatusEffects.STRENGTH, 100), citizen),
                     "A friendly strength effect is blocked");
+            var cloud = new AreaEffectCloudEntity(world, player.getX(), player.getY(), player.getZ());
+            cloud.setOwner(citizen);
+            context.assertTrue(!player.addStatusEffect(new StatusEffectInstance(StatusEffects.REGENERATION, 100), cloud),
+                    "A friendly lingering potion is still sourced to its owner");
             context.assertTrue(player.addStatusEffect(new StatusEffectInstance(StatusEffects.SLOWNESS, 100), citizen),
                     "A harmful effect is not blocked");
             context.assertTrue(player.addStatusEffect(new StatusEffectInstance(StatusEffects.STRENGTH, 100), player),
@@ -211,6 +216,10 @@ public final class NewCursesGameTest {
         var world = context.getWorld();
         new ServerPlayNetworkHandler(world.getServer(), new ClientConnection(NetworkSide.SERVERBOUND), player, client);
         player.refreshPositionAndAngles(context.getAbsolutePos(new BlockPos(1, 2, 1)), 0.0F, 0.0F);
+        // Expire vanilla join protection before testing player damage.
+        for (int i = 0; i < 60; i++) {
+            player.tick();
+        }
         return player;
     }
 

@@ -3,6 +3,7 @@ package com.kingdomunique.effect;
 import com.kingdomunique.data.WorldUniqueData;
 import com.kingdomunique.registry.CurseRegistry;
 import com.kingdomunique.war.Warfare;
+import net.minecraft.entity.AreaEffectCloudEntity;
 import net.minecraft.entity.Entity;
 import net.minecraft.entity.EquipmentSlot;
 import net.minecraft.entity.LivingEntity;
@@ -234,7 +235,13 @@ public final class CurseEffects {
     }
 
     public static boolean blocksAlliedAid(ServerPlayerEntity player, Entity source) {
-        return source != null && source != player && has(player, CurseRegistry.ENVY_MIRROR)
+        if (!has(player, CurseRegistry.ENVY_MIRROR)) {
+            return false;
+        }
+        if (source instanceof AreaEffectCloudEntity cloud) {
+            source = cloud.getOwner();
+        }
+        return source != null && source != player
                 && (player.isTeammate(source) || Warfare.isFriendly(player.getServerWorld().getServer(), source, player));
     }
 
