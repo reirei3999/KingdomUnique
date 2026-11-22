@@ -25,7 +25,8 @@
       "com.kingdomunique.compat.jei.JeiLanguageGameTest",
       "com.kingdomunique.unique.UniqueWeaponGrantGameTest",
       "com.kingdomunique.unique.ApolloBowGameTest",
-      "com.kingdomunique.selection.GluttonyRingGameTest"
+      "com.kingdomunique.selection.GluttonyRingGameTest",
+      "com.kingdomunique.effect.KingdomRelicsGameTest"
     ]
   },
   "depends": {
