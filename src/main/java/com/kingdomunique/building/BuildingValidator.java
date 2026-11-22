@@ -30,10 +30,8 @@ public final class BuildingValidator {
             return Optional.of(Text.literal("§c[建築不可] 建築範囲がワールドの高度限界を超えています。"));
         }
 
-        BlockBox padded = new BlockBox(box.getMinX() - 1, box.getMinY(), box.getMinZ() - 1,
-                box.getMaxX() + 1, box.getMaxY(), box.getMaxZ() + 1);
         for (KingdomBuildingState.CompletedBuilding b : KingdomBuildingState.get(world).entries()) {
-            if (padded.intersects(b.boundingBox)) {
+            if (box.intersects(b.boundingBox)) {
                 return Optional.of(Text.literal("§c[建築不可] 既存の建築物（"
                         + b.type.getDisplayName() + "）と範囲が重なっています。"));
             }
@@ -44,7 +42,7 @@ public final class BuildingValidator {
             }
             BlockBox other = StructureRotationUtil.computeBoundingBox(
                     otherSite.pos(), otherSite.type(), otherSite.facing());
-            if (padded.intersects(other)) {
+            if (box.intersects(other)) {
                 return Optional.of(Text.literal("§c[建築不可] 建築中の建物（"
                         + otherSite.type().getDisplayName() + "）と範囲が重なっています。"));
             }

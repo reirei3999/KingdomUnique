@@ -30,8 +30,6 @@ public final class StructurePlacer {
     /** 閉じた門の落とし格子。 */
     public static final BlockState GATE_LEAF_CLOSED = Blocks.IRON_BARS.getDefaultState();
 
-    private static final int SUPPORT_DEPTH = 8;
-
     private StructurePlacer() {
     }
 
@@ -124,7 +122,7 @@ public final class StructurePlacer {
                         world.setBlockState(pos, air, Block.NOTIFY_LISTENERS | Block.FORCE_STATE);
                     }
                 }
-                for (int y = box.getMinY(); y > box.getMinY() - SUPPORT_DEPTH; y--) {
+                for (int y = box.getMinY(); y >= world.getBottomY(); y--) {
                     BlockPos pos = new BlockPos(x, y, z);
                     BlockState state = world.getBlockState(pos);
                     if (!state.isReplaceable()) {

@@ -17,6 +17,137 @@ public final class StructureFootprintGameTest {
     private static final Direction[] FACINGS = {Direction.SOUTH, Direction.WEST, Direction.NORTH, Direction.EAST};
 
     @GameTest(templateName = FabricGameTest.EMPTY_STRUCTURE)
+    public void playtestFixturesAndDefenseAccessSurviveUpdates(TestContext context) {
+        ServerWorld world = context.getWorld();
+        BuildingType[] types = {BuildingType.BLACKSMITH, BuildingType.TOWN_HALL,
+                BuildingType.WATCHTOWER, BuildingType.GATE, BuildingType.WALL};
+        for (int i = 0; i < types.length; i++) {
+            for (int j = 0; j < FACINGS.length; j++) {
+                BuildingType type = types[i];
+                Direction facing = FACINGS[j];
+                BlockPos origin = context.getAbsolutePos(new BlockPos(i * 32, 100, 1000 + j * 32));
+                StructurePlacer.place(world, origin, type, facing);
+                if (type == BuildingType.BLACKSMITH) {
+                    stableFixture(context, origin, type, facing, new BlockPos(3, 2, 6), Blocks.LANTERN);
+                    stableFixture(context, origin, type, facing, new BlockPos(3, 2, 3), Blocks.LANTERN);
+                    stableFixture(context, origin, type, facing, new BlockPos(8, 2, 3), Blocks.LANTERN);
+                } else if (type == BuildingType.TOWN_HALL) {
+                    stableFixture(context, origin, type, facing, new BlockPos(5, 11, 4), Blocks.BELL);
+                } else if (type == BuildingType.WATCHTOWER) {
+                    for (int x = 1; x <= 3; x++) {
+                        for (int z = 1; z <= 3; z++) {
+                            for (int y = 9; y <= 11; y++) {
+                                context.assertTrue(world.getBlockState(local(origin, type, facing, x, y, z)).isAir(),
+                                        "Watchtower needs three clear blocks above its floor, including under lights");
+                            }
+                        }
+                    }
+                } else {
+                    int top = type == BuildingType.GATE ? 5 : 3;
+                    for (int y = 0; y <= top; y++) {
+                        stableFixture(context, origin, type, facing, new BlockPos(1, y, 0), Blocks.LADDER);
+                    }
+                    for (int y = top + 1; y <= top + 2; y++) {
+                        context.assertTrue(world.getBlockState(local(origin, type, facing, 1, y, 1)).isAir(),
+                                "Ladder must exit onto an unobstructed walkway");
+                    }
+                }
+            }
+        }
+        context.complete();
+    }
+
+    @GameTest(templateName = FabricGameTest.EMPTY_STRUCTURE)
+    public void adjacentWallsAreAllowedButOverlapsAreRejected(TestContext context) {
+        ServerWorld world = context.getWorld();
+        var owner = java.util.UUID.randomUUID();
+        for (int j = 0; j < FACINGS.length; j++) {
+            Direction facing = FACINGS[j];
+            BlockPos origin = context.getAbsolutePos(new BlockPos(j * 48, 100, 2000));
+            BlockBox box = StructureRotationUtil.computeBoundingBox(origin, BuildingType.WALL, facing);
+            world.getChunk(origin.getX() >> 4, origin.getZ() >> 4);
+            var state = KingdomBuildingState.get(world);
+            state.add(owner, BuildingType.WALL, origin, facing, box, null);
+            int width = box.getMaxX() - box.getMinX() + 1;
+            for (int offset : new int[]{width + 1, width, width - 1}) {
+                BlockPos next = origin.east(offset);
+                BlockBox nextBox = StructureRotationUtil.computeBoundingBox(next, BuildingType.WALL, facing);
+                for (int cx = nextBox.getMinX() >> 4; cx <= nextBox.getMaxX() >> 4; cx++) {
+                    for (int cz = nextBox.getMinZ() >> 4; cz <= nextBox.getMaxZ() >> 4; cz++) {
+                        world.getChunk(cx, cz);
+                    }
+                }
+                var site = new BuildData.BuildSite(next, BuildingType.WALL, 0, false, owner, facing);
+                context.assertEquals(BuildingValidator.validate(world, site).isEmpty(), offset >= width,
+                        "Completed wall adjacency must use inclusive block bounds without padding: "
+                                + BuildingValidator.validate(world, site));
+            }
+            state.entries().removeIf(b -> b.origin.equals(origin));
+            var pending = new BuildData.BuildSite(origin, BuildingType.WALL, 0, false, owner, facing);
+            BuildData.getOrCreate(world).add(pending);
+            for (int offset : new int[]{width, width - 1}) {
+                var site = new BuildData.BuildSite(origin.east(offset), BuildingType.WALL, 0, false, owner, facing);
+                context.assertEquals(BuildingValidator.validate(world, site).isEmpty(), offset == width,
+                        "Pending wall adjacency must not allow a one-block overlap");
+            }
+            BuildData.getOrCreate(world).remove(pending);
+        }
+        context.complete();
+    }
+
+    @GameTest(templateName = FabricGameTest.EMPTY_STRUCTURE)
+    public void foundationsReachDeepGroundAndStopAtWorldBottom(TestContext context) {
+        ServerWorld world = context.getWorld();
+        BlockPos origin = context.getAbsolutePos(new BlockPos(0, 40, 3000));
+        for (int mode = 0; mode < 3; mode++) {
+            BlockPos base = origin.east(mode * 32);
+            world.getChunk(base.getX() >> 4, base.getZ() >> 4);
+            for (int x = 0; x < 7; x++) {
+                for (int z = 0; z < 3; z++) {
+                    for (int y = world.getBottomY(); y < base.getY(); y++) {
+                        world.setBlockState(new BlockPos(base.getX() + x, y, base.getZ() + z),
+                                Blocks.AIR.getDefaultState(), 2 | 16);
+                    }
+                }
+            }
+            int groundY = mode == 0 ? base.getY() - 17 : mode == 1 ? base.getY() - 2 : world.getBottomY() - 1;
+            if (mode != 2) {
+                world.setBlockState(new BlockPos(base.getX(), groundY, base.getZ()), Blocks.STONE.getDefaultState());
+            }
+            StructurePlacer.place(world, base, BuildingType.WALL);
+            for (int y = base.getY() - 1; y > groundY; y--) {
+                context.assertFalse(world.getBlockState(new BlockPos(base.getX(), y, base.getZ())).isAir(),
+                        "No gap may remain below the foundation, even in a bottomless column");
+            }
+            if (mode != 2) {
+                context.assertTrue(world.getBlockState(new BlockPos(base.getX(), groundY, base.getZ())).isOf(Blocks.STONE),
+                        "Existing ground must not be overwritten");
+            }
+        }
+        context.complete();
+    }
+
+    private static BlockPos local(BlockPos origin, BuildingType type, Direction facing, int x, int y, int z) {
+        int[] dims = StructureRotationUtil.getBuildingDimensions(type);
+        return StructureRotationUtil.transformPos(origin, x, y, z, dims[0], dims[2], facing);
+    }
+
+    private static void stableFixture(TestContext context, BlockPos origin, BuildingType type, Direction facing,
+                                      BlockPos offset, net.minecraft.block.Block expected) {
+        ServerWorld world = context.getWorld();
+        BlockPos pos = local(origin, type, facing, offset.getX(), offset.getY(), offset.getZ());
+        BlockState state = world.getBlockState(pos);
+        context.assertTrue(state.isOf(expected) && state.canPlaceAt(world, pos), "Fixture must have valid support: " + pos);
+        for (Direction side : Direction.values()) {
+            BlockPos neighbor = pos.offset(side);
+            world.updateNeighborsAlways(neighbor, world.getBlockState(neighbor).getBlock());
+            state = state.getStateForNeighborUpdate(side, world.getBlockState(neighbor), world, pos, neighbor);
+        }
+        context.assertTrue(state.isOf(expected) && net.minecraft.block.Block.postProcessState(state, world, pos).isOf(expected),
+                "Fixture must survive support-side shape updates: " + pos);
+    }
+
+    @GameTest(templateName = FabricGameTest.EMPTY_STRUCTURE)
     public void everyBlueprintStaysInsideItsPreviewBox(TestContext context) {
         ServerWorld world = context.getWorld();
         BlockPos base = context.getAbsolutePos(new BlockPos(0, 260, 0));
