@@ -57,12 +57,20 @@ public final class TrishulaGameTest {
             for (var hazard : List.of(Blocks.SWEET_BERRY_BUSH, Blocks.CACTUS, Blocks.FIRE, Blocks.SOUL_FIRE,
                     Blocks.CAMPFIRE, Blocks.SOUL_CAMPFIRE, Blocks.POWDER_SNOW, Blocks.WITHER_ROSE,
                     Blocks.POINTED_DRIPSTONE)) {
-                world.setBlockState(feet, hazard.getDefaultState());
+                world.setBlockState(feet.down(), Blocks.SOUL_SOIL.getDefaultState());
+                var state = hazard == Blocks.SWEET_BERRY_BUSH
+                        ? hazard.getDefaultState().with(net.minecraft.block.SweetBerryBushBlock.AGE, 3)
+                        : hazard.getDefaultState();
+                world.setBlockState(feet, state);
+                context.assertTrue(world.getBlockState(feet).isOf(hazard), "Feet fixture must retain " + hazard);
                 context.assertFalse(TrishulaEffects.isSafeLanding(world, player, feet), hazard + " at feet is unsafe");
                 world.setBlockState(feet, Blocks.AIR.getDefaultState());
-                world.setBlockState(feet.up(), hazard.getDefaultState());
-                context.assertFalse(TrishulaEffects.isSafeLanding(world, player, feet), hazard + " at head is unsafe");
-                world.setBlockState(feet.up(), Blocks.AIR.getDefaultState());
+                if (hazard != Blocks.FIRE && hazard != Blocks.SOUL_FIRE) {
+                    world.setBlockState(feet.up(), state);
+                    context.assertTrue(world.getBlockState(feet.up()).isOf(hazard), "Head fixture must retain " + hazard);
+                    context.assertFalse(TrishulaEffects.isSafeLanding(world, player, feet), hazard + " at head is unsafe");
+                    world.setBlockState(feet.up(), Blocks.AIR.getDefaultState());
+                }
             }
             world.setBlockState(feet.down(), Blocks.MAGMA_BLOCK.getDefaultState());
             context.assertFalse(TrishulaEffects.isSafeLanding(world, player, feet), "Magma footing is unsafe");
