@@ -9,6 +9,7 @@ import com.kingdomunique.registry.ContentRegistry;
 import net.fabricmc.api.EnvType;
 import net.fabricmc.api.Environment;
 import net.fabricmc.fabric.api.client.networking.v1.ClientPlayNetworking;
+import net.fabricmc.fabric.api.client.event.lifecycle.v1.ClientTickEvents;
 import net.fabricmc.fabric.api.client.rendering.v1.HudRenderCallback;
 import net.minecraft.client.MinecraftClient;
 import net.minecraft.client.font.TextRenderer;
@@ -27,7 +28,7 @@ import java.util.List;
 
 /**
  * 王国情報・能力状態・設計図資材を1つにまとめた統合HUD（Gemini 提示を既存クラスへ接続）。
- * 左上のコンパクトバナー、ホットバー右隣の能力スロット、左下の状況別資材パネルを描画する。
+ * 左上のコンパクトバナーと資材パネル、ホットバー右隣の能力スロットを描画する。
  */
 @Environment(EnvType.CLIENT)
 public final class KingdomUnifiedHud {
@@ -36,11 +37,20 @@ public final class KingdomUnifiedHud {
     private static int cachedMaxPop = 10;
     private static int cachedTreasuryEmeralds = 0;
     private static int cachedTreasuryBread = 0;
+    private static String materialTitle = "";
+    private static List<String> materialLines = List.of();
 
     private KingdomUnifiedHud() {
     }
 
     public static void register() {
+        ClientTickEvents.END_CLIENT_TICK.register(client -> {
+            while (KeyBindings.getMaterialDetailsKey().wasPressed()) {
+                if (client.currentScreen == null && !materialLines.isEmpty()) {
+                    client.setScreen(new MaterialDetailsScreen(materialTitle, materialLines));
+                }
+            }
+        });
         HudRenderCallback.EVENT.register(KingdomUnifiedHud::render);
     }
 
@@ -69,7 +79,7 @@ public final class KingdomUnifiedHud {
 
         renderTopLeftBanner(context, tr, 8, 8);
         renderAbilitySlot(context, tr, sw, sh);
-        renderMaterialPanel(context, tr, client.player, sh);
+        renderMaterialPanel(context, tr, client.player, sw, sh);
     }
 
     /** ① 左上: 覚醒能力・採掘範囲・保有ユニーク数。 */
@@ -79,7 +89,7 @@ public final class KingdomUnifiedHud {
         String name = abilityId == null || abilityId.isEmpty()
                 ? "未覚醒" : ContentRegistry.nameOf(abilityId);
         int range = status.miningRange();
-        String rangeLabel = range > 1 ? " §b[" + range + "x" + range + "]" : "";
+        String rangeLabel = !status.abilitiesSealed() && range > 1 ? " §b[" + range + "x" + range + "]" : "";
 
         // 人口の色分け（Gemini 提示）：満員=赤 / 80%以上=黄 / 余裕あり=緑。
         String popColor = cachedCurrentPop >= cachedMaxPop ? "§c"
@@ -117,12 +127,14 @@ public final class KingdomUnifiedHud {
         }
         int maxCt = AbilityDescriptions.cooldownTicks(abilityId);
         int ct = Math.max(0, status.cooldownTicks());
+        boolean sealed = status.abilitiesSealed();
         boolean ready = maxCt <= 0 || ct <= 0;
 
         int slotX = sw / 2 + 98;
         int slotY = sh - 22;
         int size = 22;
-        int border = ready ? KuTheme.GOLD : KuTheme.BORDER;
+        int hintX = slotX + size + 4;
+        int border = sealed ? KuTheme.PURPLE : ready ? KuTheme.GOLD : KuTheme.BORDER;
 
         context.fill(slotX, slotY, slotX + size, slotY + size, KuTheme.withAlpha(KuTheme.INSET, 0xB0));
         KuTheme.drawBorder(context, slotX, slotY, size, size, border);
@@ -130,6 +142,14 @@ public final class KingdomUnifiedHud {
         ItemStack icon = SelectionIcons.iconFor(abilityId);
         if (!icon.isEmpty()) {
             context.drawItem(icon, slotX + 3, slotY + 3);
+        }
+
+        if (sealed) {
+            String hint = "封印中";
+            if (hintX + tr.getWidth(hint) <= sw - 4) {
+                context.drawTextWithShadow(tr, Text.literal(hint), hintX, slotY + 6, KuTheme.PURPLE);
+            }
+            return;
         }
 
         if (maxCt > 0 && ct > 0) {
@@ -153,16 +173,17 @@ public final class KingdomUnifiedHud {
         context.getMatrices().pop();
 
         if (maxCt <= 0) {
-            // パッシブ能力は操作ヒントをスロット上に小さく出す。
             String hint = AbilityDescriptions.controlHint(abilityId);
-            context.drawTextWithShadow(tr, Text.literal("§7" + hint),
-                    slotX - Math.max(0, tr.getWidth(hint) - size) / 2, slotY - 12, KuTheme.MUTED);
+            if (hintX + tr.getWidth(hint) <= sw - 4) {
+                context.drawTextWithShadow(tr, Text.literal(hint), hintX, slotY + 6, KuTheme.MUTED);
+            }
         }
     }
 
-    /** ③ 左下: 配置済み設計図を視ている時は投入状況、設計図を持っている時は所持資材を表示。 */
+    /** ③ 左上バナーの下: 投入状況または所持資材。 */
     private static void renderMaterialPanel(DrawContext context, TextRenderer tr,
-                                            ClientPlayerEntity player, int screenHeight) {
+                                            ClientPlayerEntity player, int screenWidth, int screenHeight) {
+        materialLines = List.of();
         List<String> lines = new ArrayList<>();
         String title = null;
 
@@ -191,15 +212,29 @@ public final class KingdomUnifiedHud {
             return;
         }
 
-        int rowHeight = 16;
-        int headerHeight = 28;
+        materialTitle = title;
+        materialLines = List.copyOf(lines);
+        int rowHeight = tr.fontHeight + 3;
+        int headerHeight = 20;
         int panelWidth = Math.max(168, tr.getWidth(title) + 16);
         for (String line : lines) {
             panelWidth = Math.max(panelWidth, tr.getWidth(line) + 24);
         }
-        int panelHeight = headerHeight + lines.size() * rowHeight + 6;
-        int topY = screenHeight - 8 - panelHeight;
+        int panelHeight = headerHeight + lines.size() * rowHeight + 2;
+        int topY = 48;
         int x = 8;
+        int heartRows = (int) Math.ceil((player.getMaxHealth() + player.getAbsorptionAmount()) / 20.0);
+        int statusHeight = 49 + Math.max(0, heartRows - 1) * Math.max(3, 10 - (heartRows - 2));
+        int chatHeight = MinecraftClient.getInstance().inGameHud.getChatHud().getHeight();
+        int safeBottom = screenHeight - Math.max(chatHeight + 40, Math.max(80, statusHeight + 8));
+        if (panelWidth > screenWidth - 19 || topY + panelHeight + 4 > safeBottom) {
+            String hint = "資材詳細 [" + KeyBindings.getMaterialDetailsKey().getBoundKeyLocalizedText().getString() + "]";
+            if (topY + 20 <= safeBottom && tr.getWidth(hint) + 15 <= screenWidth - 16) {
+                KuTheme.drawPanel(context, x, topY, tr.getWidth(hint) + 12, 16, KuTheme.CYAN);
+                context.drawTextWithShadow(tr, Text.literal(hint), x + 6, topY + 3, KuTheme.BODY);
+            }
+            return;
+        }
 
         KuTheme.drawPanel(context, x, topY, panelWidth, panelHeight, KuTheme.CYAN);
         context.drawTextWithShadow(tr, Text.literal(title), x + 8, topY + 8, KuTheme.CYAN);

@@ -38,12 +38,16 @@ public final class ItemCatalog {
         ENTRIES.add(new Entry("slaughter_blade", "殺戮の宝剣（遺物）", () -> new ItemStack(ModItems.SLAUGHTER_BLADE)));
         ENTRIES.add(new Entry("destruction_pickaxe", "破壊衝動のツルハシ（呪物）",
                 () -> new ItemStack(ModItems.DESTRUCTION_PICKAXE)));
+        ENTRIES.add(new Entry("trishula", "トリシューラ", () -> new ItemStack(UniqueWeapons.TRISHULA)));
         ENTRIES.add(new Entry("excalibur", "エクスカリバー", () -> new ItemStack(UniqueWeapons.EXCALIBUR)));
         ENTRIES.add(new Entry("gae_bolg", "ゲイボルグ", () -> new ItemStack(UniqueWeapons.GAE_BOLG)));
         ENTRIES.add(new Entry("muramasa", "ムラマサ", () -> new ItemStack(UniqueWeapons.MURAMASA)));
         ENTRIES.add(new Entry("apollo_bow", "アポロンの太陽弓", () -> new ItemStack(UniqueWeapons.APOLLO_BOW)));
         ENTRIES.add(new Entry("mjolnir", "ミョルニル", () -> new ItemStack(UniqueWeapons.MJOLNIR)));
         ENTRIES.add(new Entry("chronos_dagger", "クロノス・ダガー", () -> new ItemStack(UniqueWeapons.CHRONOS_DAGGER)));
+        ENTRIES.add(new Entry("kusanagi", "草薙の剣", () -> new ItemStack(UniqueWeapons.KUSANAGI)));
+        ENTRIES.add(new Entry("poseidon_trident", "トライデント・オブ・ポセイドン", () -> new ItemStack(UniqueWeapons.POSEIDON_TRIDENT)));
+        ENTRIES.add(new Entry("twilight_scythe", "黄昏の鎌（ハルパー）", () -> new ItemStack(UniqueWeapons.TWILIGHT_SCYTHE)));
     }
 
     private ItemCatalog() {

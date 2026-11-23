@@ -45,7 +45,7 @@ public final class AbilityPassives {
 
     /** プレイヤーの保持能力に応じて属性補正を再適用する。 */
     public static void applyAttributes(ServerPlayerEntity player) {
-        applyAttributes(player, UniqueContentRegistry.getAbilities(player));
+        applyAttributes(player, UniqueContentRegistry.getEnabledAbilities(player));
     }
 
     private static void applyAttributes(ServerPlayerEntity player, List<String> abilities) {
@@ -83,14 +83,20 @@ public final class AbilityPassives {
         tickCounter++;
 
         for (ServerPlayerEntity player : server.getPlayerManager().getPlayerList()) {
-            List<String> abilities = UniqueContentRegistry.getAbilities(player);
+            List<String> abilities = UniqueContentRegistry.getEnabledAbilities(player);
             applyAttributes(player, abilities);
+
+            if (!abilities.contains(UniqueContentRegistry.SHADOW_STEP)) {
+                AbilityState.get(player.getUuid()).setShadowDamageBuff(false);
+            }
 
             if (abilities.contains(UniqueContentRegistry.INDOMITABLE)) {
                 tickIndomitable(player);
             }
             if (abilities.contains(UniqueContentRegistry.GRAVITY_CONTROL)) {
                 tickGravity(player);
+            } else {
+                clearGravity(player);
             }
             if (tickCounter % 20L == 0L && abilities.contains(UniqueContentRegistry.FERTILITY)) {
                 tickFertility(player);
@@ -145,9 +151,9 @@ public final class AbilityPassives {
         if (targetUuid == null) {
             return;
         }
-        ServerWorld world = player.getServerWorld();
-        if (!(world.getEntity(targetUuid) instanceof net.minecraft.entity.LivingEntity target) || !target.isAlive()) {
-            state.setGravityTarget(null);
+        net.minecraft.entity.LivingEntity target = state.getGravityHeldEntity();
+        if (target == null || !target.isAlive() || target.isRemoved() || target.getWorld() != player.getWorld()) {
+            clearGravity(player);
             return;
         }
 
@@ -168,15 +174,28 @@ public final class AbilityPassives {
 
     /** 重力操作の対象を解放し、視線方向へ吹き飛ばす。 */
     public static void releaseGravity(ServerPlayerEntity player, net.minecraft.entity.LivingEntity target) {
-        PlayerAbilityState state = AbilityState.get(player.getUuid());
-        state.setGravityTarget(null);
+        clearGravity(player);
         if (!target.isAlive()) {
             return;
         }
         target.setNoGravity(false);
         Vec3fHolder holder = new Vec3fHolder(player);
         target.setVelocity(holder.x * 2.0D, holder.y * 2.0D + 0.3D, holder.z * 2.0D);
+    }
 
+    public static void clearGravity(ServerPlayerEntity player) {
+        PlayerAbilityState state = AbilityState.all().get(player.getUuid());
+        if (state == null) {
+            return;
+        }
+        net.minecraft.entity.LivingEntity target = state.getGravityHeldEntity();
+        state.setGravityTarget(null);
+        state.setGravityHeldEntity(null);
+        state.setGravityReleaseAt(0L);
+        if (target == null) {
+            return;
+        }
+        target.setNoGravity(false);
         EntityAttributeInstance instance = target.getAttributeInstance(EntityAttributes.GENERIC_FALL_DAMAGE_MULTIPLIER);
         if (instance != null) {
             instance.removeModifier(id("gravity_fall_half"));

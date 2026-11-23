@@ -5,6 +5,8 @@ import com.kingdomunique.building.BuildingType;
 import com.kingdomunique.data.WorldUniqueData;
 import com.kingdomunique.network.OpenItemMenuPayload;
 import com.kingdomunique.network.RequestItemPayload;
+import com.kingdomunique.network.ItemGrantResultPayload;
+import com.kingdomunique.world.VillageBuilder;
 import net.fabricmc.fabric.api.networking.v1.ServerPlayNetworking;
 import net.minecraft.item.ItemStack;
 import net.minecraft.server.MinecraftServer;
@@ -13,6 +15,7 @@ import net.minecraft.server.network.ServerPlayerEntity;
 import net.minecraft.server.world.ServerWorld;
 import net.minecraft.text.Text;
 import net.minecraft.util.Formatting;
+import net.minecraft.util.math.BlockPos;
 import net.minecraft.world.World;
 
 import java.util.UUID;
@@ -24,6 +27,7 @@ public final class ItemMenuHandler {
     }
 
     public static void register() {
+        var resultType = ItemGrantResultPayload.TYPE;
         ServerPlayNetworking.registerGlobalReceiver(
                 com.kingdomunique.network.RequestOpenItemMenuPayload.ID, (payload, context) -> {
                     ServerPlayerEntity player = context.player();
@@ -52,9 +56,12 @@ public final class ItemMenuHandler {
                     double multiplier = com.kingdomunique.building.BuildingManager.costMultiplier(player);
                     java.util.List<String> lines = new java.util.ArrayList<>();
                     if (be.isReady()) {
-                        // 建築開始後は資材が消費されて空になるため、
-                        // 「0/N（資材待ち）」ではなく「建設中」として表示する。
-                        lines.add("状態: 建設中");
+                        boolean working = com.kingdomunique.building.BuildingManager
+                                .isWorking(world, payload.pos());
+                        lines.add(working ? "状態: 建設中" : "状態: 建築士待ち");
+                        if (!working) {
+                            lines.add("自国の建築士を現場の近くへ");
+                        }
                         com.kingdomunique.building.BuildData buildData =
                                 com.kingdomunique.building.BuildData.getOrCreate(world);
                         for (com.kingdomunique.building.BuildData.BuildSite site
@@ -67,7 +74,9 @@ public final class ItemMenuHandler {
                             int remaining = Math.max(0, required - site.progress());
                             int percent = required > 0
                                     ? Math.min(100, (int) (site.progress() * 100L / required)) : 0;
-                            lines.add("残り時間: " + String.format("%.1f", remaining / 20.0F) + "秒");
+                            if (working) {
+                                lines.add("残り時間: " + String.format("%.1f", remaining / 20.0F) + "秒");
+                            }
                             lines.add("進捗: " + percent + "%");
                             break;
                         }
@@ -78,7 +87,25 @@ public final class ItemMenuHandler {
                             int have = be.countOf(entry.getKey());
                             lines.add(entry.getKey().getName().getString() + " " + have + "/" + needed);
                         }
-                        lines.add(be.hasAllMaterials(type, multiplier) ? "状態: 資材投入済み（未着工）" : "状態: 資材待ち");
+                        if (be.hasAllMaterials(type, multiplier)) {
+                            // 資材が揃うと自動で着工するため、未着工なら建築条件で拒否された現場。
+                            java.util.Optional<net.minecraft.text.Text> error =
+                                    com.kingdomunique.building.BuildData.getOrCreate(world).sites().stream()
+                                            .filter(site -> site.pos().equals(payload.pos()))
+                                            .findFirst()
+                                            .flatMap(site -> com.kingdomunique.building.BuildingValidator
+                                                    .validate(world, site));
+                            if (error.isPresent()) {
+                                lines.add("状態: 着工できません");
+                                lines.add(error.get().getString());
+                                lines.add("条件を直して素手で右クリックで着工");
+                            } else {
+                                lines.add("状態: 着工待ち");
+                                lines.add("素手で右クリックで着工");
+                            }
+                        } else {
+                            lines.add("状態: 資材待ち");
+                        }
                         int estimate = (int) Math.max(20L,
                                 type.getBaseBuildTicks() * multiplier);
                         lines.add("予想建築時間: " + String.format("%.1f", estimate / 20.0F) + "秒");
@@ -90,10 +117,10 @@ public final class ItemMenuHandler {
         ServerPlayNetworking.registerGlobalReceiver(RequestItemPayload.ID, (payload, context) -> {
             ServerPlayerEntity player = context.player();
             if (!isAdmin(player)) {
-                player.sendMessage(Text.literal("§c[KingdomUnique] このメニューは管理者のみ使用できます。"), false);
+                reject(player, payload.itemId(), payload.requestId(), "管理者のみ使用できます。管理者に権限を確認してください。");
                 return;
             }
-            give(player, payload.itemId());
+            give(player, payload.itemId(), payload.requestId());
         });
 
     }
@@ -123,9 +150,13 @@ public final class ItemMenuHandler {
                                 net.minecraft.util.math.Vec3d look = player.getRotationVec(1.0F);
                                 int x = (int) (player.getX() + look.x * 8.0D);
                                 int z = (int) (player.getZ() + look.z * 8.0D);
-                                com.kingdomunique.world.VillageBuilder.generateStarterVillage(
-                                        player.getServerWorld(), x, z);
-                                player.sendMessage(Text.literal("§6[KingdomUnique] 目の前に村を生成しました。"), false);
+                                BlockPos center = VillageBuilder.generateDebugVillage(player.getServerWorld(), x, z);
+                                if (center == null) {
+                                    context.getSource().sendError(Text.literal("村を生成できる地形が見つかりませんでした。"));
+                                    return 0;
+                                }
+                                player.sendMessage(Text.literal("§6[KingdomUnique] 村を生成しました: "
+                                        + center.getX() + ", " + center.getY() + ", " + center.getZ()), false);
                                 return 1;
                             }))
                     .then(CommandManager.literal("enhance")
@@ -189,18 +220,44 @@ public final class ItemMenuHandler {
         }
     }
 
-    private static void give(ServerPlayerEntity player, String id) {
+    private static void give(ServerPlayerEntity player, String id, long requestId) {
         ItemStack stack = ItemCatalog.create(id);
         if (stack.isEmpty() || stack.getItem() == net.minecraft.item.Items.AIR) {
-            player.sendMessage(Text.literal("§c[KingdomUnique] 指定されたアイテムは存在しません: " + id), false);
+            reject(player, id, requestId, "アイテムが見つかりません。メニューを開き直してください。");
             return;
         }
         if (stack.getCount() <= 0) {
             stack.setCount(1);
         }
-        String itemName = stack.getName().getString();
+        String itemName = ItemCatalog.entries().stream().filter(entry -> entry.id().equals(id))
+                .findFirst().orElseThrow().label();
+        int quantity = stack.getCount();
+        int capacity = 0;
+        for (ItemStack slot : player.getInventory().main) {
+            if (slot.isEmpty()) {
+                capacity += stack.getMaxCount();
+            } else if (ItemStack.areItemsAndComponentsEqual(slot, stack)) {
+                capacity += Math.max(0, slot.getMaxCount() - slot.getCount());
+            }
+        }
+        for (ItemStack slot : player.getInventory().offHand) {
+            if (ItemStack.areItemsAndComponentsEqual(slot, stack)) {
+                capacity += Math.max(0, slot.getMaxCount() - slot.getCount());
+            }
+        }
+        if (capacity < quantity) {
+            reject(player, id, requestId, "所持品がいっぱいです。空きを作ってからもう一度クリック");
+            return;
+        }
         // 管理者メニューからは所有者に関係なく付与する（排他リストは変更しない）。
-        player.giveItemStack(stack);
-        player.sendMessage(Text.literal("§6[KingdomUnique] " + itemName + " を入手しました。"), false);
+        player.getInventory().insertStack(stack);
+        player.currentScreenHandler.sendContentUpdates();
+        ServerPlayNetworking.send(player, new ItemGrantResultPayload(id, requestId, true, itemName, quantity, ""));
+        player.sendMessage(Text.literal("[KingdomUnique] " + itemName + " ×" + quantity + " を入手"), false);
+    }
+
+    private static void reject(ServerPlayerEntity player, String id, long requestId, String reason) {
+        ServerPlayNetworking.send(player, new ItemGrantResultPayload(id, requestId, false, "", 0, reason));
+        player.sendMessage(Text.literal("[KingdomUnique] " + reason), false);
     }
 }

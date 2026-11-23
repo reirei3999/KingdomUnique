@@ -10,6 +10,7 @@ import com.kingdomunique.registry.CurseRegistry;
 import com.kingdomunique.registry.RelicRegistry;
 import com.mojang.brigadier.builder.LiteralArgumentBuilder;
 import net.fabricmc.fabric.api.entity.event.v1.ServerLivingEntityEvents;
+import net.fabricmc.fabric.api.entity.event.v1.EntitySleepEvents;
 import net.fabricmc.fabric.api.event.lifecycle.v1.ServerTickEvents;
 import net.fabricmc.fabric.api.networking.v1.ServerPlayConnectionEvents;
 import net.fabricmc.fabric.api.networking.v1.ServerPlayNetworking;
@@ -62,8 +63,10 @@ public final class SelectionEventHandler {
     }
 
     public static void register() {
+        AncientCityRelicTrigger.register();
         SelectionResultPayload.initialize();
         ServerTickEvents.END_SERVER_TICK.register(SelectionEventHandler::onTick);
+        EntitySleepEvents.ALLOW_SLEEPING.register(CurseEffects::checkSleep);
         ServerPlayConnectionEvents.DISCONNECT.register((handler, server) -> {
             GLUTTONY_UNTIL.remove(handler.getPlayer().getUuid());
         });
@@ -115,14 +118,16 @@ public final class SelectionEventHandler {
         SelectionManager.onCitizenCountReached(player, count);
     }
 
-    /** 暴食の指輪：空腹の減少を3倍にし、空腹0で猛毒。 */
+    /** 暴食の指輪：撃破後は攻撃力上昇と空腹の減少3倍、空腹0で猛毒。 */
     private static void tickGluttony(ServerPlayerEntity player) {
         if (!CurseEffects.has(player, CurseRegistry.GLUTTONY)) {
+            CurseEffects.applyGluttonyFrenzy(player, false);
             return;
         }
         long now = player.getServerWorld().getTime();
         Long until = GLUTTONY_UNTIL.get(player.getUuid());
         boolean buffActive = until != null && now < until;
+        CurseEffects.applyGluttonyFrenzy(player, buffActive);
         if (buffActive) {
             if (player.getHungerManager().getFoodLevel() == 0 && now % 20L == 0L) {
                 player.addStatusEffect(new StatusEffectInstance(StatusEffects.POISON, 40, 1));

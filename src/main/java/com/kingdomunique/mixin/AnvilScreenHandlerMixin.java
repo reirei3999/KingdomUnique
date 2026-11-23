@@ -1,5 +1,6 @@
 package com.kingdomunique.mixin;
 
+import com.kingdomunique.item.unique.UniqueArmorEffects;
 import com.kingdomunique.util.EnhancementUtil;
 import net.minecraft.entity.player.PlayerEntity;
 import net.minecraft.item.ItemStack;
@@ -11,6 +12,7 @@ import org.spongepowered.asm.mixin.Shadow;
 import org.spongepowered.asm.mixin.Unique;
 import org.spongepowered.asm.mixin.injection.At;
 import org.spongepowered.asm.mixin.injection.Inject;
+import org.spongepowered.asm.mixin.injection.Redirect;
 import org.spongepowered.asm.mixin.injection.callback.CallbackInfo;
 
 /**
@@ -66,6 +68,12 @@ public abstract class AnvilScreenHandlerMixin implements EnhancementUtil.AnvilTr
         accessor.ku$output().setStack(0, enhancement.stack());
         levelCost.set(enhancement.levelCost());
         ci.cancel();
+    }
+
+    @Redirect(method = "onTakeOutput", at = @At(value = "INVOKE",
+            target = "Lnet/minecraft/entity/player/PlayerEntity;addExperienceLevels(I)V"))
+    private void kingdomUnique$discountAnvil(PlayerEntity player, int levels) {
+        player.addExperienceLevels(-UniqueArmorEffects.discountLevels(player, -levels));
     }
 
     /**

@@ -1,7 +1,8 @@
 package com.kingdomunique.util;
 
 import com.kingdomunique.component.ModDataComponents;
-import com.kingdomunique.data.WorldUniqueData;
+import com.kingdomunique.item.unique.UniqueArmorItem;
+import com.kingdomunique.registry.UniqueContentRegistry;
 import net.minecraft.component.DataComponentTypes;
 import net.minecraft.component.type.AttributeModifierSlot;
 import net.minecraft.component.type.AttributeModifiersComponent;
@@ -15,14 +16,11 @@ import net.minecraft.item.MaceItem;
 import net.minecraft.item.RangedWeaponItem;
 import net.minecraft.item.ToolItem;
 import net.minecraft.item.TridentItem;
-import net.minecraft.server.MinecraftServer;
 import net.minecraft.server.network.ServerPlayerEntity;
-import net.minecraft.server.world.ServerWorld;
 import net.minecraft.text.MutableText;
 import net.minecraft.text.Text;
 import net.minecraft.util.Formatting;
 import net.minecraft.util.Identifier;
-import net.minecraft.world.World;
 
 import java.util.ArrayList;
 import java.util.List;
@@ -38,7 +36,6 @@ import java.util.concurrent.ThreadLocalRandom;
 public final class EnhancementUtil {
 
     /** ユニーク能力「神匠」のID。 */
-    public static final String DIVINE_SMITH_ID = "divine_smith";
 
     /** 強化1段階あたりの倍率。 */
     public static final double MULTIPLIER_PER_LEVEL = 1.1D;
@@ -98,10 +95,15 @@ public final class EnhancementUtil {
      */
     public static EnhancementResult tryEnhance(ItemStack left, ItemStack right, PlayerEntity player,
                                                boolean rollBonus) {
+        if (player == null || !player.getWorld().isClient()) {
+            migrateLegacy(left);
+            migrateLegacy(right);
+        }
         if (!isEnhanceable(left) || !isEnhanceable(right)) {
             return null;
         }
-        if (left.getItem() != right.getItem()) {
+        if (left.getItem() instanceof UniqueArmorItem armor
+                ? !armor.acceptsEnhancementMaterial(right) : left.getItem() != right.getItem()) {
             return null;
         }
 
@@ -129,7 +131,7 @@ public final class EnhancementUtil {
 
         double factor = multiplier(targetLevel - currentLevel);
 
-        AttributeModifiersComponent modifiers = result.get(DataComponentTypes.ATTRIBUTE_MODIFIERS);
+        AttributeModifiersComponent modifiers = effectiveModifiers(result);
         if (modifiers != null && !modifiers.modifiers().isEmpty()) {
             List<AttributeModifiersComponent.Entry> scaled = new ArrayList<>();
             for (AttributeModifiersComponent.Entry entry : modifiers.modifiers()) {
@@ -148,6 +150,7 @@ public final class EnhancementUtil {
             }
             result.set(DataComponentTypes.ATTRIBUTE_MODIFIERS,
                     new AttributeModifiersComponent(scaled, modifiers.showInTooltip()));
+            result.set(ModDataComponents.ATTR_VERSION, 1);
         }
 
         // 1.21.1 のツール採掘速度は AttributeModifiers ではなく TOOL コンポーネントで定義される。
@@ -230,18 +233,8 @@ public final class EnhancementUtil {
         return 1;
     }
 
-    /** プレイヤーが「神匠」を所持しているかを永続データから判定する。 */
     private static boolean hasDivineSmith(ServerPlayerEntity player) {
-        MinecraftServer server = player.getServer();
-        if (server == null) {
-            return false;
-        }
-        ServerWorld overworld = server.getWorld(World.OVERWORLD);
-        if (overworld == null) {
-            return false;
-        }
-        WorldUniqueData data = WorldUniqueData.getOrCreate(overworld);
-        return data.hasId(player.getUuid(), DIVINE_SMITH_ID);
+        return UniqueContentRegistry.has(player, UniqueContentRegistry.DIVINE_SMITH);
     }
 
     /** 神匠のクラフトボーナス。アイテム種別ごとに渡された値のみを反映する。 */
@@ -261,7 +254,7 @@ public final class EnhancementUtil {
         stack.set(ModDataComponents.DIVINE_ARMOR, armor);
         stack.set(ModDataComponents.DIVINE_TOUGHNESS, toughness);
 
-        AttributeModifiersComponent current = stack.get(DataComponentTypes.ATTRIBUTE_MODIFIERS);
+        AttributeModifiersComponent current = effectiveModifiers(stack);
         List<AttributeModifiersComponent.Entry> entries = new ArrayList<>();
         if (current != null) {
             for (AttributeModifiersComponent.Entry entry : current.modifiers()) {
@@ -288,6 +281,7 @@ public final class EnhancementUtil {
 
         stack.set(DataComponentTypes.ATTRIBUTE_MODIFIERS,
                 new AttributeModifiersComponent(entries, current == null || current.showInTooltip()));
+        stack.set(ModDataComponents.ATTR_VERSION, 1);
 
         // TOOLコンポーネントの採掘速度も引き上げる（採掘ツールのみ）。
         net.minecraft.component.type.ToolComponent tool = stack.get(DataComponentTypes.TOOL);
@@ -345,7 +339,10 @@ public final class EnhancementUtil {
         if (!(stack.getItem() instanceof ArmorItem)) {
             return;
         }
-        AttributeModifiersComponent current = stack.get(DataComponentTypes.ATTRIBUTE_MODIFIERS);
+        migrateLegacy(stack);
+        stack.set(ModDataComponents.ARMOR_BOOST,
+                stack.getOrDefault(ModDataComponents.ARMOR_BOOST, 1.0D) * factor);
+        AttributeModifiersComponent current = effectiveModifiers(stack);
         if (current != null && !current.modifiers().isEmpty()) {
             List<AttributeModifiersComponent.Entry> scaled = new ArrayList<>();
             for (AttributeModifiersComponent.Entry entry : current.modifiers()) {
@@ -359,6 +356,7 @@ public final class EnhancementUtil {
             }
             stack.set(DataComponentTypes.ATTRIBUTE_MODIFIERS,
                     new AttributeModifiersComponent(scaled, current.showInTooltip()));
+            stack.set(ModDataComponents.ATTR_VERSION, 1);
         }
 
         Integer maxDamage = stack.get(DataComponentTypes.MAX_DAMAGE);
@@ -366,6 +364,77 @@ public final class EnhancementUtil {
             stack.set(DataComponentTypes.MAX_DAMAGE,
                     Math.max(1, (int) Math.round(maxDamage * factor)));
         }
+    }
+
+    public static void migrateLegacy(ItemStack stack) {
+        if (stack == null || !(stack.getItem() instanceof ArmorItem)
+                || stack.contains(ModDataComponents.ATTR_VERSION)) {
+            return;
+        }
+        int level = getLevel(stack);
+        if (level == 0 && !hasDivineBonus(stack)) {
+            return;
+        }
+        AttributeModifiersComponent current = stack.get(DataComponentTypes.ATTRIBUTE_MODIFIERS);
+        AttributeModifiersComponent defaults = effectiveModifiers(applyLevel(new ItemStack(stack.getItem()), 0, level));
+        List<AttributeModifiersComponent.Entry> entries = new ArrayList<>();
+        if (current != null) {
+            entries.addAll(current.modifiers());
+        }
+        for (AttributeModifiersComponent.Entry entry : defaults.modifiers()) {
+            if (current == null || current.modifiers().stream()
+                    .noneMatch(existing -> existing.attribute().equals(entry.attribute())
+                            && existing.modifier().id().equals(entry.modifier().id()))) {
+                entries.add(entry);
+            }
+        }
+        if (current == null || !entries.equals(current.modifiers())) {
+            stack.set(DataComponentTypes.ATTRIBUTE_MODIFIERS,
+                    new AttributeModifiersComponent(entries, current == null || current.showInTooltip()));
+        }
+        stack.set(ModDataComponents.ATTR_VERSION, 1);
+    }
+
+    private static boolean hasDivineBonus(ItemStack stack) {
+        return stack.getOrDefault(ModDataComponents.DIVINE_ATTACK_DAMAGE, 0.0F) > 0
+                || stack.getOrDefault(ModDataComponents.DIVINE_ATTACK_SPEED, 0.0F) > 0
+                || stack.getOrDefault(ModDataComponents.DIVINE_MINING_SPEED, 0.0F) > 0
+                || stack.getOrDefault(ModDataComponents.DIVINE_ARMOR, 0.0F) > 0
+                || stack.getOrDefault(ModDataComponents.DIVINE_TOUGHNESS, 0.0F) > 0;
+    }
+
+    public static void rebuildSmithingAttributes(ItemStack stack) {
+        if (!isEnhanceable(stack)) {
+            return;
+        }
+        int level = getLevel(stack);
+        float attack = stack.getOrDefault(ModDataComponents.DIVINE_ATTACK_DAMAGE, 0.0F);
+        float speed = stack.getOrDefault(ModDataComponents.DIVINE_ATTACK_SPEED, 0.0F);
+        float mining = stack.getOrDefault(ModDataComponents.DIVINE_MINING_SPEED, 0.0F);
+        float armor = stack.getOrDefault(ModDataComponents.DIVINE_ARMOR, 0.0F);
+        float toughness = stack.getOrDefault(ModDataComponents.DIVINE_TOUGHNESS, 0.0F);
+        double boost = stack.getOrDefault(ModDataComponents.ARMOR_BOOST, 1.0D);
+        if (level == 0 && !hasDivineBonus(stack) && boost == 1.0D) {
+            return;
+        }
+        ItemStack rebuilt = new ItemStack(stack.getItem());
+        applyDivineBonuses(rebuilt, attack, speed, mining, armor, toughness);
+        if (boost != 1.0D) {
+            boostArmor(rebuilt, boost);
+        }
+        if (level > 0) {
+            rebuilt = applyLevel(rebuilt, 0, level);
+        }
+        AttributeModifiersComponent current = stack.get(DataComponentTypes.ATTRIBUTE_MODIFIERS);
+        stack.set(DataComponentTypes.ATTRIBUTE_MODIFIERS, new AttributeModifiersComponent(
+                effectiveModifiers(rebuilt).modifiers(), current == null || current.showInTooltip()));
+        stack.set(ModDataComponents.ATTR_VERSION, 1);
+    }
+
+    private static AttributeModifiersComponent effectiveModifiers(ItemStack stack) {
+        AttributeModifiersComponent modifiers = stack.get(DataComponentTypes.ATTRIBUTE_MODIFIERS);
+        return modifiers == null || modifiers.modifiers().isEmpty()
+                ? stack.getItem().getAttributeModifiers() : modifiers;
     }
 
     /** 強化結果。 */

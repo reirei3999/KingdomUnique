@@ -79,7 +79,8 @@ public final class KingdomWarTargetHelper {
         }
 
         // 敵対モンスター（絶対支配で味方化した Mob は除外）。
-        if (candidate instanceof HostileEntity && !candidate.getCommandTags().contains("allied_mob")) {
+        if (candidate instanceof HostileEntity && !candidate.getCommandTags().contains("allied_mob")
+                && !candidate.getCommandTags().contains("kingdomunique_ally")) {
             return true;
         }
         return false;

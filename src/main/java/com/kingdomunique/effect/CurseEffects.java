@@ -2,17 +2,28 @@ package com.kingdomunique.effect;
 
 import com.kingdomunique.data.WorldUniqueData;
 import com.kingdomunique.registry.CurseRegistry;
+import com.kingdomunique.war.Warfare;
+import net.minecraft.entity.AreaEffectCloudEntity;
+import net.minecraft.entity.Entity;
+import net.minecraft.entity.EquipmentSlot;
+import net.minecraft.entity.LivingEntity;
 import net.minecraft.entity.attribute.EntityAttributeInstance;
 import net.minecraft.entity.attribute.EntityAttributeModifier;
 import net.minecraft.entity.attribute.EntityAttributes;
+import net.minecraft.entity.damage.DamageSource;
+import net.minecraft.entity.damage.DamageTypes;
+import net.minecraft.entity.player.PlayerEntity;
+import net.minecraft.item.ItemStack;
 import net.minecraft.server.MinecraftServer;
 import net.minecraft.server.network.ServerPlayerEntity;
 import net.minecraft.server.world.ServerWorld;
+import net.minecraft.text.Text;
 import net.minecraft.util.Identifier;
+import net.minecraft.util.math.BlockPos;
+import net.minecraft.util.math.MathHelper;
 import net.minecraft.world.World;
-import net.minecraft.world.LightType;
 
-/** 呪物9種のパッシブ効果。強力なメリットとデメリットを両立させる。 */
+/** 呪物の効果と代償。 */
 public final class CurseEffects {
 
     private static final Identifier BERSERKER_DAMAGE = id("berserker_damage");
@@ -28,6 +39,18 @@ public final class CurseEffects {
     private static final Identifier VOID_DARK_DAMAGE = id("void_dark_damage");
     private static final Identifier VOID_LIGHT_ARMOR = id("void_light_armor");
     private static final Identifier DESTRUCTION_MINING = id("destruction_mining");
+    private static final Identifier GLASS_HEALTH = id("glass_health");
+    private static final double GLASS_CANNON_MAX_HEALTH = 10.0D;
+    private static final double DEFAULT_MAX_HEALTH = 20.0D;
+    private static final Identifier GLUTTONY_DAMAGE = id("gluttony_damage");
+    private static final Identifier VAMPIRE_SPEED = id("vampire_speed");
+    private static final Identifier REAPER_HEALTH = id("reaper_health");
+    private static final Identifier REAPER_DAMAGE = id("reaper_damage");
+    private static final Identifier MAD_MOON_DAMAGE = id("mad_moon_damage");
+    private static final Identifier MAD_MOON_SPEED = id("mad_moon_speed");
+    private static final Identifier SEALING_KNOCKBACK = id("sealing_knockback");
+    /** 暴食の指輪：撃破後の攻撃力上昇（+50%）。 */
+    public static final double GLUTTONY_DAMAGE_BONUS = 0.5D;
 
     private CurseEffects() {
     }
@@ -37,7 +60,7 @@ public final class CurseEffects {
     }
 
     public static boolean has(ServerPlayerEntity player, String id) {
-        if (player.getServer() == null) {
+        if (player == null || player.getServer() == null) {
             return false;
         }
         ServerWorld world = player.getServer().getWorld(World.OVERWORLD);
@@ -52,7 +75,6 @@ public final class CurseEffects {
         boolean glass = has(player, CurseRegistry.GLASS_CANNON);
         boolean solitude = has(player, CurseRegistry.SOLITUDE);
         boolean shackles = has(player, CurseRegistry.SHACKLES);
-        boolean destruction = has(player, CurseRegistry.DESTRUCTION);
 
         multiply(player, EntityAttributes.GENERIC_ATTACK_DAMAGE, BERSERKER_DAMAGE, berserker, 0.6D);
         multiply(player, EntityAttributes.GENERIC_ATTACK_DAMAGE, GLASS_DAMAGE, glass, 1.5D);
@@ -66,18 +88,45 @@ public final class CurseEffects {
         multiply(player, EntityAttributes.GENERIC_MOVEMENT_SPEED, SHACKLES_SPEED, shackles, -0.2D);
         multiply(player, EntityAttributes.GENERIC_FALL_DAMAGE_MULTIPLIER, SHACKLES_DAMAGE, false, 0.0D);
         add(player, EntityAttributes.GENERIC_KNOCKBACK_RESISTANCE, SHACKLES_KNOCKBACK, shackles, 1.0D);
-        multiply(player, EntityAttributes.PLAYER_BLOCK_BREAK_SPEED, DESTRUCTION_MINING, destruction, 401.0D);
+        multiply(player, EntityAttributes.PLAYER_BLOCK_BREAK_SPEED, DESTRUCTION_MINING, false, 0.0D);
 
         EntityAttributeInstance health = player.getAttributeInstance(EntityAttributes.GENERIC_MAX_HEALTH);
-        if (health != null && glass) {
-            if (health.getBaseValue() != 10.0D) {
-                health.setBaseValue(10.0D);
-                player.setHealth(Math.min(player.getHealth(), 10.0F));
+        if (health != null) {
+            if (!glass && health.getBaseValue() == GLASS_CANNON_MAX_HEALTH) {
+                health.setBaseValue(DEFAULT_MAX_HEALTH);
+            }
+            health.removeModifier(GLASS_HEALTH);
+            if (glass) {
+                health.addTemporaryModifier(new EntityAttributeModifier(GLASS_HEALTH,
+                        GLASS_CANNON_MAX_HEALTH - health.getBaseValue(), EntityAttributeModifier.Operation.ADD_VALUE));
+            }
+            if (player.getHealth() > player.getMaxHealth()) {
+                player.setHealth(player.getMaxHealth());
             }
         }
+
+        boolean reaper = has(player, CurseRegistry.REAPER_HOURGLASS);
+        multiply(player, EntityAttributes.GENERIC_MAX_HEALTH, REAPER_HEALTH, reaper, -0.3D);
+        if (reaper && player.getHealth() > player.getMaxHealth()) {
+            player.setHealth(player.getMaxHealth());
+        }
+        double missingHealth = (player.getMaxHealth() - player.getHealth())
+                / Math.max(1.0D, player.getMaxHealth() - 1.0D);
+        multiply(player, EntityAttributes.GENERIC_ATTACK_DAMAGE, REAPER_DAMAGE, reaper,
+                1.5D * MathHelper.clamp(missingHealth, 0.0D, 1.0D));
+
+        ServerWorld world = player.getServerWorld();
+        long dayTime = Math.floorMod(world.getTimeOfDay(), 24000L);
+        boolean hasDayCycle = world.getDimension().hasSkyLight() && !world.getDimension().hasFixedTime();
+        boolean night = dayTime >= 13000L && dayTime < 23000L;
+        multiply(player, EntityAttributes.GENERIC_MOVEMENT_SPEED, VAMPIRE_SPEED,
+                hasDayCycle && night && has(player, CurseRegistry.VAMPIRE_FANG), 0.3D);
+        boolean moon = hasDayCycle && has(player, CurseRegistry.MAD_MOON_NECKLACE);
+        multiply(player, EntityAttributes.GENERIC_ATTACK_DAMAGE, MAD_MOON_DAMAGE, moon, night ? 0.5D : -0.3D);
+        multiply(player, EntityAttributes.GENERIC_MOVEMENT_SPEED, MAD_MOON_SPEED, moon && night, 0.3D);
+        add(player, EntityAttributes.GENERIC_KNOCKBACK_RESISTANCE, SEALING_KNOCKBACK, abilitiesSealed(player), 1.0D);
     }
 
-    /** 虚無のランタン：明るさで補正を切り替える（毎Tick）。 */
     public static void onServerTick(MinecraftServer server) {
         for (ServerPlayerEntity player : server.getPlayerManager().getPlayerList()) {
             applyAttributes(player);
@@ -85,6 +134,7 @@ public final class CurseEffects {
             boolean dark = player.getWorld().getLightLevel(player.getBlockPos()) <= 7;
             multiply(player, EntityAttributes.GENERIC_ATTACK_DAMAGE, VOID_DARK_DAMAGE, lantern && dark, 1.0D);
             multiply(player, EntityAttributes.GENERIC_ARMOR, VOID_LIGHT_ARMOR, lantern && !dark, -0.5D);
+            tickSunlight(player);
         }
     }
 
@@ -108,10 +158,21 @@ public final class CurseEffects {
         if (instance == null) {
             return;
         }
-        instance.removeModifier(modifierId);
+        EntityAttributeModifier previous = instance.getModifier(modifierId);
+        if (previous != null) {
+            if (enabled && previous.value() == value && previous.operation() == operation) {
+                return;
+            }
+            instance.removeModifier(modifierId);
+        }
         if (enabled) {
             instance.addTemporaryModifier(new EntityAttributeModifier(modifierId, value, operation));
         }
+    }
+
+    /** 暴食の指輪：撃破後の一時的な攻撃力上昇を付け外しする。 */
+    public static void applyGluttonyFrenzy(ServerPlayerEntity player, boolean active) {
+        multiply(player, EntityAttributes.GENERIC_ATTACK_DAMAGE, GLUTTONY_DAMAGE, active, GLUTTONY_DAMAGE_BONUS);
     }
 
     /** 虚空のランタン：透明化判定用。 */
@@ -143,8 +204,84 @@ public final class CurseEffects {
         return has(player, CurseRegistry.SHACKLES);
     }
 
+    static void tickSunlight(ServerPlayerEntity player) {
+        ServerWorld world = player.getServerWorld();
+        if (!player.isAlive() || player.isCreative() || player.isSpectator()
+                || !has(player, CurseRegistry.VAMPIRE_FANG) || !world.isDay()
+                || !world.getDimension().hasSkyLight() || player.isWet()) {
+            return;
+        }
+        BlockPos eyes = BlockPos.ofFloored(player.getEyePos());
+        if (!world.isSkyVisible(eyes) || world.getPhototaxisFavor(eyes) <= 0.0F) {
+            return;
+        }
+        ItemStack helmet = player.getEquippedStack(EquipmentSlot.HEAD);
+        if (!helmet.isEmpty()) {
+            if (world.getTime() % 20L == 0L) {
+                helmet.damage(1, player, EquipmentSlot.HEAD);
+            }
+        } else {
+            player.setOnFireForTicks(40);
+        }
+    }
+
+    public static void afterDamage(LivingEntity victim, DamageSource source, float healthBefore) {
+        if (victim.getWorld().isClient() || source.isOf(DamageTypes.THORNS)
+                || !(source.getAttacker() instanceof LivingEntity attacker) || attacker == victim) {
+            return;
+        }
+        float healthLost = healthBefore - victim.getHealth();
+        if (healthLost <= 0.0F) {
+            return;
+        }
+        if (attacker instanceof ServerPlayerEntity player && has(player, CurseRegistry.VAMPIRE_FANG)) {
+            player.heal(healthLost * 0.25F);
+        }
+        if (victim instanceof ServerPlayerEntity player && has(player, CurseRegistry.ENVY_MIRROR)
+                && attacker.isAlive()) {
+            attacker.damage(new EnvyReflectionDamage(player), healthLost * 0.3F);
+        }
+    }
+
+    public static boolean isEnvyReflection(DamageSource source) {
+        return source instanceof EnvyReflectionDamage;
+    }
+
+    private static final class EnvyReflectionDamage extends DamageSource {
+        private EnvyReflectionDamage(ServerPlayerEntity player) {
+            super(player.getDamageSources().thorns(player).getTypeRegistryEntry(), player);
+        }
+    }
+
+    public static boolean blocksAlliedAid(ServerPlayerEntity player, Entity source) {
+        if (!has(player, CurseRegistry.ENVY_MIRROR)) {
+            return false;
+        }
+        if (source instanceof AreaEffectCloudEntity cloud) {
+            source = cloud.getOwner();
+        }
+        return source != null && source != player
+                && (player.isTeammate(source) || Warfare.isFriendly(player.getServerWorld().getServer(), source, player));
+    }
+
+    public static float healingMultiplier(ServerPlayerEntity player) {
+        return has(player, CurseRegistry.REAPER_HOURGLASS) ? 0.5F : 1.0F;
+    }
+
+    public static PlayerEntity.SleepFailureReason checkSleep(PlayerEntity player, BlockPos sleepingPos) {
+        if (player instanceof ServerPlayerEntity serverPlayer && has(serverPlayer, CurseRegistry.MAD_MOON_NECKLACE)) {
+            serverPlayer.sendMessage(Text.literal("§5[狂月の首飾り] 呪いで眠れません。"), true);
+            return PlayerEntity.SleepFailureReason.OTHER_PROBLEM;
+        }
+        return null;
+    }
+
+    public static boolean abilitiesSealed(ServerPlayerEntity player) {
+        return player != null && has(player, CurseRegistry.SEALING_CHAIN);
+    }
+
     /** 被ダメージ倍率（夜間襲撃は遺物側でも処理）。 */
     public static double incomingMultiplier(ServerPlayerEntity player) {
-        return has(player, CurseRegistry.SHACKLES) ? 0.4D : 1.0D;
+        return (has(player, CurseRegistry.SHACKLES) ? 0.4D : 1.0D) * (abilitiesSealed(player) ? 0.5D : 1.0D);
     }
 }

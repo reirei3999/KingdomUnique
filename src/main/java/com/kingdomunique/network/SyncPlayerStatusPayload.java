@@ -1,5 +1,6 @@
 package com.kingdomunique.network;
 
+import com.kingdomunique.registry.CurseRegistry;
 import net.fabricmc.fabric.api.networking.v1.PayloadTypeRegistry;
 import net.minecraft.network.RegistryByteBuf;
 import net.minecraft.network.codec.PacketCodec;
@@ -44,6 +45,10 @@ public record SyncPlayerStatusPayload(List<String> ownedIds, String abilityId,
 
     public static final Type<? super RegistryByteBuf, SyncPlayerStatusPayload> TYPE =
             PayloadTypeRegistry.playS2C().register(ID, CODEC);
+
+    public boolean abilitiesSealed() {
+        return ownedIds.contains(CurseRegistry.SEALING_CHAIN);
+    }
 
     @Override
     public Id<? extends CustomPayload> getId() {

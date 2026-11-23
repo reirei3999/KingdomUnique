@@ -24,8 +24,15 @@ public final class RewardUtil {
         if (stack.getCount() <= 0) {
             stack.setCount(1);
         }
-        player.giveItemStack(stack);
+        deliver(player, stack);
         return true;
+    }
+
+    /** インベントリに入りきらない報酬は足元に落とす。 */
+    public static void deliver(ServerPlayerEntity player, ItemStack stack) {
+        if (!player.giveItemStack(stack) && !stack.isEmpty()) {
+            player.dropItem(stack, false);
+        }
     }
 
     /** 能力／遺物／呪物のカテゴリに応じた正しい獲得メッセージ。 */

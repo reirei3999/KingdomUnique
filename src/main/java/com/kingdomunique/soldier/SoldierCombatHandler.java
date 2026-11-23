@@ -26,6 +26,7 @@ import java.util.List;
 /** 兵士が装備した武器（強化段階・遺物効果込み）で戦闘するAI。 */
 public final class SoldierCombatHandler {
 
+    private static final double PURSUIT_SPEED = 0.65D;
     private static final java.util.Set<VillagerEntity> SWEEPING = new java.util.HashSet<>();
 
     private SoldierCombatHandler() {
@@ -47,15 +48,12 @@ public final class SoldierCombatHandler {
     }
 
     private static void onWorldTick(ServerWorld world) {
-        // Gemini 修正: 0.5秒ごとに高頻度判定し、逃走AIを解除して確実に戦闘させる。
-        if (world.getTime() % 10L != 0L) {
-            return;
-        }
         for (Entity entity : world.iterateEntities()) {
             if (!(entity instanceof VillagerEntity soldier)
                     || !(soldier instanceof CitizenVillager citizen)
                     || !CitizenVillager.ROLE_SOLDIER.equals(citizen.ku$getRole())
-                    || !soldier.isAlive()) {
+                    || !soldier.isAlive()
+                    || com.kingdomunique.ability.TimeRulerAbility.isFrozen(soldier)) {
                 continue;
             }
             // 武器が消えないよう自動拾得を禁止する。
@@ -66,7 +64,9 @@ public final class SoldierCombatHandler {
             if (target == null) {
                 soldier.setTarget(null);
                 // 敵が視界にいない場合は移動命令・王追従・防衛を実行。
-                SoldierOrderManager.tickMovementOrder(world, soldier);
+                if (world.getTime() % 10L == 0L) {
+                    SoldierOrderManager.tickMovementOrder(world, soldier);
+                }
                 continue;
             }
             // バニラ村人の逃走状態を解除して戦闘ターゲットへロック。
@@ -93,7 +93,7 @@ public final class SoldierCombatHandler {
                     target.damage(world.getDamageSources().mobAttack(soldier), calculateWeaponDamage(weapon));
                 }
             } else {
-                soldier.getNavigation().startMovingTo(target, 1.05D);
+                soldier.getNavigation().startMovingTo(target, PURSUIT_SPEED);
             }
         }
     }
@@ -112,7 +112,9 @@ public final class SoldierCombatHandler {
                 }
             }
         }
-        return (float) Math.max(2.0D, damage * EnhancementUtil.multiplier(EnhancementUtil.getLevel(weapon)));
+        double factor = weapon.getItem() instanceof RangedWeaponItem
+                ? EnhancementUtil.multiplier(EnhancementUtil.getLevel(weapon)) : 1.0D;
+        return (float) Math.max(2.0D, damage * factor);
     }
 
     /** 弓・クロスボウ・トライデントの射撃（強化倍率を威力へ反映）。 */
@@ -153,7 +155,9 @@ public final class SoldierCombatHandler {
             soldier.heal(Math.max(1.0f, damageDealt * 0.25f));
             ServerWorld world = (ServerWorld) soldier.getWorld();
             for (HostileEntity extra : world.getEntitiesByClass(HostileEntity.class,
-                    new Box(target.getBlockPos()).expand(3.0D), e -> e != target && e.isAlive())) {
+                    new Box(target.getBlockPos()).expand(3.0D),
+                    e -> e != target && e.isAlive()
+                            && !com.kingdomunique.ability.AlliedMobManager.isAlly(e))) {
                 extra.damage(world.getDamageSources().mobAttack(soldier), damageDealt * 0.5f);
             }
         } finally {
@@ -164,7 +168,7 @@ public final class SoldierCombatHandler {
     private static LivingEntity findNearestEnemy(ServerWorld world, VillagerEntity soldier, double radius) {
         Box searchBox = new Box(soldier.getBlockPos()).expand(radius);
         List<HostileEntity> hostiles = world.getEntitiesByClass(HostileEntity.class,
-                searchBox, LivingEntity::isAlive);
+                searchBox, e -> e.isAlive() && !com.kingdomunique.ability.AlliedMobManager.isAlly(e));
         LivingEntity closest = null;
         double minDist = Double.MAX_VALUE;
         for (HostileEntity hostile : hostiles) {

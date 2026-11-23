@@ -3,6 +3,7 @@ package com.kingdomunique.ability;
 import com.kingdomunique.network.AbilityKeyPayload;
 import com.kingdomunique.registry.UniqueContentRegistry;
 import net.fabricmc.fabric.api.entity.event.v1.ServerLivingEntityEvents;
+import net.fabricmc.fabric.api.event.lifecycle.v1.ServerEntityEvents;
 import net.fabricmc.fabric.api.event.lifecycle.v1.ServerTickEvents;
 import net.fabricmc.fabric.api.networking.v1.ServerPlayNetworking;
 import net.fabricmc.fabric.api.networking.v1.ServerPlayConnectionEvents;
@@ -25,16 +26,21 @@ public final class AbilityEventHandler {
     }
 
     public static void register() {
+        TimeRulerAbility.register();
         ServerTickEvents.END_SERVER_TICK.register(AbilityEventHandler::onTick);
 
         ServerPlayConnectionEvents.JOIN.register((handler, sender, server) -> {
             AbilityPassives.applyAttributes(handler.getPlayer());
+            AbilityActions.restoreCooldowns(handler.getPlayer());
         });
 
         ServerPlayConnectionEvents.DISCONNECT.register((handler, server) -> {
+            AbilityPassives.clearGravity(handler.getPlayer());
             AbilityState.remove(handler.getPlayer().getUuid());
-            AlliedMobManager.forgetOwner(handler.getPlayer().getUuid());
         });
+
+        ServerEntityEvents.ENTITY_LOAD.register((entity, world) -> AlliedMobManager.restore(entity));
+        ServerEntityEvents.ENTITY_UNLOAD.register((entity, world) -> AlliedMobManager.forget(entity.getUuid()));
 
         ServerPlayNetworking.registerGlobalReceiver(AbilityKeyPayload.ID, (payload, context) -> {
             ServerPlayerEntity player = context.player();
@@ -50,6 +56,7 @@ public final class AbilityEventHandler {
     private static void onTick(MinecraftServer server) {
         AbilityPassives.onServerTick(server);
         AbilityActions.tickDecoys(server);
+        TimeRulerAbility.tick(server);
     }
 
     /** 絶対支配：敵対Mob撃破時に25%で味方化して蘇生する。 */

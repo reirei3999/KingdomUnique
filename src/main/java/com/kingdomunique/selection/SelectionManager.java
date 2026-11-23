@@ -45,6 +45,13 @@ public final class SelectionManager {
         openFromTrigger(player, ContentRegistry.Kind.CURSE, CURSE_OPTIONS);
     }
 
+    public static void onAncientCityChestOpened(ServerPlayerEntity player) {
+        if (pendingState(player).recordAncientCityTrigger(player.getUuid())) {
+            player.sendMessage(Text.literal("§6[KingdomUnique] 古代都市の宝箱を初めて開きました！遺物を1つ選べます。"), false);
+            openRandom(player, ContentRegistry.Kind.RELIC, RELIC_OPTIONS);
+        }
+    }
+
     private static void openFromTrigger(ServerPlayerEntity player, ContentRegistry.Kind kind, int count) {
         if (pendingState(player).recordTrigger(player.getUuid(), kind)) {
             openRandom(player, kind, count);
@@ -60,18 +67,33 @@ public final class SelectionManager {
             return;
         }
         List<String> options = ContentRegistry.randomDistinct(available, count);
-        pendingState(player).setPending(player.getUuid(), kind, options);
-        sendScreen(player, kind, options);
+        boolean hadPending = pendingState(player).hasPending(player.getUuid());
+        pendingState(player).enqueuePending(player.getUuid(), kind, options);
+        PendingSelectionState.Pending head = pendingState(player).getPending(player.getUuid());
+        if (head == null) {
+            return;
+        }
+        if (!hadPending) {
+            sendScreen(player, kind, options);
+        } else {
+            player.sendMessage(Text.literal("§e[KingdomUnique] 新しい選択を保留しました。現在の選択を確定すると表示されます。"), false);
+        }
     }
 
     /** 専用コマンド等から未選択分を再表示する。 */
     public static boolean reopen(ServerPlayerEntity player) {
-        PendingSelectionState.Pending pending = pendingState(player).getPending(player.getUuid());
-        if (pending == null) {
-            return false;
+        PendingSelectionState state = pendingState(player);
+        PendingSelectionState.Pending pending = state.getPending(player.getUuid());
+        boolean hadPending = pending != null;
+        while (pending != null) {
+            List<String> options = refreshOptions(player, pending);
+            if (!options.isEmpty()) {
+                sendScreen(player, pending.kind(), options);
+                break;
+            }
+            pending = state.getPending(player.getUuid());
         }
-        sendScreen(player, pending.kind(), refreshOptions(player, pending));
-        return true;
+        return hadPending;
     }
 
     /**
@@ -122,6 +144,9 @@ public final class SelectionManager {
                     + (options.isEmpty() ? "残りのカードはありません。" : "残りのカードから選び直してください。");
             player.sendMessage(Text.literal("§c[KingdomUnique] " + message), false);
             sendResult(player, kind, false, message, options);
+            if (options.isEmpty()) {
+                reopen(player);
+            }
             return;
         }
         state.clearPending(player.getUuid());
@@ -143,6 +168,7 @@ public final class SelectionManager {
                     + com.kingdomunique.registry.AbilityDescriptions.controlHint(chosenId)), false);
         }
         sendResult(player, kind, true, "獲得が確定しました。", List.of());
+        reopen(player);
     }
 
     static List<String> refreshOptions(ServerPlayerEntity player, PendingSelectionState.Pending pending) {
@@ -157,6 +183,9 @@ public final class SelectionManager {
             options = ContentRegistry.randomDistinct(data.getAvailableIds(ContentRegistry.idsOf(pending.kind())), count);
         }
         pendingState(player).setPending(player.getUuid(), pending.kind(), options);
+        if (options.isEmpty()) {
+            player.sendMessage(Text.literal("§c[KingdomUnique] このカテゴリの未取得アイテムは残っていません。"), false);
+        }
         return options;
     }
 

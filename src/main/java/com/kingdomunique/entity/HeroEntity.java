@@ -51,7 +51,8 @@ public final class HeroEntity extends PathAwareEntity {
         this.goalSelector.add(1, new MeleeAttackGoal(this, 1.2D, false));
         this.goalSelector.add(2, new HeroFollowGoal());
         this.goalSelector.add(3, new LookAtEntityGoal(this, PlayerEntity.class, 8.0F));
-        this.targetSelector.add(1, new ActiveTargetGoal<>(this, HostileEntity.class, true));
+        this.targetSelector.add(1, new ActiveTargetGoal<>(this, HostileEntity.class, true,
+                target -> !com.kingdomunique.ability.AlliedMobManager.isAlly(target)));
     }
 
     public HeroClass getHeroClass() {
@@ -170,7 +171,8 @@ public final class HeroEntity extends PathAwareEntity {
 
         if (heroClass == HeroClass.KNIGHT) {
             for (HostileEntity hostile : this.getWorld().getEntitiesByClass(HostileEntity.class,
-                    this.getBoundingBox().expand(3.5D), h -> h.isAlive())) {
+                    this.getBoundingBox().expand(3.5D),
+                    h -> h.isAlive() && !com.kingdomunique.ability.AlliedMobManager.isAlly(h))) {
                 hostile.damage(this.getDamageSources().mobAttack(this), 6.0F);
             }
             com.kingdomunique.war.Warfare.taunt(this);

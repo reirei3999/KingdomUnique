@@ -22,7 +22,7 @@ public final class StructureRotationUtil {
             case BARRACKS -> new int[]{11, 9, 11};
             case BLACKSMITH -> new int[]{11, 6, 9};
             case TOWN_HALL -> new int[]{11, 13, 15};
-            case WATCHTOWER -> new int[]{5, 12, 5};
+            case WATCHTOWER -> new int[]{5, 14, 5};
             case GATE -> new int[]{9, 7, 5};
             case WALL -> new int[]{7, 5, 3};
             case HERO_SANCTUARY -> new int[]{17, 13, 17};
@@ -32,6 +32,7 @@ public final class StructureRotationUtil {
             case ARSENAL -> new int[]{9, 6, 7};
             case TRAINING_GROUND -> new int[]{11, 4, 11};
             case ROYAL_PALACE -> new int[]{19, 16, 19};
+            case WAREHOUSE -> new int[]{7, 5, 7};
         };
     }
 

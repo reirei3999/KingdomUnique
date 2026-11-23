@@ -1,6 +1,7 @@
 package com.kingdomunique.item.unique;
 
 import net.fabricmc.fabric.api.event.player.AttackBlockCallback;
+import net.fabricmc.fabric.api.event.player.UseItemCallback;
 import net.minecraft.entity.player.PlayerEntity;
 import net.minecraft.item.Item;
 import net.minecraft.item.ItemStack;
@@ -28,7 +29,6 @@ public final class ApolloBowItem extends Item implements UniqueWeapon {
         return "apollo_bow";
     }
 
-    /** ブロックを攻撃した瞬間の左クリックも発射扱いにする。 */
     public static void registerEvents() {
         AttackBlockCallback.EVENT.register((player, world, hand, pos, direction) -> {
             if (world.isClient() || hand != Hand.MAIN_HAND
@@ -41,13 +41,24 @@ public final class ApolloBowItem extends Item implements UniqueWeapon {
             }
             return ActionResult.SUCCESS;
         });
+
+        // クライアントはクールタイム中もパケットを送る。サーバーだけ起爆を先に処理し、オフハンド操作を妨げない。
+        UseItemCallback.EVENT.register((player, world, hand) -> {
+            ItemStack stack = player.getStackInHand(hand);
+            if (world.isClient() || player.isSpectator() || !stack.isOf(UniqueWeapons.APOLLO_BOW)
+                    || !player.getItemCooldownManager().isCoolingDown(UniqueWeapons.APOLLO_BOW)) {
+                return TypedActionResult.pass(stack);
+            }
+            return stack.use(world, player, hand);
+        });
     }
 
     @Override
     public TypedActionResult<ItemStack> use(World world, PlayerEntity user, Hand hand) {
         ItemStack stack = user.getStackInHand(hand);
-        if (!world.isClient() && user instanceof ServerPlayerEntity player) {
-            UniqueWeaponManager.detonateLightArrow(player);
+        if (!world.isClient() && user instanceof ServerPlayerEntity player
+                && !UniqueWeaponManager.detonateLightArrow(player)) {
+            return TypedActionResult.pass(stack);
         }
         return TypedActionResult.success(stack);
     }

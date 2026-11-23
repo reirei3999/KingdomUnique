@@ -17,6 +17,8 @@ import java.util.concurrent.ConcurrentHashMap;
 /** 絶対支配によって味方化したMobの管理。 */
 public final class AlliedMobManager {
 
+    private static final String OWNER_TAG_PREFIX = "kingdomunique_ally_owner:";
+
     /** Mob UUID -> 所有者 UUID。 */
     private static final Map<UUID, UUID> ALLIES = new ConcurrentHashMap<>();
 
@@ -33,17 +35,42 @@ public final class AlliedMobManager {
 
     /** Mobを味方化し、カスタムAIを組み込む。 */
     public static void ally(MobEntity mob, ServerPlayerEntity owner) {
-        ALLIES.put(mob.getUuid(), owner.getUuid());
+        mob.getCommandTags().removeIf(tag -> tag.startsWith(OWNER_TAG_PREFIX));
         mob.addCommandTag("kingdomunique_ally");
+        mob.addCommandTag(OWNER_TAG_PREFIX + owner.getUuid());
+        mob.setPersistent();
+        install(mob, owner.getUuid());
+    }
+
+    public static void restore(Entity entity) {
+        if (!(entity instanceof MobEntity mob)) {
+            return;
+        }
+        for (String tag : mob.getCommandTags()) {
+            if (tag.startsWith(OWNER_TAG_PREFIX)) {
+                try {
+                    UUID ownerUuid = UUID.fromString(tag.substring(OWNER_TAG_PREFIX.length()));
+                    mob.setPersistent();
+                    install(mob, ownerUuid);
+                } catch (IllegalArgumentException ignored) {
+                }
+                return;
+            }
+        }
+    }
+
+    private static void install(MobEntity mob, UUID ownerUuid) {
+        ALLIES.put(mob.getUuid(), ownerUuid);
 
         // 既存のターゲット候補を排除し、こちらのAIだけにする。
         com.kingdomunique.mixin.MobEntityAccessor accessor = (com.kingdomunique.mixin.MobEntityAccessor) mob;
         accessor.kingdomUnique$targetSelector().clear(goal -> true);
-        accessor.kingdomUnique$goalSelector().add(1, new AlliedFollowGoal(mob, owner));
+        accessor.kingdomUnique$goalSelector().clear(goal -> goal instanceof AlliedFollowGoal);
+        accessor.kingdomUnique$targetSelector().add(1, new AlliedTargetGoal(mob));
+        accessor.kingdomUnique$goalSelector().add(1, new AlliedFollowGoal(mob, ownerUuid));
         mob.setTarget(null);
     }
 
-    /** 所有者が死亡的などで切断した際の解除。 */
     public static void forgetOwner(UUID ownerUuid) {
         ALLIES.entrySet().removeIf(entry -> ownerUuid.equals(entry.getValue()));
     }
@@ -60,6 +87,10 @@ public final class AlliedMobManager {
     public static boolean tryRevive(HostileEntity dead, ServerPlayerEntity owner, ServerWorld world) {
         NbtCompound nbt = new NbtCompound();
         dead.writeNbt(nbt);
+        nbt.putString("id", EntityType.getId(dead.getType()).toString());
+        nbt.remove("UUID");
+        nbt.remove("DeathTime");
+        nbt.remove("HurtTime");
         Vec3d pos = dead.getPos();
 
         Entity revived = EntityType.loadEntityWithPassengers(nbt, world, entity -> {
@@ -71,6 +102,8 @@ public final class AlliedMobManager {
         }
 
         mob.setHealth(Math.max(1.0F, mob.getMaxHealth() * 0.5F));
+        mob.setNoGravity(false);
+        mob.getCommandTags().removeIf(tag -> tag.startsWith("ku_raid_"));
         if (world.spawnEntity(mob)) {
             ally(mob, owner);
             return true;

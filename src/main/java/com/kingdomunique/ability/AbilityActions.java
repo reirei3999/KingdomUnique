@@ -1,6 +1,8 @@
 package com.kingdomunique.ability;
 
+import com.kingdomunique.data.AbilityUsageData;
 import com.kingdomunique.registry.AbilityDescriptions;
+import com.kingdomunique.effect.CurseEffects;
 import com.kingdomunique.registry.UniqueContentRegistry;
 import com.kingdomunique.util.EnhancementUtil;
 import net.minecraft.entity.EntityType;
@@ -40,6 +42,9 @@ public final class AbilityActions {
 
     /** Vキー：神匠の採掘範囲を切り替える。 */
     public static void handleModeSwitch(ServerPlayerEntity player) {
+        if (rejectSealed(player)) {
+            return;
+        }
         if (!UniqueContentRegistry.has(player, UniqueContentRegistry.DIVINE_SMITH)) {
             player.sendMessage(Text.literal("§7[KingdomUnique] モード切替可能な能力を持っていません。"), false);
             return;
@@ -57,6 +62,9 @@ public final class AbilityActions {
 
     /** Rキー：サーバー側で world.getTime() によるクールタイムを厳密に_checkして発動。 */
     public static void handleActivate(ServerPlayerEntity player) {
+        if (rejectSealed(player)) {
+            return;
+        }
         String ability = UniqueContentRegistry.getActiveAbility(player);
         if (ability == null) {
             if (!UniqueContentRegistry.getAbilities(player).isEmpty()) {
@@ -69,7 +77,8 @@ public final class AbilityActions {
 
         PlayerAbilityState state = AbilityState.get(player.getUuid());
         long now = player.getServerWorld().getTime();
-        long ready = state.getReadyTick(ability);
+        AbilityUsageData usage = usageData(player);
+        long ready = Math.max(state.getReadyTick(ability), usage.getReadyTick(player.getUuid(), ability));
         if (now < ready) {
             float remaining = (ready - now) / 20.0F;
             player.sendMessage(Text.literal("§c[KingdomUnique] クールタイム中です（残り "
@@ -83,12 +92,35 @@ public final class AbilityActions {
             case UniqueContentRegistry.SHADOW_STEP -> shadowStep(player);
             case UniqueContentRegistry.GRAVITY_CONTROL -> gravityControl(player);
             case UniqueContentRegistry.TRICKERY -> trickery(player);
+            case UniqueContentRegistry.TIME_RULER -> TimeRulerAbility.activate(player);
+            case UniqueContentRegistry.ALCHEMY -> AlchemyAbility.activate(player);
+            case UniqueContentRegistry.WEATHER_CONTROL -> WeatherControlAbility.activate(player);
             default -> false;
         };
         // 対象が見つからない等で失敗した場合はCTを消費しない。
         if (success) {
-            state.setReadyTick(ability, player.getServerWorld().getTime() + cooldown);
+            long readyAt = player.getServerWorld().getTime() + cooldown;
+            state.setReadyTick(ability, readyAt);
+            usage.setReadyTick(player.getUuid(), ability, readyAt);
         }
+    }
+
+    /** 再ログインでクールタイムが戻らないよう、保存済みの発動可能ティックを読み込む。 */
+    public static void restoreCooldowns(ServerPlayerEntity player) {
+        PlayerAbilityState state = AbilityState.get(player.getUuid());
+        usageData(player).getReadyTicks(player.getUuid()).forEach(state::setReadyTick);
+    }
+
+    private static AbilityUsageData usageData(ServerPlayerEntity player) {
+        return AbilityUsageData.getOrCreate(player.getServer().getWorld(World.OVERWORLD));
+    }
+
+    private static boolean rejectSealed(ServerPlayerEntity player) {
+        if (!CurseEffects.abilitiesSealed(player)) {
+            return false;
+        }
+        player.sendMessage(Text.literal("§5[封印の鎖] ユニーク能力は封印されています。"), true);
+        return true;
     }
 
     /** 空間跳躍：最大8マス先の安全な地点へ瞬間移動（5秒）。 */
@@ -168,11 +200,12 @@ public final class AbilityActions {
 
         UUID targetUuid = state.getGravityTarget();
         if (targetUuid != null) {
-            ServerWorld world = player.getServerWorld();
-            if (world.getEntity(targetUuid) instanceof LivingEntity held) {
+            LivingEntity held = state.getGravityHeldEntity();
+            if (held != null) {
                 AbilityPassives.releaseGravity(player, held);
+            } else {
+                AbilityPassives.clearGravity(player);
             }
-            state.setGravityTarget(null);
             player.sendMessage(Text.literal("§d[重力操作] 拘束を解放しました。"), true);
             return true;
         }
@@ -191,6 +224,7 @@ public final class AbilityActions {
         }
         target.setNoGravity(true);
         state.setGravityTarget(target.getUuid());
+        state.setGravityHeldEntity(target);
         state.setGravityReleaseAt(now + 5000L);
         player.sendMessage(Text.literal("§d[重力操作] " + target.getName().getString() + " を拘束しました。"), true);
         return true;

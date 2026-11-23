@@ -7,12 +7,10 @@ import net.fabricmc.fabric.api.networking.v1.ServerPlayConnectionEvents;
 import net.fabricmc.fabric.api.networking.v1.ServerPlayNetworking;
 import net.minecraft.server.MinecraftServer;
 import net.minecraft.server.network.ServerPlayerEntity;
-import net.minecraft.server.world.ServerWorld;
 import net.minecraft.text.Text;
 
 import java.util.HashMap;
 import java.util.Iterator;
-import java.util.List;
 import java.util.Map;
 import java.util.UUID;
 
@@ -60,16 +58,9 @@ public final class SelectionResendHandler {
 
     /** 未確定選択肢を再送する（他プレイヤーに取得されたIDは除外）。 */
     private static void resendPending(ServerPlayerEntity player) {
-        ServerWorld world = player.getServerWorld();
-        PendingSelectionState state = PendingSelectionState.get(world);
-        PendingSelectionState.Pending pending = state.getPending(player.getUuid());
-        if (pending == null) {
-            return;
-        }
-
-        List<String> options = SelectionManager.refreshOptions(player, pending);
-        if (ServerPlayNetworking.canSend(player, OpenSelectionPayload.ID)) {
-            ServerPlayNetworking.send(player, new OpenSelectionPayload(pending.kind(), options));
+        if (SelectionManager.reopen(player)
+                && PendingSelectionState.get(player.getServerWorld()).hasPending(player.getUuid())
+                && ServerPlayNetworking.canSend(player, OpenSelectionPayload.ID)) {
             player.sendMessage(Text.literal("§6[未完了の選択] 前回未確定だった選択画面を再表示しました。"), false);
         }
     }
