@@ -40,7 +40,7 @@ public final class SelectionEventHandler {
     private SelectionEventHandler() {
     }
 
-    /** /ku に選択・外交サブコマンドを追加する（ModCommands から1度だけ呼ばれる）。 */
+    /** /ku に選択サブコマンドを追加する（外交コマンドは DiplomacyCommand に一本化）。 */
     public static void registerCommands(LiteralArgumentBuilder<ServerCommandSource> ku) {
         ku
                     .then(manualSelection("select", ContentRegistry.Kind.ABILITY)
@@ -49,33 +49,7 @@ public final class SelectionEventHandler {
                             .then(manualSelection("curse", ContentRegistry.Kind.CURSE)))
                     .then(manualSelection("ability", ContentRegistry.Kind.ABILITY))
                     .then(manualSelection("relic", ContentRegistry.Kind.RELIC))
-                    .then(manualSelection("curse", ContentRegistry.Kind.CURSE))
-                    .then(CommandManager.literal("ally")
-                            .then(CommandManager.argument("target",
-                                    net.minecraft.command.argument.EntityArgumentType.player())
-                                    .executes(context -> {
-                                        ServerPlayerEntity self = context.getSource().getPlayer();
-                                        ServerPlayerEntity target =
-                                                net.minecraft.command.argument.EntityArgumentType.getPlayer(context, "target");
-                                        if (self == null || self == target) {
-                                            return 0;
-                                        }
-                                        com.kingdomunique.war.Warfare.setAlly(self, target);
-                                        return 1;
-                                    })))
-                    .then(CommandManager.literal("war")
-                            .then(CommandManager.argument("target",
-                                    net.minecraft.command.argument.EntityArgumentType.player())
-                                    .executes(context -> {
-                                        ServerPlayerEntity self = context.getSource().getPlayer();
-                                        ServerPlayerEntity target =
-                                                net.minecraft.command.argument.EntityArgumentType.getPlayer(context, "target");
-                                        if (self == null || self == target) {
-                                            return 0;
-                                        }
-                                        com.kingdomunique.war.Warfare.declareWar(self, target);
-                                        return 1;
-                                    })));
+                    .then(manualSelection("curse", ContentRegistry.Kind.CURSE));
     }
 
     private static LiteralArgumentBuilder<ServerCommandSource> manualSelection(String name, ContentRegistry.Kind kind) {

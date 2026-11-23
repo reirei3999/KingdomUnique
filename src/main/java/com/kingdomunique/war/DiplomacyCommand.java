@@ -42,12 +42,10 @@ public final class DiplomacyCommand {
             sender.sendMessage(Text.literal("§eすでに " + target.getName().getString() + " と戦争状態です。"), false);
             return 0;
         }
-        state.setRelation(sender.getUuid(), target.getUuid(), KingdomDiplomacyState.Relation.WAR);
         state.clearAllyRequest(sender.getUuid());
         state.clearAllyRequest(target.getUuid());
-        sender.getServer().getPlayerManager().broadcast(Text.literal(
-                "§4§l[宣戦布告] §c" + sender.getName().getString() + " §fの王国が §c"
-                        + target.getName().getString() + " §fの王国へ宣戦布告しました！両国の兵士・英雄が交戦状態に入ります！"), false);
+        // マージ修正: Warfare が DiplomacyData / KingdomDiplomacyState / 名前板 / 公告を一括更新する。
+        Warfare.declareWar(sender, target);
         return 1;
     }
 
@@ -64,10 +62,8 @@ public final class DiplomacyCommand {
         }
         if (state.hasAllyRequestFrom(target.getUuid(), sender.getUuid())) {
             state.clearAllyRequest(target.getUuid());
-            state.setRelation(sender.getUuid(), target.getUuid(), KingdomDiplomacyState.Relation.ALLY);
-            sender.getServer().getPlayerManager().broadcast(Text.literal(
-                    "§b§l[同盟締結] §f" + sender.getName().getString() + " と "
-                            + target.getName().getString() + " の王国が同盟を結びました！"), false);
+            // マージ修正: Warfare が DiplomacyData / KingdomDiplomacyState / 名前板 / 通知を一括更新する。
+            Warfare.setAlly(sender, target);
             return 1;
         }
         state.sendAllyRequest(sender.getUuid(), target.getUuid());
@@ -89,6 +85,8 @@ public final class DiplomacyCommand {
             return 0;
         }
         state.setRelation(sender.getUuid(), target.getUuid(), KingdomDiplomacyState.Relation.NEUTRAL);
+        // マージ修正: 中立化＝同盟解除として DiplomacyData にも反映する。
+        DiplomacyData.getOrCreate(world).declareWar(sender.getUuid(), target.getUuid());
         sender.getServer().getPlayerManager().broadcast(Text.literal(
                 "§e[外交変動] §f" + sender.getName().getString() + " と " + target.getName().getString()
                         + " の関係が『中立（停戦）』になりました。"), false);

@@ -52,17 +52,20 @@ public final class KingdomWarTargetHelper {
         if (candidate == null || !candidate.isAlive() || candidate == self) {
             return false;
         }
-        KingdomDiplomacyState diplomacy = KingdomDiplomacyState.get(world);
+        // マージ修正: 外交判定は既存の DiplomacyData（デフォルト敵対・同盟のみ友好）に統一。
+        // /ku war / ally は DiplomacyData を更新するため、兵士の索敵へ即座に反映される。
+        DiplomacyData diplomacy = DiplomacyData.getOrCreate(world);
 
-        // プレイヤー（王）：戦争状態なら攻撃対象。スペクテイター/クリエイティブは除外。
+        // プレイヤー（王）：同盟でなければ攻撃対象。スペクテイター/クリエイティブは除外。
         if (candidate instanceof ServerPlayerEntity targetPlayer) {
             if (targetPlayer.isCreative() || targetPlayer.isSpectator() || myKingUuid == null) {
                 return false;
             }
-            return diplomacy.isAtWar(myKingUuid, targetPlayer.getUuid());
+            UUID targetUuid = targetPlayer.getUuid();
+            return !myKingUuid.equals(targetUuid) && !diplomacy.isAllied(myKingUuid, targetUuid);
         }
 
-        // 他国の兵士・英雄：戦争状態なら攻撃対象（非戦闘員の一般国民は狙わない）。
+        // 他国の兵士・英雄：同盟でなければ攻撃対象（非戦闘員の一般国民は狙わない）。
         UUID targetOwner = getOwnerUuid(candidate);
         if (targetOwner != null) {
             if (myKingUuid == null) {
@@ -71,7 +74,8 @@ public final class KingdomWarTargetHelper {
             boolean combatant = candidate instanceof HeroEntity
                     || candidate instanceof CitizenVillager c
                     && CitizenVillager.ROLE_SOLDIER.equals(c.ku$getRole());
-            return combatant && diplomacy.isAtWar(myKingUuid, targetOwner);
+            return combatant && !myKingUuid.equals(targetOwner)
+                    && !diplomacy.isAllied(myKingUuid, targetOwner);
         }
 
         // 敵対モンスター（絶対支配で味方化した Mob は除外）。

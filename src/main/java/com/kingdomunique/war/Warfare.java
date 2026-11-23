@@ -122,6 +122,9 @@ public final class Warfare {
 
     public static void setAlly(ServerPlayerEntity a, ServerPlayerEntity b) {
         DiplomacyData.getOrCreate(a.getServerWorld()).ally(a.getUuid(), b.getUuid());
+        // マージ修正: /ku diplomacy 一覧用の KingdomDiplomacyState も同期する。
+        KingdomDiplomacyState.get(a.getServerWorld())
+                .setRelation(a.getUuid(), b.getUuid(), KingdomDiplomacyState.Relation.ALLY);
         com.kingdomunique.kingdom.KingdomManager.refreshCitizenNameplates(a.getServerWorld(), a.getUuid(), b.getUuid());
         com.kingdomunique.kingdom.KingdomManager.refreshCitizenNameplates(b.getServerWorld(), b.getUuid(), a.getUuid());
         a.sendMessage(Text.literal("§6[外交] " + b.getName().getString() + " と同盟を結んだ。"), false);
@@ -130,6 +133,9 @@ public final class Warfare {
 
     public static void declareWar(ServerPlayerEntity a, ServerPlayerEntity b) {
         DiplomacyData.getOrCreate(a.getServerWorld()).declareWar(a.getUuid(), b.getUuid());
+        // マージ修正: /ku diplomacy 一覧用の KingdomDiplomacyState も同期する。
+        KingdomDiplomacyState.get(a.getServerWorld())
+                .setRelation(a.getUuid(), b.getUuid(), KingdomDiplomacyState.Relation.WAR);
         com.kingdomunique.kingdom.KingdomManager.refreshCitizenNameplates(a.getServerWorld(), a.getUuid(), b.getUuid());
         com.kingdomunique.kingdom.KingdomManager.refreshCitizenNameplates(b.getServerWorld(), b.getUuid(), a.getUuid());
         a.getServer().getPlayerManager().broadcast(
