@@ -20,6 +20,8 @@ public final class KuButton extends ButtonWidget {
     private final Text category;
     private final BooleanSupplier selected;
     private final Tooltip fullLabel;
+    private final boolean primary;
+    private final boolean labelTooltip;
 
     private KuButton(Builder builder) {
         super(builder.x, builder.y, builder.width, builder.height, builder.message,
@@ -29,6 +31,8 @@ public final class KuButton extends ButtonWidget {
         icon = builder.icon;
         category = builder.category;
         selected = builder.selected;
+        primary = builder.primary;
+        labelTooltip = builder.labelTooltip;
         fullLabel = Tooltip.of(builder.message);
     }
 
@@ -39,15 +43,23 @@ public final class KuButton extends ButtonWidget {
     @Override
     protected void renderWidget(DrawContext context, int mouseX, int mouseY, float delta) {
         TextRenderer renderer = MinecraftClient.getInstance().textRenderer;
-        boolean highlighted = active && (isHovered() || isFocused() || selected.getAsBoolean());
-        int fill = !active ? KuTheme.INSET : highlighted ? KuTheme.HEADER : KuTheme.CARD;
+        boolean chosen = selected.getAsBoolean();
+        boolean highlighted = active && (isHovered() || isFocused() || chosen);
+        int fill = !active ? KuTheme.INSET : primary ? accent : highlighted ? KuTheme.HEADER : KuTheme.CARD;
         context.fill(getX(), getY(), getX() + width, getY() + height, fill);
         KuTheme.drawBorder(context, getX(), getY(), width, height, highlighted ? accent : KuTheme.BORDER);
-        int color = active ? textColor : KuTheme.MUTED;
+        if (chosen) context.fill(getX() + 2, getY() + 2, getX() + 4, getY() + height - 2, accent);
+        if (active && isFocused()) {
+            KuTheme.drawBorder(context, getX() + 3, getY() + 3, width - 6, height - 6,
+                    primary ? KuTheme.INSET : KuTheme.HOVER);
+        }
+        int color = !active ? KuTheme.MUTED : primary ? KuTheme.INSET : textColor;
         Text label = active ? getMessage() : Text.literal(getMessage().getString().replaceAll("§[0-9A-FK-ORa-fk-or]", ""));
         int labelWidth = Math.max(1, width - (category == null ? 12 : 32));
         Text fitted = fitLabel(renderer, label, labelWidth);
-        setTooltip(renderer.getWidth(label) > labelWidth ? fullLabel : null);
+        setTooltip(!active && primary ? Tooltip.of(Text.literal(getMessage().getString().equals("確定中…")
+                ? "サーバーからの応答を待っています。" : "カードを1枚選ぶと確定できます。"))
+                : labelTooltip && renderer.getWidth(label) > labelWidth ? fullLabel : null);
         if (category == null) {
             context.drawCenteredTextWithShadow(renderer, fitted, getX() + width / 2,
                     getY() + (height - 8) / 2, color);
@@ -83,6 +95,8 @@ public final class KuButton extends ButtonWidget {
         private ItemStack icon = ItemStack.EMPTY;
         private Text category;
         private BooleanSupplier selected = () -> false;
+        private boolean primary;
+        private boolean labelTooltip = true;
 
         private Builder(Text message, PressAction action) {
             this.message = message;
@@ -104,6 +118,18 @@ public final class KuButton extends ButtonWidget {
 
         public Builder textColor(int color) {
             textColor = color;
+            return this;
+        }
+
+        /** One filled primary action; focus still has its own inset outline. */
+        public Builder primary() {
+            primary = true;
+            return this;
+        }
+
+        /** Use when the full label is already visible in an adjacent detail panel. */
+        public Builder labelTooltip(boolean enabled) {
+            labelTooltip = enabled;
             return this;
         }
 
